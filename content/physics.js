@@ -1,0 +1,148 @@
+// The chase. Position interpolates smoothly at rAF rate (~60fps); the sprite frame-steps at
+// 8fps over in ui-overlay/sprites. Timing uses the rAF timestamp (performance.now clock).
+//
+// THE FAIRNESS RULE IS STRUCTURAL HERE: collision is only evaluated while phase === 'Lunge',
+// which can only be entered through a full 'Telegraph' phase. There is no code path to a catch
+// without a telegraph. Do not add one.
+window.NB_PHYSICS = (() => {
+  const T = () => window.NB_TUNABLES;
+  const S = () => window.NB_STATE;
+
+  let rafId = null;
+  let lastTs = null;
+  let speedNow = 0;        // current speed px/s (accel-ramped toward the phase target)
+  let lungeInMs = 0;       // countdown until the next lunge attempt
+  let phaseLeftMs = 0;     // time left in Telegraph/Lunge/Recovery
+  let lockedDir = null;    // lunge direction, locked at telegraph START — that's what makes dodging real
+  let animName = 'walk';
+  let animStartTs = 0;
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  function dirTo(from, to) {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const d = Math.hypot(dx, dy);
+    return d < 0.001 ? { x: 0, y: 0 } : { x: dx / d, y: dy / d };
+  }
+
+  const nextLungeDelay = () =>
+    T().LUNGE_INTERVAL_MIN_MS + Math.random() * (T().LUNGE_INTERVAL_MAX_MS - T().LUNGE_INTERVAL_MIN_MS);
+
+  function setAnim(name, ts) {
+    if (animName !== name) { animName = name; animStartTs = ts; }
+  }
+
+  function startHunt(fromPos) {
+    stop();
+    S().set({
+      state: 'Hunting', phase: 'Creep', revenant: false,
+      survivalMs: 0, pursuerPos: { x: fromPos.x, y: fromPos.y },
+    });
+    speedNow = 0;
+    lungeInMs = nextLungeDelay();
+    lastTs = null;
+    animName = 'walk';
+    animStartTs = 0;
+    NB_UI.spriteShow();
+    console.log('[Neckbeard] HUNT BEGINS', { encounterId: S().encounterId, from: fromPos });
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = null;
+    lastTs = null;
+  }
+
+  function tick(ts) {
+    const s = S(), t = T();
+    if (s.state !== 'Hunting') { rafId = null; return; }
+    rafId = requestAnimationFrame(tick);
+
+    if (animStartTs === 0) animStartTs = ts;
+    const dt = lastTs === null ? 0 : Math.min(ts - lastTs, 100); // cap: tab-out gaps neither count as survival nor teleport him
+    lastTs = ts;
+    if (dt === 0) return;
+    if (s.paused || document.hidden) return; // clock frozen while hidden — no off-screen deaths
+
+    s.survivalMs += dt;
+
+    // Escalation: he dies a little and comes back paler and faster (Revenant stub; the Waifu is M2)
+    if (!s.revenant && s.survivalMs >= t.REVENANT_AT_SURVIVAL_MS) {
+      s.set({ revenant: true });
+      console.log('[Neckbeard] REVENANT', { survivalMs: Math.round(s.survivalMs) });
+    }
+
+    // Phase machinery
+    if (s.phase === 'Creep') {
+      lungeInMs -= dt;
+      if (lungeInMs <= 0 && s.cursor) {
+        s.set({ phase: 'Telegraph' });
+        phaseLeftMs = t.LUNGE_TELEGRAPH_MS;
+        lockedDir = dirTo(s.pursuerPos, s.cursor);
+        setAnim('windup', ts);
+      }
+    } else {
+      phaseLeftMs -= dt;
+      if (phaseLeftMs <= 0) {
+        if (s.phase === 'Telegraph') {
+          s.set({ phase: 'Lunge' });
+          phaseLeftMs = t.LUNGE_CATCH_WINDOW_MS;
+          setAnim('lunge', ts);
+        } else if (s.phase === 'Lunge') {
+          s.set({ phase: 'Recovery' });
+          phaseLeftMs = t.LUNGE_RECOVERY_MS;
+          setAnim('walk', ts);
+        } else if (s.phase === 'Recovery') {
+          s.set({ phase: 'Creep' });
+          lungeInMs = nextLungeDelay();
+        }
+      }
+    }
+
+    // Movement
+    const phaseMult =
+      s.phase === 'Lunge' ? t.LUNGE_SPEED_MULT :
+      s.phase === 'Telegraph' ? t.LUNGE_TELEGRAPH_SPEED_MULT :
+      s.phase === 'Recovery' ? t.LUNGE_RECOVERY_SPEED_MULT : 1;
+    const targetSpeed = t.CREEP_SPEED_PX_S * phaseMult * (s.revenant ? t.REVENANT_SPEED_MULT : 1);
+    speedNow += (targetSpeed - speedNow) * Math.min(1, dt / t.CREEP_ACCEL_MS);
+
+    let dir = null;
+    if (s.phase === 'Lunge') {
+      dir = lockedDir;
+    } else if (s.cursor) {
+      // Outside a lunge he looms just out of reach instead of standing on the cursor
+      if (dist(s.pursuerPos, s.cursor) > t.CREEP_STANDOFF_PX) dir = dirTo(s.pursuerPos, s.cursor);
+    }
+    if (dir) {
+      const step = speedNow * dt / 1000;
+      s.pursuerPos.x = clamp(s.pursuerPos.x + dir.x * step, 0, innerWidth);
+      s.pursuerPos.y = clamp(s.pursuerPos.y + dir.y * step, 0, innerHeight);
+    }
+
+    // Collision — ONLY inside the catch window. Hitbox-OR over pursuers (M2 Waifu drops in here).
+    if (s.phase === 'Lunge' && s.cursor) {
+      const r = t.HITBOX_RADIUS_PX * t.LUNGE_HITBOX_MULT + t.CURSOR_GRACE_MARGIN_PX;
+      const pursuers = [s.pursuerPos, s.pursuerWaifuPos].filter(Boolean);
+      if (pursuers.some(pp => dist(pp, s.cursor) <= r)) {
+        stop();
+        NB_MACHINE.toCaught();
+        return;
+      }
+    }
+
+    NB_UI.spriteMoveTo(s.pursuerPos.x, s.pursuerPos.y);
+    NB_UI.spriteRender(animName, ts - animStartTs, { revenant: s.revenant });
+  }
+
+  window.addEventListener('pointermove', (e) => {
+    const s = S();
+    if (!s.cursor) s.cursor = { x: 0, y: 0 };
+    s.cursor.x = e.clientX;
+    s.cursor.y = e.clientY;
+  }, { passive: true });
+
+  return { startHunt, stop };
+})();

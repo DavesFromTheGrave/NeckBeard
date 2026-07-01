@@ -22,6 +22,8 @@ window.NB_DEBUG = (() => {
     }
   }
 
+  // Deliberately bypasses the telegraph — it exists to test the game-over screen and is
+  // the ONE sanctioned exception to the fairness rule. Never wire it to gameplay.
   function forceCatch() {
     NB_MACHINE.toCaught();
   }

@@ -44,6 +44,8 @@ window.NB_PHYSICS = (() => {
     lastTs = null;
     animName = 'walk';
     animStartTs = 0;
+    phaseLeftMs = 0;
+    lockedDir = null;
     NB_UI.spriteShow();
     console.log('[Neckbeard] HUNT BEGINS', { encounterId: S().encounterId, from: fromPos });
     rafId = requestAnimationFrame(tick);
@@ -57,6 +59,9 @@ window.NB_PHYSICS = (() => {
 
   function tick(ts) {
     const s = S(), t = T();
+    // Extension reloaded while this page was open: this context is orphaned — kill the
+    // ghost chase instead of running a game that can no longer save anything.
+    if (!chrome.runtime || !chrome.runtime.id) { stop(); return; }
     if (s.state !== 'Hunting') { rafId = null; return; }
     rafId = requestAnimationFrame(tick);
 
@@ -143,6 +148,11 @@ window.NB_PHYSICS = (() => {
     s.cursor.x = e.clientX;
     s.cursor.y = e.clientY;
   }, { passive: true });
+
+  // Clock hygiene: after a hidden stretch or a bfcache restore, restart dt from zero
+  // rather than counting any of the gap as play time.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lastTs = null; });
+  window.addEventListener('pageshow', () => { lastTs = null; });
 
   return { startHunt, stop };
 })();

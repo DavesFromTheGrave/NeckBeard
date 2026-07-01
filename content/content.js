@@ -11,8 +11,17 @@
 
   NB_UI.init();
 
+  // SPA route changes and bfcache restores don't re-run content scripts;
+  // make sure the overlay host is still in the tree on both.
+  window.addEventListener('pageshow', () => NB_UI.ensureAttached());
+  window.addEventListener('popstate', () => NB_UI.ensureAttached());
+
   chrome.storage.local.get(['nb_personalBestMs'], (d) => {
-    NB_STATE.set({ personalBestMs: d.nb_personalBestMs || 0 });
+    if (chrome.runtime.lastError) {
+      console.warn('[Neckbeard] storage read failed:', chrome.runtime.lastError.message);
+      return;
+    }
+    NB_STATE.set({ personalBestMs: (d && d.nb_personalBestMs) || 0 });
   });
 
   NB_SPAWN.checkAndMaybeSpawn();

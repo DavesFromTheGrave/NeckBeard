@@ -78,6 +78,9 @@ window.NB_UI = (() => {
       }
       .nb-go-btn:hover { background: #9a2828; }
       .nb-go-hint { margin-top: 12px; font-size: 12px; color: #888; }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; }
+      }
     `;
   }
 
@@ -272,6 +275,12 @@ window.NB_UI = (() => {
     if (goBackdrop) { goBackdrop.remove(); goBackdrop = null; }
   }
 
+  // Aggressive SPA rewrites can detach the host node. Re-append the SAME node — never
+  // re-init: the canvas reference must stay stable for the M2 sprite-sheet swap.
+  function ensureAttached() {
+    if (host && !host.isConnected) document.documentElement.appendChild(host);
+  }
+
   // ---- Panic / fullscreen ----
   function setHiddenAll(hidden) {
     // inline style on the host itself — a class would need a :host() rule to reach it
@@ -279,7 +288,7 @@ window.NB_UI = (() => {
   }
 
   return {
-    init,
+    init, ensureAttached,
     spriteShow, spriteHide, spriteMoveTo, spriteRender,
     showDoor, hideDoor, showTell, hideTell,
     showCaught, hideCaught,

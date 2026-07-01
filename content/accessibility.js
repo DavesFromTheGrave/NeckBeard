@@ -15,6 +15,8 @@ window.NB_ACCESS = (() => {
   }
 
   window.addEventListener('keydown', (e) => {
+    // !e.ctrlKey is load-bearing: AltGr on international layouts reports altKey+ctrlKey
+    // together, so without it, typing AltGr+P would toggle the panic hide.
     if (e.altKey && !e.ctrlKey && !e.shiftKey && e.code === window.NB_TUNABLES.PANIC_KEY_CODE && !e.repeat) {
       e.preventDefault();
       hiddenBy.panic = !hiddenBy.panic;

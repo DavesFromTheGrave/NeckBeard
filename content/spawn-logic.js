@@ -6,7 +6,18 @@ window.NB_SPAWN = (() => {
 
   let despawnTimer = null;
 
-  const storageGet = (keys) => new Promise((res) => chrome.storage.local.get(keys, res));
+  const storageGet = (keys) => new Promise((res) => chrome.storage.local.get(keys, (d) => {
+    if (chrome.runtime.lastError) {
+      console.warn('[Neckbeard] storage read failed:', chrome.runtime.lastError.message);
+      res({});
+      return;
+    }
+    res(d);
+  }));
+  const storageSet = (obj) => new Promise((res) => chrome.storage.local.set(obj, () => {
+    if (chrome.runtime.lastError) console.warn('[Neckbeard] storage write failed:', chrome.runtime.lastError.message);
+    res();
+  }));
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
   function isDenylisted(host) {
@@ -46,7 +57,12 @@ window.NB_SPAWN = (() => {
   }
 
   async function spawn(forced) {
-    chrome.storage.local.set({
+    const pos = pickDoorPos();
+    // State transition first, then the (awaited) cooldown write, then any UI:
+    // a tab closed mid-tell can't re-roll the dice on reload, and a failed
+    // transition never records a cooldown for an encounter that didn't start.
+    if (!NB_MACHINE.toLurking(pos)) return;
+    await storageSet({
       nb_lastSpawnTimestamp: Date.now(),
       nb_lastSpawnDomain: location.hostname,
     });
@@ -54,10 +70,8 @@ window.NB_SPAWN = (() => {
     if (!(window.NB_ACCESS && window.NB_ACCESS.reducedMotion)) {
       NB_UI.showTell(T().PRE_SPAWN_TELL_MS);
       await new Promise((res) => setTimeout(res, T().PRE_SPAWN_TELL_MS));
+      if (NB_STATE.state !== 'Lurking') return; // state moved on during the tell (debug hotkeys can do this)
     }
-
-    const pos = pickDoorPos();
-    if (!NB_MACHINE.toLurking(pos)) return;
 
     console.log('[Neckbeard] SPAWN', {
       encounterId: NB_STATE.encounterId,

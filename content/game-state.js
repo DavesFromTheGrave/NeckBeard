@@ -51,7 +51,11 @@ window.NB_MACHINE = {
     const isNewBest = survivalMs > NB_STATE.personalBestMs;
     const bestMs = Math.max(survivalMs, NB_STATE.personalBestMs);
     NB_STATE.set({ state: 'Caught', personalBestMs: bestMs });
-    if (isNewBest) chrome.storage.local.set({ nb_personalBestMs: Math.round(survivalMs) });
+    if (isNewBest) {
+      chrome.storage.local.set({ nb_personalBestMs: Math.round(survivalMs) }, () => {
+        if (chrome.runtime.lastError) console.warn('[Neckbeard] best-time write failed:', chrome.runtime.lastError.message);
+      });
+    }
     NB_UI.showCaught({
       survivalMs,
       bestMs,

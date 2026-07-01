@@ -42,6 +42,7 @@ window.NB_DEBUG = (() => {
       encounterId: s.encounterId,
       reducedMotion: window.NB_ACCESS.reducedMotion,
     });
+    console.log('[Neckbeard] PHYSICS', NB_PHYSICS.debugInfo());
     console.log('[Neckbeard] TUNABLES', window.NB_TUNABLES);
   }
 

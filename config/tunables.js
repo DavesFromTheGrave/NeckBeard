@@ -5,7 +5,8 @@ window.NB_TUNABLES = {
   // Pursuit
   CREEP_SPEED_PX_S: 150,          // base chase speed; the "slow but relentless" number
   CREEP_ACCEL_MS: 200,            // ramp to full speed — the waking-up feel
-  CREEP_STANDOFF_PX: 26,          // outside lunges he looms just out of reach instead of sitting on the cursor
+  PRESSURE_RANGE_PX: 140,         // once he's this close, being cornered accelerates the strike:
+  PRESSURE_LUNGE_CAP_MS: 900,     // ...the next lunge fires within this. A parked cursor is a death sentence.
 
   // Lunge cycle — the fairness rule lives in these numbers.
   // Collision physically exists ONLY during the catch window, never outside it.
@@ -38,6 +39,15 @@ window.NB_TUNABLES = {
   // Escalation
   REVENANT_AT_SURVIVAL_MS: 60000, // survive this long and he comes back paler and faster
   REVENANT_SPEED_MULT: 1.3,
+
+  // Cross-page pursuit (the false-safety beat). An active hunt follows you between pages:
+  // short commute on the same site, longer to a brand-new domain — and the grace shrinks
+  // the longer a single chase has been running.
+  COMMUTE_SAME_SITE_MS: 8000,
+  COMMUTE_NEW_DOMAIN_MS: 25000,
+  COMMUTE_SHRINK_FLOOR: 0.35,     // grace never drops below this fraction
+  COMMUTE_SHRINK_OVER_MS: 600000, // linear shrink to the floor across 10 min of chase
+  HUNT_SAVE_INTERVAL_MS: 2000,    // how often the live hunt checkpoints to storage
 
   // Game over
   GAMEOVER_INPUT_DELAY_MS: 600,   // swallow the click/keypress you were mid-motion on when caught

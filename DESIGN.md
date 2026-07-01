@@ -41,7 +41,7 @@ Technical: native low-res sprite sheets, scaled up by integer multiples only (`i
 Single backbone stat — resist adding parallel meters unless a mechanic is fundamentally different in kind (a "forum bait meter" idea was folded into this instead of standing alone).
 
 Three trigger categories:
-1. **Domain-category** — curated allowlist of "cursed" domains/subreddits (not content-scanning, for privacy/trust reasons) raises it; wholesome categories (r/aww, recipe blogs) lower it. 4chan carries the single highest risk of any site.
+1. **Domain-category** — curated allowlist of "cursed" domains/subreddits (not content-scanning, for privacy/trust reasons) raises it; wholesome categories (r/aww, recipe blogs) lower it. **Incentive rule (Dave, 2026-07-01): adult/edgy sites are ordinary terrain — fair game to play on, but NO site gets special rewards, exclusive collectibles, or headline risk status that gives players a reason to seek it out.**
 2. **Content-based** — e.g. pages with a looping GIF over a size threshold spawn cursed-GIF mini-portals that raise it.
 3. **Time-based** — staying on one domain too long without switching (Badger Badger Badger hazard) raises it; a Mushroom event pauses it, a Snake event triggers a lunge (with a brief hiss/rattle telegraph — never untelegraphed).
 
@@ -80,7 +80,7 @@ Visual payoff: This Is Fine dog ambient tint at moderate levels, Trogdor the Bur
 
 Three spawn-condition categories, kept explicit rather than defaulting everything to one kind:
 
-- **Site-gated** (domain match): Newgrounds, Reddit, Discord, 4chan, plus GitHub README hidden collectibles.
+- **Site-gated** (domain match): Newgrounds, Reddit, Discord, plus GitHub README hidden collectibles.
 - **Behavior-gated** (specific player action): Clippy (typing in a form field).
 - **Evergreen/no-fixed-home** (random, unconditional): Ghost of Vine, meme-mashup ultra-rares (e.g. Doge+Nyan = rainbow trail that briefly reverses his direction).
 
@@ -89,11 +89,11 @@ Three spawn-condition categories, kept explicit rather than defaulting everythin
 - **Reddit** — Golden Upvote: banks to the collection AND nudges the Chaos Meter down (counterweight to cursed subreddits raising it). Rare tier.
 - **Discord** — summons a small swarm of Wumpus-esque helper pings that harass Neckbeard ("call the mods on the mod"). Rare tier.
 - **Vine** — doesn't exist as a live site anymore, so deliberately not domain-gated: "The Ghost of Vine," legendary evergreen spawn with no fixed home. Nostalgia mode (retro filters + 8-bit skin on archived/old pages, e.g. Wayback Machine captures) doubles as its natural trigger.
-- **4chan** — highest Chaos Meter risk of any site, paired with the best reward: a legendary "Anon" collectible (default green poster silhouette).
+- ~~4chan "Anon" legendary~~ — CUT (2026-07-01): violated the incentive rule above; no site-specific reward may point players at edgy/adult sites. The "Anon" silhouette concept may return later as an evergreen spawn with no domain gate.
 - **Clippy** — behavior-gated, not a site: triggers while typing in any form field, recreates "it looks like you're writing X," subverted so accepting it actually helps (reveals distance/direction, or auto-uses the best held item).
 - **GitHub READMEs** — hidden collectibles in code blocks.
 
-**Rarity tiers**: Common (Mountain Dew), Uncommon (Scumbag Hat), Rare (Newgrounds/Reddit/Discord), Legendary (4chan/Vine/Techno Viking), and a top "Rare Pepe" tier that's Pepe's own name/flavor for the legendary rank generally — Pepe also carries an active effect (temporary chaos resistance), not just score.
+**Rarity tiers**: Common (Mountain Dew), Uncommon (Scumbag Hat), Rare (Newgrounds/Reddit/Discord), Legendary (Vine/Techno Viking), and a top "Rare Pepe" tier that's Pepe's own name/flavor for the legendary rank generally — Pepe also carries an active effect (temporary chaos resistance), not just score.
 
 **Stackable rage-face collectibles**: a separate sub-category using faces NOT already claimed by Neckbeard's own emotion-bubble system — Yao Ming, Me Gusta, etc. — build combos.
 
@@ -124,7 +124,7 @@ Slow, deliberate hand-near-chin/collar gesture is good general idle-animation re
 - **Panic key**: single hotkey hides all UI for N seconds (presentations, screen-shares).
 - **Denylist**: auto-suppress on banking, medical, and government domains by default.
 - **Audio**: Dave's explicit call — real/exact clips are fine wherever he wants, including licensed material. Not a topic to re-raise.
-- Declined: rotten.com as a reference (real graphic content, not a stylized format — no clean way to collectible-ify it). Its legitimate underlying ideas are already covered: shock-link pranks = Rickroll Trap, "genuinely dangerous corner of the internet" = 4chan's Chaos Meter risk.
+- Declined: rotten.com as a reference (real graphic content, not a stylized format — no clean way to collectible-ify it). Its legitimate underlying ideas are already covered: shock-link pranks = Rickroll Trap, "genuinely dangerous corner of the internet" = the cursed-domain Chaos category generally (no single site is singled out — see the incentive rule).
 
 ## Still needs Dave's input
 

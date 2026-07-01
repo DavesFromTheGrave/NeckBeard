@@ -16,6 +16,7 @@ window.NB_PHYSICS = (() => {
   let lockedDir = null;    // lunge direction, locked at telegraph START — that's what makes dodging real
   let animName = 'walk';
   let animStartTs = 0;
+  let lungeCount = 0;   // diagnostics: how many telegraphs have fired this hunt
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -33,11 +34,13 @@ window.NB_PHYSICS = (() => {
     if (animName !== name) { animName = name; animStartTs = ts; }
   }
 
-  function startHunt(fromPos) {
+  function startHunt(fromPos, opts) {
     stop();
     S().set({
-      state: 'Hunting', phase: 'Creep', revenant: false,
-      survivalMs: 0, pursuerPos: { x: fromPos.x, y: fromPos.y },
+      state: 'Hunting', phase: 'Creep',
+      revenant: !!(opts && opts.revenant),
+      survivalMs: (opts && opts.resumeSurvivalMs) || 0,
+      pursuerPos: { x: fromPos.x, y: fromPos.y },
     });
     speedNow = 0;
     lungeInMs = nextLungeDelay();
@@ -47,7 +50,8 @@ window.NB_PHYSICS = (() => {
     phaseLeftMs = 0;
     lockedDir = null;
     NB_UI.spriteShow();
-    console.log('[Neckbeard] HUNT BEGINS', { encounterId: S().encounterId, from: fromPos });
+    NB_MACHINE.saveHunt(true);
+    console.log('[Neckbeard] HUNT BEGINS', { encounterId: S().encounterId, from: fromPos, resumed: !!(opts && opts.resumeSurvivalMs) });
     rafId = requestAnimationFrame(tick);
   }
 
@@ -58,20 +62,38 @@ window.NB_PHYSICS = (() => {
   }
 
   function tick(ts) {
+    if (S().state !== 'Hunting') { rafId = null; return; }
+    rafId = requestAnimationFrame(tick);
+    update(ts);
+  }
+
+  let simulating = false;
+
+  function update(ts) {
     const s = S(), t = T();
     // Extension reloaded while this page was open: this context is orphaned — kill the
     // ghost chase instead of running a game that can no longer save anything.
     if (!chrome.runtime || !chrome.runtime.id) { stop(); return; }
-    if (s.state !== 'Hunting') { rafId = null; return; }
-    rafId = requestAnimationFrame(tick);
+    if (s.state !== 'Hunting') return;
 
     if (animStartTs === 0) animStartTs = ts;
-    const dt = lastTs === null ? 0 : Math.min(ts - lastTs, 100); // cap: tab-out gaps neither count as survival nor teleport him
+    // Cap: tab-out gaps neither count as survival nor teleport him. Floor at 0: a timestamp
+    // that goes backwards (clock mixing, platform weirdness) must never run the clock in reverse.
+    const dt = lastTs === null ? 0 : Math.max(0, Math.min(ts - lastTs, 100));
     lastTs = ts;
     if (dt === 0) return;
-    if (s.paused || document.hidden) return; // clock frozen while hidden — no off-screen deaths
+    if (!simulating && (s.paused || document.hidden)) return; // clock frozen while hidden — no off-screen deaths
 
     s.survivalMs += dt;
+    NB_MACHINE.saveHunt(); // throttled checkpoint so the hunt survives navigation
+
+    // Insurance: if his position ever goes non-finite (bad math anywhere upstream), re-seat
+    // at the top edge and keep hunting — the alternative is a sprite frozen forever mid-chase.
+    if (!Number.isFinite(s.pursuerPos.x) || !Number.isFinite(s.pursuerPos.y)) {
+      console.warn('[Neckbeard] position went non-finite; re-seating');
+      s.pursuerPos.x = (innerWidth || 800) / 2;
+      s.pursuerPos.y = -40;
+    }
 
     // Escalation: he dies a little and comes back paler and faster (Revenant stub; the Waifu is M2)
     if (!s.revenant && s.survivalMs >= t.REVENANT_AT_SURVIVAL_MS) {
@@ -82,10 +104,15 @@ window.NB_PHYSICS = (() => {
     // Phase machinery
     if (s.phase === 'Creep') {
       lungeInMs -= dt;
+      // Cornered pressure: in close range the strike comes fast — parking the cursor never works
+      if (s.cursor && lungeInMs > t.PRESSURE_LUNGE_CAP_MS && dist(s.pursuerPos, s.cursor) <= t.PRESSURE_RANGE_PX) {
+        lungeInMs = t.PRESSURE_LUNGE_CAP_MS;
+      }
       if (lungeInMs <= 0 && s.cursor) {
         s.set({ phase: 'Telegraph' });
         phaseLeftMs = t.LUNGE_TELEGRAPH_MS;
         lockedDir = dirTo(s.pursuerPos, s.cursor);
+        lungeCount++;
         setAnim('windup', ts);
       }
     } else {
@@ -117,14 +144,14 @@ window.NB_PHYSICS = (() => {
     let dir = null;
     if (s.phase === 'Lunge') {
       dir = lockedDir;
-    } else if (s.cursor) {
-      // Outside a lunge he looms just out of reach instead of standing on the cursor
-      if (dist(s.pursuerPos, s.cursor) > t.CREEP_STANDOFF_PX) dir = dirTo(s.pursuerPos, s.cursor);
+    } else if (s.cursor && dist(s.pursuerPos, s.cursor) > 2) {
+      dir = dirTo(s.pursuerPos, s.cursor); // no standoff: he walks right onto the cursor and looms
     }
     if (dir) {
       const step = speedNow * dt / 1000;
-      s.pursuerPos.x = clamp(s.pursuerPos.x + dir.x * step, 0, innerWidth);
-      s.pursuerPos.y = clamp(s.pursuerPos.y + dir.y * step, 0, innerHeight);
+      // "|| 4096": a hidden/zero-sized viewport (background preview tabs) must not pin him to (0,0)
+      s.pursuerPos.x = clamp(s.pursuerPos.x + dir.x * step, 0, innerWidth || 4096);
+      s.pursuerPos.y = clamp(s.pursuerPos.y + dir.y * step, 0, innerHeight || 4096);
     }
 
     // Collision — ONLY inside the catch window. Hitbox-OR over pursuers (M2 Waifu drops in here).
@@ -154,5 +181,41 @@ window.NB_PHYSICS = (() => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) lastTs = null; });
   window.addEventListener('pageshow', () => { lastTs = null; });
 
-  return { startHunt, stop };
+  // Last checkpoint on the way out the door — the hunt follows you to the next page.
+  window.addEventListener('pagehide', () => {
+    if (S().state === 'Hunting') NB_MACHINE.saveHunt(true);
+  });
+
+  // Test-only: advance the game deterministically on synthetic time (a hidden tab never
+  // fires rAF, and real time makes tests flaky). Never called by gameplay code.
+  function simulate(totalMs, stepMs) {
+    stepMs = stepMs || 16.7;
+    simulating = true;
+    try {
+      if (lastTs === null) lastTs = 0;
+      let ts = lastTs;
+      for (let el = 0; el < totalMs && S().state === 'Hunting'; el += stepMs) {
+        ts += stepMs;
+        update(ts);
+      }
+    } finally {
+      simulating = false;
+      lastTs = null; // synthetic time must never be compared against the real rAF clock
+    }
+  }
+
+  // Diagnostics for Ctrl+Alt+L: if "he never lunges" ever comes back, this says whether the
+  // phase machinery is cycling (lungeCount grows -> collision problem) or frozen (timer problem).
+  function debugInfo() {
+    return {
+      lungeCount,
+      lungeInMs: Math.round(lungeInMs),
+      phaseLeftMs: Math.round(phaseLeftMs),
+      speedNow: Math.round(speedNow),
+      lockedDir,
+      rafActive: rafId !== null,
+    };
+  }
+
+  return { startHunt, stop, simulate, debugInfo };
 })();

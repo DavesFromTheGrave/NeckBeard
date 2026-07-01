@@ -3,7 +3,7 @@
   "name": "Neckbeard",
   "version": "0.1.0",
   "description": "There is no escape.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background/background.js"

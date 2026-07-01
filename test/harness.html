@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Neckbeard test harness</title></head>
+<body style="height:3000px; font-family: monospace;">
+  <h1>Neckbeard test harness</h1>
+  <p id="status">loading…</p>
+  <p>Drive via console/eval: set <code>NB_STATE.cursor</code>, call <code>NB_DEBUG.*</code>.</p>
+
+  <script src="/test/chrome-shim.js"></script>
+  <script src="/config/tunables.js"></script>
+  <script src="/content/game-state.js"></script>
+  <script src="/content/sprites.js"></script>
+  <script src="/content/physics.js"></script>
+  <script src="/content/ui-overlay.js"></script>
+  <script src="/content/spawn-logic.js"></script>
+  <script src="/content/accessibility.js"></script>
+  <script src="/debug/debug-harness.js"></script>
+  <script>
+    // Mirrors content.js minus the pointer/viewport gates (headless-friendly).
+    NB_UI.init();
+    window.addEventListener('pageshow', () => NB_UI.ensureAttached());
+    window.addEventListener('popstate', () => NB_UI.ensureAttached());
+    chrome.storage.local.get(['nb_personalBestMs'], (d) => {
+      NB_STATE.set({ personalBestMs: (d && d.nb_personalBestMs) || 0 });
+    });
+    document.getElementById('status').textContent = 'harness ready';
+  </script>
+</body>
+</html>

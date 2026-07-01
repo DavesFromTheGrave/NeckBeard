@@ -24,5 +24,5 @@
     NB_STATE.set({ personalBestMs: (d && d.nb_personalBestMs) || 0 });
   });
 
-  NB_SPAWN.checkAndMaybeSpawn();
+  NB_SPAWN.boot(); // resumes an active pursuit if one follows you; otherwise rolls the rare spawn
 })();

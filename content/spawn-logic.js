@@ -95,5 +95,51 @@ window.NB_SPAWN = (() => {
     if (despawnTimer) { clearTimeout(despawnTimer); despawnTimer = null; }
   }
 
-  return { checkAndMaybeSpawn, cancelDespawn };
+  // ---- Cross-page pursuit ----
+  // Page-load entry point: an active hunt in storage means he's already after you —
+  // no new doors, just the commute. Otherwise, normal rare-spawn rules.
+  async function boot() {
+    const d = await storageGet(['nb_activeHunt']);
+    if (d.nb_activeHunt && d.nb_activeHunt.encounterId) {
+      scheduleResume(d.nb_activeHunt);
+      return;
+    }
+    checkAndMaybeSpawn();
+  }
+
+  function scheduleResume(hunt) {
+    const sameSite = hunt.lastDomain === location.hostname;
+    const base = sameSite ? T().COMMUTE_SAME_SITE_MS : T().COMMUTE_NEW_DOMAIN_MS;
+    // The false-safety beat: a new domain buys more grace — but the longer this one chase
+    // has run, the less grace anywhere buys you.
+    const shrink = Math.max(T().COMMUTE_SHRINK_FLOOR, 1 - hunt.survivalMs / T().COMMUTE_SHRINK_OVER_MS);
+    const delay = Math.round(base * shrink);
+    console.log('[Neckbeard] COMMUTE — he is on his way', {
+      from: hunt.lastDomain, to: location.hostname, sameSite,
+      delayMs: delay, survivalSoFarMs: hunt.survivalMs, revenant: !!hunt.revenant,
+    });
+    setTimeout(() => {
+      if (NB_STATE.state !== 'Dormant') return;
+      NB_STATE.set({ encounterId: hunt.encounterId });
+      NB_PHYSICS.startHunt(pickEdgePos(), {
+        resumeSurvivalMs: hunt.survivalMs,
+        revenant: !!hunt.revenant,
+      });
+      console.log('[Neckbeard] HE FOUND YOU', { domain: location.hostname });
+    }, delay);
+  }
+
+  // He arrives from off-page, not out of thin air.
+  function pickEdgePos() {
+    const w = innerWidth || 1200, h = innerHeight || 800;
+    const edges = [
+      { x: Math.random() * w, y: h + 40 },
+      { x: -40, y: Math.random() * h },
+      { x: w + 40, y: Math.random() * h },
+      { x: Math.random() * w, y: -40 },
+    ];
+    return edges[Math.floor(Math.random() * edges.length)];
+  }
+
+  return { boot, checkAndMaybeSpawn, cancelDespawn };
 })();

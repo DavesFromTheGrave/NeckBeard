@@ -29,6 +29,31 @@ window.NB_MACHINE = {
     return (crypto.randomUUID ? crypto.randomUUID() : 'nb-' + Math.random().toString(36).slice(2));
   },
 
+  // ---- Cross-page pursuit: the active hunt lives in storage until he catches you ----
+  _lastHuntSaveTs: 0,
+  saveHunt(force) {
+    if (NB_STATE.state !== 'Hunting') return;
+    const now = Date.now();
+    if (!force && now - this._lastHuntSaveTs < NB_TUNABLES.HUNT_SAVE_INTERVAL_MS) return;
+    this._lastHuntSaveTs = now;
+    chrome.storage.local.set({
+      nb_activeHunt: {
+        encounterId: NB_STATE.encounterId,
+        survivalMs: Math.round(NB_STATE.survivalMs),
+        revenant: NB_STATE.revenant,
+        lastDomain: location.hostname,
+        savedAt: now,
+      },
+    }, () => {
+      if (chrome.runtime.lastError) console.warn('[Neckbeard] hunt checkpoint failed:', chrome.runtime.lastError.message);
+    });
+  },
+  clearHunt() {
+    chrome.storage.local.set({ nb_activeHunt: null }, () => {
+      if (chrome.runtime.lastError) console.warn('[Neckbeard] hunt clear failed:', chrome.runtime.lastError.message);
+    });
+  },
+
   toLurking(doorPos) {
     if (NB_STATE.state !== 'Dormant') return false;
     NB_STATE.set({ state: 'Lurking', doorPos, encounterId: this.newEncounterId() });
@@ -51,6 +76,7 @@ window.NB_MACHINE = {
     const isNewBest = survivalMs > NB_STATE.personalBestMs;
     const bestMs = Math.max(survivalMs, NB_STATE.personalBestMs);
     NB_STATE.set({ state: 'Caught', personalBestMs: bestMs });
+    this.clearHunt(); // the catch is the only thing that ends a pursuit
     if (isNewBest) {
       chrome.storage.local.set({ nb_personalBestMs: Math.round(survivalMs) }, () => {
         if (chrome.runtime.lastError) console.warn('[Neckbeard] best-time write failed:', chrome.runtime.lastError.message);

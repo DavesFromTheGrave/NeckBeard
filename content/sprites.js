@@ -14,7 +14,8 @@ window.NB_SPRITES = (() => {
         walk:    { frames: 6, loop: true  },
         windup:  { frames: 4, loop: false },
         lunge:   { frames: 3, loop: false },
-        stumble: { frames: 3, loop: false }, // unused in M1; part of the sheet contract
+        stumble: { frames: 3, loop: false },
+        climb:   { frames: 4, loop: true  }, // AvA beat: scaling page furniture
       },
     },
   };
@@ -52,11 +53,12 @@ window.NB_SPRITES = (() => {
     const px = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * 2, y * 2, w * 2, h * 2); };
 
     const f = frameIdx;
-    let dy = 0, lean = 0, charge = 0, legPhase = 0;
+    let dy = 0, lean = 0, charge = 0, legPhase = 0, armsUp = false;
     if (animName === 'walk')    { dy = f % 2; legPhase = f % 3; }
     if (animName === 'windup')  { dy = 2 + Math.min(f, 2); lean = -2; charge = Math.min(f, 3); }
     if (animName === 'lunge')   { dy = 1; lean = 3 + f; legPhase = 1; }
     if (animName === 'stumble') { dy = 4 + f * 2; lean = 2; }
+    if (animName === 'climb')   { dy = f % 2; legPhase = f % 3; armsUp = true; }
 
     const cx = 12 + lean;
 
@@ -79,11 +81,18 @@ window.NB_SPRITES = (() => {
     // belly overhang
     px(cx - 6, 18 + dy, 13, 2, p.skinShade);
 
-    // arms; keyboard held like a brick in the right hand
-    px(cx - 8, 11 + dy, 2, 6, p.skin);
-    px(cx + 7, 11 + dy, 2, 6, p.skin);
-    px(cx + 6, 16 + dy, 6, 3, p.keyboard);
-    px(cx + 7, 17 + dy, 4, 1, p.keys);
+    // arms; keyboard held like a brick in the right hand (overhead while climbing)
+    if (armsUp) {
+      px(cx - 7, 5 + dy, 2, 6, p.skin);
+      px(cx + 6, 5 + dy, 2, 6, p.skin);
+      px(cx - 1, 1 + dy, 6, 3, p.keyboard);
+      px(cx, 2 + dy, 4, 1, p.keys);
+    } else {
+      px(cx - 8, 11 + dy, 2, 6, p.skin);
+      px(cx + 7, 11 + dy, 2, 6, p.skin);
+      px(cx + 6, 16 + dy, 6, 3, p.keyboard);
+      px(cx + 7, 17 + dy, 4, 1, p.keys);
+    }
 
     // jeans + alternating legs
     px(cx - 5, 20 + dy, 11, 4, p.jeans);

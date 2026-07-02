@@ -186,8 +186,15 @@ window.NB_PHYSICS = (() => {
       s.pursuerPos.x >= m.wall.x && s.pursuerPos.x <= m.wall.x + m.wall.w &&
       s.pursuerPos.y >= m.wall.y && s.pursuerPos.y <= m.wall.y + m.wall.h;
     const wallMult = inWall ? 0.15 : 1;
+    // AvA terrain: crossing dense page furniture costs him REAL time — blocked, never
+    // stopped (Dave's rule). Direction is sacred; time is what terrain takes.
+    let dress = null;
+    if ((s.phase === 'Creep' || s.phase === 'Recovery') && window.NB_TERRAIN) {
+      dress = NB_TERRAIN.pathDress(s.pursuerPos);
+    }
+    const terrainMult = dress && dress.slowMult ? dress.slowMult : 1;
     const targetSpeed = t.CREEP_SPEED_PX_S * phaseMult *
-      (s.revenant ? t.REVENANT_SPEED_MULT : 1) * chaos.speed * slowMult * hasteMult * hatMult * wallMult;
+      (s.revenant ? t.REVENANT_SPEED_MULT : 1) * chaos.speed * slowMult * hasteMult * hatMult * wallMult * terrainMult;
     speedNow += (targetSpeed - speedNow) * Math.min(1, dt / t.CREEP_ACCEL_MS);
 
     let dir = null;
@@ -234,7 +241,31 @@ window.NB_PHYSICS = (() => {
       }
     }
 
-    NB_UI.spriteMoveTo(s.pursuerPos.x, s.pursuerPos.y);
+    // ---- AvA presentation: anim beats + occlusion. NEVER hides a telegraph (fairness:
+    // clip off during Telegraph/Lunge — "bursting out from behind the article image" is
+    // the free scare).
+    let lift = 0;
+    if ((s.phase === 'Creep' || s.phase === 'Recovery') && window.NB_TERRAIN) {
+      if (now < scrollBeatUntil) {
+        setAnim('stumble', ts);
+      } else if (dress) {
+        lift = dress.visualLift || 0;
+        if (dress.anim) setAnim(dress.anim, ts);
+      } else if (animName === 'climb' || animName === 'stumble') {
+        setAnim('walk', ts);
+      }
+      const t2 = NB_SPRITES.TIERS.base, sc = T().SPRITE_SCALE;
+      NB_UI.spriteSetClip(NB_TERRAIN.occlusionClip({
+        x: s.pursuerPos.x - (t2.cellW * sc) / 2,
+        y: s.pursuerPos.y - (t2.cellH * sc) / 2,
+        w: t2.cellW * sc,
+        h: t2.cellH * sc,
+      }));
+    } else {
+      NB_UI.spriteSetClip(null);
+    }
+
+    NB_UI.spriteMoveTo(s.pursuerPos.x, s.pursuerPos.y, lift);
     NB_UI.spriteRender(animName, ts - animStartTs, { revenant: s.revenant, decoy: decoyLive });
   }
 
@@ -243,6 +274,23 @@ window.NB_PHYSICS = (() => {
     if (!s.cursor) s.cursor = { x: 0, y: 0 };
     s.cursor.x = e.clientX;
     s.cursor.y = e.clientY;
+  }, { passive: true });
+
+  // Scroll physics: yank the page hard under his feet and he stumbles. Pure personality —
+  // the world he lives in just moved, and he reacts like it.
+  let scrollBeatUntil = 0;
+  let lastScrollY = null, lastScrollTs = 0;
+  window.addEventListener('scroll', () => {
+    const nowTs = performance.now();
+    if (lastScrollY !== null) {
+      const v = Math.abs(scrollY - lastScrollY) / Math.max(1, nowTs - lastScrollTs) * 1000;
+      if (v > 1800 && S().state === 'Hunting' && S().phase === 'Creep') {
+        scrollBeatUntil = nowTs + 600;
+        if (Math.random() < 0.12 && window.NB_FX) NB_FX.bubble('sprite', 'STOP. SCROLLING.');
+      }
+    }
+    lastScrollY = scrollY;
+    lastScrollTs = nowTs;
   }, { passive: true });
 
   // Clock hygiene: after a hidden stretch or a bfcache restore, restart dt from zero

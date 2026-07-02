@@ -110,10 +110,17 @@ window.NB_UI = (() => {
   function spriteShow() { spriteWrap.style.display = 'block'; lastRenderKey = ''; }
   function spriteHide() { spriteWrap.style.display = 'none'; }
 
-  function spriteMoveTo(x, y) {
+  function spriteMoveTo(x, y, visualLift) {
     const t = NB_SPRITES.TIERS.base, sc = T().SPRITE_SCALE;
+    // visualLift is cosmetic only (hops/edge-riding) — the hitbox lives at (x, y) regardless
     spriteWrap.style.transform =
-      `translate3d(${Math.round(x - (t.cellW * sc) / 2)}px, ${Math.round(y - (t.cellH * sc) / 2)}px, 0)`;
+      `translate3d(${Math.round(x - (t.cellW * sc) / 2)}px, ${Math.round(y - (t.cellH * sc) / 2 - (visualLift || 0))}px, 0)`;
+  }
+
+  // Occlusion: clip the sprite where a real page element overlaps it, and the element
+  // shows through — he's "behind" the page's own furniture without touching the page.
+  function spriteSetClip(clip) {
+    spriteWrap.style.clipPath = clip || '';
   }
 
   function spriteRender(animName, elapsedMs, opts) {
@@ -305,7 +312,7 @@ window.NB_UI = (() => {
 
   return {
     init, ensureAttached, layer,
-    spriteShow, spriteHide, spriteMoveTo, spriteRender,
+    spriteShow, spriteHide, spriteMoveTo, spriteRender, spriteSetClip,
     showDoor, hideDoor, showTell, hideTell,
     showCaught, hideCaught,
     setHiddenAll,

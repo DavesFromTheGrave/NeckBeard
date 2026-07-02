@@ -6,10 +6,22 @@
   <p id="status">loading…</p>
   <p>Drive via console/eval: set <code>NB_STATE.cursor</code>, call <code>NB_DEBUG.*</code>.</p>
 
+  <!-- fake page furniture for the terrain scanner -->
+  <article style="width:480px;height:200px;background:#dde;margin:24px;padding:8px;">
+    <h2>A very real article</h2>
+    <p>Content he can climb on. <a href="#nowhere">A hyperlink to vault</a>.</p>
+    <button>A button</button>
+  </article>
+  <figure style="width:300px;height:220px;background:#cba;margin:24px;">
+    <img alt="big test image" src="data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==" style="width:300px;height:220px;display:block;">
+  </figure>
+  <section style="width:600px;height:160px;background:#dcd;margin:24px;">More terrain.</section>
+
   <script src="/test/chrome-shim.js"></script>
   <script src="/config/tunables.js"></script>
   <script src="/content/game-state.js"></script>
   <script src="/content/sprites.js"></script>
+  <script src="/content/terrain.js"></script>
   <script src="/content/chaos.js"></script>
   <script src="/content/items.js"></script>
   <script src="/content/physics.js"></script>
@@ -22,6 +34,7 @@
   <script>
     // Mirrors content.js minus the pointer/viewport gates (headless-friendly).
     NB_UI.init();
+    NB_TERRAIN.start();
     NB_CHAOS.start();
     NB_PICKUPS.start();
     window.addEventListener('pageshow', () => NB_UI.ensureAttached());

@@ -49,7 +49,14 @@ window.NB_SPAWN = (() => {
   }
 
   function pickDoorPos() {
-    // basement doors belong in the lower half of the page
+    // Best case: the door leans against a real element on the page (AvA — it belongs there).
+    if (window.NB_TERRAIN) {
+      const spot = NB_TERRAIN.surfaceSpot();
+      if (spot && spot.y > innerHeight * 0.3) {
+        return { x: Math.round(spot.x), y: Math.round(spot.y - 56) }; // door bottom sits on the edge
+      }
+    }
+    // fallback: basement doors belong in the lower half of the page
     return {
       x: Math.round(rand(80, Math.max(81, innerWidth - 80))),
       y: Math.round(rand(innerHeight * 0.55, innerHeight * 0.92)),

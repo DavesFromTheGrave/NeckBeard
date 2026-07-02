@@ -55,6 +55,11 @@ window.NB_PICKUPS = (() => {
 
   function spawnPos() {
     const w = innerWidth || 1200, h = innerHeight || 800;
+    // half the time, sit the pickup on a real element's edge (it lives in the page too)
+    if (window.NB_TERRAIN && Math.random() < 0.5) {
+      const spot = NB_TERRAIN.surfaceSpot();
+      if (spot && (!S().cursor || dist(spot, S().cursor) > 120)) return { x: spot.x, y: spot.y - 18 };
+    }
     for (let tries = 0; tries < 8; tries++) {
       const p = { x: 60 + Math.random() * (w - 120), y: 80 + Math.random() * (h - 160) };
       if (!S().cursor || dist(p, S().cursor) > 120) return p; // never spawn in your hand

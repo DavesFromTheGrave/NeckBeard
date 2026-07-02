@@ -10,6 +10,7 @@
   if (innerWidth < T.MIN_VIEWPORT_W || innerHeight < T.MIN_VIEWPORT_H) return;
 
   NB_UI.init();
+  NB_TERRAIN.start();
   NB_CHAOS.start();
   NB_PICKUPS.start();
 

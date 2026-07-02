@@ -103,6 +103,9 @@ window.NB_TUNABLES = {
   SHAKE_WINDOW_MS: 900,
   MERCY_CHANCE: 0.03,             // Good Guy Greg: rare canceled telegraph
 
+  // AvA terrain: crossing big page furniture costs him real time (blocked, never stopped)
+  TERRAIN_CLIMB_MULT: 0.45,       // his speed while climbing over an obstacle element
+
   // per-item effect numbers live with their definitions in content/items.js (they're
   // identity, not feel); durations that need feel-tuning are here:
   ITEM_STUN_MS: 2500,             // Ban Hammer

@@ -6,6 +6,7 @@ const FILES = [
   'config/tunables.js',
   'content/game-state.js',
   'content/sprites.js',
+  'content/terrain.js',
   'content/chaos.js',
   'content/items.js',
   'content/physics.js',

@@ -1,9 +1,11 @@
 // The chase. Position interpolates smoothly at rAF rate (~60fps); the sprite frame-steps at
 // 8fps over in ui-overlay/sprites. Timing uses the rAF timestamp (performance.now clock).
+// Item/effect modifiers (NB_STATE.mods) are wall-clock — set by items.js, consumed here.
 //
 // THE FAIRNESS RULE IS STRUCTURAL HERE: collision is only evaluated while phase === 'Lunge',
 // which can only be entered through a full 'Telegraph' phase. There is no code path to a catch
-// without a telegraph. Do not add one.
+// without a telegraph. Do not add one. (The Popup-Blocker Shield may PREVENT a catch — that
+// direction is always fair.)
 window.NB_PHYSICS = (() => {
   const T = () => window.NB_TUNABLES;
   const S = () => window.NB_STATE;
@@ -11,12 +13,13 @@ window.NB_PHYSICS = (() => {
   let rafId = null;
   let lastTs = null;
   let speedNow = 0;        // current speed px/s (accel-ramped toward the phase target)
-  let lungeInMs = 0;       // countdown until the next lunge attempt
+  let lungeInMs = 0;       // countdown to the next lunge attempt
   let phaseLeftMs = 0;     // time left in Telegraph/Lunge/Recovery
   let lockedDir = null;    // lunge direction, locked at telegraph START — that's what makes dodging real
   let animName = 'walk';
   let animStartTs = 0;
-  let lungeCount = 0;   // diagnostics: how many telegraphs have fired this hunt
+  let lungeCount = 0;      // diagnostics: how many telegraphs have fired this hunt
+  let wanderSeed = 0;      // heading while tracking is lost
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -28,7 +31,8 @@ window.NB_PHYSICS = (() => {
   }
 
   const nextLungeDelay = () =>
-    T().LUNGE_INTERVAL_MIN_MS + Math.random() * (T().LUNGE_INTERVAL_MAX_MS - T().LUNGE_INTERVAL_MIN_MS);
+    (T().LUNGE_INTERVAL_MIN_MS + Math.random() * (T().LUNGE_INTERVAL_MAX_MS - T().LUNGE_INTERVAL_MIN_MS)) *
+    (window.NB_CHAOS ? NB_CHAOS.mults().lungeInterval : 1);
 
   function setAnim(name, ts) {
     if (animName !== name) { animName = name; animStartTs = ts; }
@@ -49,6 +53,7 @@ window.NB_PHYSICS = (() => {
     animStartTs = 0;
     phaseLeftMs = 0;
     lockedDir = null;
+    lungeCount = 0;
     NB_UI.spriteShow();
     NB_MACHINE.saveHunt(true);
     console.log('[Neckbeard] HUNT BEGINS', { encounterId: S().encounterId, from: fromPos, resumed: !!(opts && opts.resumeSurvivalMs) });
@@ -95,25 +100,61 @@ window.NB_PHYSICS = (() => {
       s.pursuerPos.y = -40;
     }
 
-    // Escalation: he dies a little and comes back paler and faster (Revenant stub; the Waifu is M2)
-    if (!s.revenant && s.survivalMs >= t.REVENANT_AT_SURVIVAL_MS) {
+    const m = s.mods;
+    const now = performance.now();
+    const chaos = window.NB_CHAOS ? NB_CHAOS.mults() : { speed: 1, lungeInterval: 1, revenantAt: 1 };
+
+    // Escalation: he dies a little and comes back paler and faster (Revenant stub; the Waifu is
+    // M2). High chaos pulls the threshold earlier.
+    if (!s.revenant && s.survivalMs >= t.REVENANT_AT_SURVIVAL_MS * chaos.revenantAt) {
       s.set({ revenant: true });
       console.log('[Neckbeard] REVENANT', { survivalMs: Math.round(s.survivalMs) });
     }
 
-    // Phase machinery
+    // Stunned (Ban Hammer, shield pop, Scuba Steve, stick figure): frozen solid, phases too.
+    if (now < m.stunUntil) {
+      NB_UI.spriteMoveTo(s.pursuerPos.x, s.pursuerPos.y);
+      NB_UI.spriteRender('stumble', ts - animStartTs, { revenant: s.revenant });
+      return;
+    }
+
+    // ---- What does he think he's chasing? ----
+    const hatOn = m.hatOn; // worn Scumbag Hat: broadcasts you — overrides any tracking loss
+    const trackingLost = !hatOn && now < m.trackingLostUntil;
+    const decoyLive = m.decoy && now < m.decoy.until;
+    const retreating = m.retreatFrom && now < m.retreatFrom.until;
+
+    let target = null;
+    if (decoyLive) {
+      target = m.decoy; // the Rickroll is irresistible
+    } else if (!trackingLost && s.cursor) {
+      target = s.cursor;
+      m.lastKnown = { x: s.cursor.x, y: s.cursor.y };
+    } else if (trackingLost && m.lastKnown) {
+      target = m.lastKnown; // shuffles to where you were...
+    }
+    const hasRealTrack = !retreating && !decoyLive && !trackingLost && !!s.cursor;
+
+    // ---- Phase machinery (lunges need a REAL track — no blind swings at ghosts) ----
     if (s.phase === 'Creep') {
       lungeInMs -= dt;
-      // Cornered pressure: in close range the strike comes fast — parking the cursor never works
-      if (s.cursor && lungeInMs > t.PRESSURE_LUNGE_CAP_MS && dist(s.pursuerPos, s.cursor) <= t.PRESSURE_RANGE_PX) {
-        lungeInMs = t.PRESSURE_LUNGE_CAP_MS;
-      }
-      if (lungeInMs <= 0 && s.cursor) {
-        s.set({ phase: 'Telegraph' });
-        phaseLeftMs = t.LUNGE_TELEGRAPH_MS;
-        lockedDir = dirTo(s.pursuerPos, s.cursor);
-        lungeCount++;
-        setAnim('windup', ts);
+      // Cornered pressure: in close range the strike comes fast — parking the cursor never works.
+      // Burnination: everything is pressure.
+      const pressured = (hasRealTrack && dist(s.pursuerPos, s.cursor) <= t.PRESSURE_RANGE_PX) ||
+                        (window.NB_CHAOS && NB_CHAOS.burning());
+      if (pressured && lungeInMs > t.PRESSURE_LUNGE_CAP_MS) lungeInMs = t.PRESSURE_LUNGE_CAP_MS;
+      if (lungeInMs <= 0 && hasRealTrack) {
+        if (Math.random() < t.MERCY_CHANCE) {
+          // Good Guy Greg: he had you, and let it go. Rare on purpose.
+          if (window.NB_FX) NB_FX.bubble('sprite', 'nah. you looked busy.');
+          lungeInMs = nextLungeDelay();
+        } else {
+          s.set({ phase: 'Telegraph' });
+          phaseLeftMs = t.LUNGE_TELEGRAPH_MS;
+          lockedDir = dirTo(s.pursuerPos, s.cursor);
+          lungeCount++;
+          setAnim('windup', ts);
+        }
       }
     } else {
       phaseLeftMs -= dt;
@@ -133,19 +174,33 @@ window.NB_PHYSICS = (() => {
       }
     }
 
-    // Movement
+    // ---- Movement ----
     const phaseMult =
       s.phase === 'Lunge' ? t.LUNGE_SPEED_MULT :
       s.phase === 'Telegraph' ? t.LUNGE_TELEGRAPH_SPEED_MULT :
       s.phase === 'Recovery' ? t.LUNGE_RECOVERY_SPEED_MULT : 1;
-    const targetSpeed = t.CREEP_SPEED_PX_S * phaseMult * (s.revenant ? t.REVENANT_SPEED_MULT : 1);
+    const slowMult = now < m.slowUntil ? m.slowMult : 1;
+    const hasteMult = now < m.hasteUntil ? m.hasteMult : 1;
+    const hatMult = hatOn ? t.ITEM_HAT_SPEED_MULT : 1;
+    const inWall = m.wall && now < m.wall.until &&
+      s.pursuerPos.x >= m.wall.x && s.pursuerPos.x <= m.wall.x + m.wall.w &&
+      s.pursuerPos.y >= m.wall.y && s.pursuerPos.y <= m.wall.y + m.wall.h;
+    const wallMult = inWall ? 0.15 : 1;
+    const targetSpeed = t.CREEP_SPEED_PX_S * phaseMult *
+      (s.revenant ? t.REVENANT_SPEED_MULT : 1) * chaos.speed * slowMult * hasteMult * hatMult * wallMult;
     speedNow += (targetSpeed - speedNow) * Math.min(1, dt / t.CREEP_ACCEL_MS);
 
     let dir = null;
     if (s.phase === 'Lunge') {
       dir = lockedDir;
-    } else if (s.cursor && dist(s.pursuerPos, s.cursor) > 2) {
-      dir = dirTo(s.pursuerPos, s.cursor); // no standoff: he walks right onto the cursor and looms
+    } else if (retreating) {
+      dir = dirTo(m.retreatFrom, s.pursuerPos); // away from the Viking, with feeling
+    } else if (target && dist(s.pursuerPos, target) > 2) {
+      dir = dirTo(s.pursuerPos, target); // no standoff: he walks right onto the cursor and looms
+    } else if (trackingLost) {
+      // at last-known and still blind: confused shuffle
+      wanderSeed += dt / 700;
+      dir = { x: Math.cos(wanderSeed), y: Math.sin(wanderSeed) };
     }
     if (dir) {
       const step = speedNow * dt / 1000;
@@ -154,19 +209,33 @@ window.NB_PHYSICS = (() => {
       s.pursuerPos.y = clamp(s.pursuerPos.y + dir.y * step, 0, innerHeight || 4096);
     }
 
-    // Collision — ONLY inside the catch window. Hitbox-OR over pursuers (M2 Waifu drops in here).
+    // ---- Collision — ONLY inside the catch window. Hitbox-OR over pursuers (M2 Waifu). ----
     if (s.phase === 'Lunge' && s.cursor) {
       const r = t.HITBOX_RADIUS_PX * t.LUNGE_HITBOX_MULT + t.CURSOR_GRACE_MARGIN_PX;
       const pursuers = [s.pursuerPos, s.pursuerWaifuPos].filter(Boolean);
       if (pursuers.some(pp => dist(pp, s.cursor) <= r)) {
-        stop();
-        NB_MACHINE.toCaught();
-        return;
+        if (m.shieldCharges > 0) {
+          // Popup-Blocker Shield: the one near-catch you get back.
+          m.shieldCharges--;
+          const away = dirTo(s.cursor, s.pursuerPos);
+          s.pursuerPos.x = clamp(s.pursuerPos.x + away.x * t.SHIELD_KNOCKBACK_PX, 0, innerWidth || 4096);
+          s.pursuerPos.y = clamp(s.pursuerPos.y + away.y * t.SHIELD_KNOCKBACK_PX, 0, innerHeight || 4096);
+          m.stunUntil = now + t.SHIELD_STUN_MS;
+          s.set({ phase: 'Recovery' });
+          phaseLeftMs = t.LUNGE_RECOVERY_MS;
+          setAnim('stumble', ts);
+          if (window.NB_FX) { NB_FX.shieldPop(); NB_FX.bubble('cursor', 'problem?'); }
+          console.log('[Neckbeard] SHIELD POP — catch absorbed');
+        } else {
+          stop();
+          NB_MACHINE.toCaught();
+          return;
+        }
       }
     }
 
     NB_UI.spriteMoveTo(s.pursuerPos.x, s.pursuerPos.y);
-    NB_UI.spriteRender(animName, ts - animStartTs, { revenant: s.revenant });
+    NB_UI.spriteRender(animName, ts - animStartTs, { revenant: s.revenant, decoy: decoyLive });
   }
 
   window.addEventListener('pointermove', (e) => {

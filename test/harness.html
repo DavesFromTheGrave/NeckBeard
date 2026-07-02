@@ -10,14 +10,20 @@
   <script src="/config/tunables.js"></script>
   <script src="/content/game-state.js"></script>
   <script src="/content/sprites.js"></script>
+  <script src="/content/chaos.js"></script>
+  <script src="/content/items.js"></script>
   <script src="/content/physics.js"></script>
   <script src="/content/ui-overlay.js"></script>
+  <script src="/content/fx.js"></script>
+  <script src="/content/pickups.js"></script>
   <script src="/content/spawn-logic.js"></script>
   <script src="/content/accessibility.js"></script>
   <script src="/debug/debug-harness.js"></script>
   <script>
     // Mirrors content.js minus the pointer/viewport gates (headless-friendly).
     NB_UI.init();
+    NB_CHAOS.start();
+    NB_PICKUPS.start();
     window.addEventListener('pageshow', () => NB_UI.ensureAttached());
     window.addEventListener('popstate', () => NB_UI.ensureAttached());
     chrome.storage.local.get(['nb_personalBestMs'], (d) => {

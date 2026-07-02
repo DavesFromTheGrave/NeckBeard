@@ -234,6 +234,19 @@ window.NB_UI = (() => {
     l1.textContent = 'You survived ' + fmt(info.survivalMs);
     card.appendChild(l1);
 
+    if (info.runScore > 0 || info.runCollectibles > 0) {
+      const loot = document.createElement('div');
+      loot.className = 'nb-go-line';
+      loot.textContent = 'Loot: ' + (info.runScore || 0) + ' pts · ' + (info.runCollectibles || 0) + ' finds';
+      card.appendChild(loot);
+    }
+    if (info.scubaHeld) {
+      const scuba = document.createElement('div');
+      scuba.className = 'nb-go-line';
+      scuba.textContent = 'Scuba Steve didn’t make it either.';
+      card.appendChild(scuba);
+    }
+
     if (info.isNewBest) {
       const nb = document.createElement('div');
       nb.className = 'nb-go-best';
@@ -287,8 +300,11 @@ window.NB_UI = (() => {
     if (host) host.style.visibility = hidden ? 'hidden' : '';
   }
 
+  // FX and pickups render into the same shadow root (style isolation is shared).
+  function layer() { return root; }
+
   return {
-    init, ensureAttached,
+    init, ensureAttached, layer,
     spriteShow, spriteHide, spriteMoveTo, spriteRender,
     showDoor, hideDoor, showTell, hideTell,
     showCaught, hideCaught,

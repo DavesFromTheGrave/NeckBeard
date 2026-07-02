@@ -10,6 +10,8 @@
   if (innerWidth < T.MIN_VIEWPORT_W || innerHeight < T.MIN_VIEWPORT_H) return;
 
   NB_UI.init();
+  NB_CHAOS.start();
+  NB_PICKUPS.start();
 
   // SPA route changes and bfcache restores don't re-run content scripts;
   // make sure the overlay host is still in the tree on both.

@@ -17,12 +17,41 @@ window.NB_STATE = {
   phase: 'Creep',        // Creep | Telegraph | Lunge | Recovery
   paused: false,         // panic key / fullscreen / tab hidden — the survival clock freezes too
   personalBestMs: 0,
+  chaos: 0,              // the Chaos Meter (0-100); owned by NB_CHAOS
+  inventory: [],         // held item ids (max NB_TUNABLES.INVENTORY_SLOTS)
+  runCollectibles: 0,    // collectibles grabbed this run (shown on the game-over screen)
+  runScore: 0,           // collectible points this run
+  comboCount: 0,         // rage-face stackable combo
+
+  // Item/effect modifiers consumed by physics every frame. Expiries are wall-clock
+  // (performance.now()) — they're player-facing effects, not simulation state.
+  mods: null, // initialized by resetMods() below
+
+  resetMods() {
+    this.mods = {
+      stunUntil: 0,          // frozen solid (movement + phase machinery)
+      trackingLostUntil: 0,  // no real target: drifts to lastKnown, then wanders
+      lastKnown: null,
+      slowMult: 1, slowUntil: 0,
+      hasteMult: 1, hasteUntil: 0,
+      shieldCharges: 0,      // Popup-Blocker: absorbs one catch
+      decoy: null,           // {x, y, until} — Rickroll Trap dance-break
+      wall: null,            // {x, y, w, h, until} — Ad-Blocker Wall slow zone
+      retreatFrom: null,     // {x, y, until} — Techno Viking makes him back off
+      hatOn: false,          // Scumbag Hat worn: he reads you loud and clear
+      invisUntil: 0,         // One Ring (implies tracking lost, feeds chaos)
+      chaosResistUntil: 0,   // Rare Pepe: chaos gains halved
+      dewTrailUntil: 0,      // Mountain Dew rainbow juice
+    };
+  },
 
   set(updates) {
     Object.assign(this, updates);
     window.dispatchEvent(new CustomEvent('nb-state', { detail: updates }));
   },
 };
+
+window.NB_STATE.resetMods();
 
 window.NB_MACHINE = {
   newEncounterId() {
@@ -86,6 +115,9 @@ window.NB_MACHINE = {
       survivalMs,
       bestMs,
       isNewBest,
+      runScore: NB_STATE.runScore,
+      runCollectibles: NB_STATE.runCollectibles,
+      scubaHeld: NB_STATE.inventory.includes('scuba-steve'),
       onDismiss: () => NB_MACHINE.toDormant(),
       onRetry: () => NB_MACHINE.retry(),
     });
@@ -111,9 +143,11 @@ window.NB_MACHINE = {
     NB_UI.hideCaught();
     NB_UI.hideDoor();
     NB_UI.spriteHide();
+    NB_STATE.resetMods();
     NB_STATE.set({
       state: 'Dormant', encounterId: null, revenant: false,
       phase: 'Creep', doorPos: null, survivalMs: 0,
+      runCollectibles: 0, runScore: 0, comboCount: 0,
     });
     return true;
   },

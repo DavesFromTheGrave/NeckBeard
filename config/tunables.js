@@ -55,6 +55,15 @@ window.NB_TUNABLES = {
   // Accessibility
   PANIC_KEY_CODE: 'KeyP',         // Alt+P toggles all game UI off/on (screen-share safety)
 
+  // Debug hotkeys (all Alt+Shift+<key>). Tunable because desktop software claims global
+  // combos — Dave's Huion tablet owns Ctrl+Alt+H, which killed the whole Ctrl+Alt family.
+  // (If you run multiple keyboard input languages, note bare Alt+Shift is the Windows
+  // layout switcher; single-layout setups are unaffected.)
+  DEBUG_KEY_SPAWN: 'KeyM',        // force-spawn the door
+  DEBUG_KEY_HUNT: 'KeyN',         // force the chase
+  DEBUG_KEY_CATCH: 'KeyC',        // force a catch
+  DEBUG_KEY_LOG: 'KeyL',          // dump state to console
+
   // Lore
   ADMIN_NAME: 'The Admin',        // PLACEHOLDER — Dave is still naming him; rename here only
 

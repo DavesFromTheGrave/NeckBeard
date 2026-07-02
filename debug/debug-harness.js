@@ -1,11 +1,11 @@
-// Dev-only controls. Ctrl+Alt combos, NOT Ctrl+Shift — Chromium reserves Ctrl+Shift+M
-// (profile menu) and Ctrl+Shift+C (inspect element) at the browser level, so those never
-// reach the page.
+// Dev-only controls. Alt+Shift combos (keys tunable in config/tunables.js) — Ctrl+Shift is
+// browser-reserved (profile menu, inspect element) and Ctrl+Alt collided with Dave's Huion
+// tablet driver.
 //
-//   Ctrl+Alt+M  force-spawn the door (skips RNG, cooldown, denylist)
-//   Ctrl+Alt+H  force Hunting (from the door if Lurking, from screen center if Dormant)
-//   Ctrl+Alt+C  force a catch (only while Hunting)
-//   Ctrl+Alt+L  dump state + tunables to the console
+//   Alt+Shift+M  force-spawn the door (skips RNG, cooldown, denylist)
+//   Alt+Shift+N  force Hunting (from the door if Lurking, from screen center if Dormant)
+//   Alt+Shift+C  force a catch (only while Hunting)
+//   Alt+Shift+L  dump state + tunables to the console
 //
 // Everything is also callable from DevTools via window.NB_DEBUG.*
 window.NB_DEBUG = (() => {
@@ -47,12 +47,13 @@ window.NB_DEBUG = (() => {
   }
 
   window.addEventListener('keydown', (e) => {
-    if (!(e.ctrlKey && e.altKey && !e.shiftKey)) return;
+    if (!(e.altKey && e.shiftKey && !e.ctrlKey)) return;
+    const t = window.NB_TUNABLES;
     switch (e.code) {
-      case 'KeyM': e.preventDefault(); forceSpawn(); break;
-      case 'KeyH': e.preventDefault(); forceHunt(); break;
-      case 'KeyC': e.preventDefault(); forceCatch(); break;
-      case 'KeyL': e.preventDefault(); dump(); break;
+      case t.DEBUG_KEY_SPAWN: e.preventDefault(); forceSpawn(); break;
+      case t.DEBUG_KEY_HUNT: e.preventDefault(); forceHunt(); break;
+      case t.DEBUG_KEY_CATCH: e.preventDefault(); forceCatch(); break;
+      case t.DEBUG_KEY_LOG: e.preventDefault(); dump(); break;
     }
   });
 

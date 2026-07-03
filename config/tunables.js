@@ -1,3 +1,7 @@
+// Build stamp: lets the background re-injection probe tell a LIVE current copy from an
+// orphaned pre-reload ghost (which would otherwise block re-injection — learned 2026-07-02).
+window.__NB_BUILD__ = chrome.runtime && chrome.runtime.id ? chrome.runtime.getManifest().version : 'orphan';
+
 // Every feel constant lives here and nowhere else.
 // Tuning loop: edit a value in DevTools (window.NB_TUNABLES.X = ...), re-trigger with the
 // debug hotkeys (Ctrl+Alt+M / H / C / L) — or edit this file and reload the extension.

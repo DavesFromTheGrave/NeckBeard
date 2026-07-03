@@ -5,7 +5,7 @@
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };
   const save = (d) => localStorage.setItem(KEY, JSON.stringify(d));
   window.chrome = {
-    runtime: { id: 'test-harness', lastError: undefined },
+    runtime: { id: 'test-harness', lastError: undefined, getManifest: () => ({ version: 'test-build' }) },
     storage: {
       local: {
         get(keys, cb) {

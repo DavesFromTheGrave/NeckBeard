@@ -86,6 +86,8 @@ window.NB_UI = (() => {
 
   function init() {
     if (host) return;
+    // sweep out any ghost overlay left by a pre-reload orphaned copy of the extension
+    document.querySelectorAll('[data-neckbeard-overlay]').forEach((n) => n.remove());
     host = document.createElement('div');
     host.setAttribute('data-neckbeard-overlay', '');
     host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;';

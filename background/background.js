@@ -30,9 +30,13 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
   for (const tab of tabs) {
     try {
+      // Ask for a LIVE copy of THIS version — an orphaned pre-reload ghost answers with a
+      // stale build stamp and gets replaced instead of blocking re-injection.
+      const version = chrome.runtime.getManifest().version;
       const [probe] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => !!window.NB_TUNABLES,
+        func: (v) => window.__NB_BUILD__ === v,
+        args: [version],
       });
       if (!probe || !probe.result) {
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: FILES });

@@ -32,6 +32,10 @@ legible graphic block, jeans, keyboard held like a brick. He's a low-effort lose
 sprite is allowed to look a little scrappy — that's characterization, not a quality bar.
 Readability rule: if the silhouette doesn't say "that guy," no amount of shading saves it.
 
+Tone reference: the South Park WoW guy ("Make Love, Not Warcraft"). Mass, dead stare,
+claw hands. Body is one continuous blob — shoulders into neck into head — with detail
+budget spent on the head and hands only. Archetype, not a copy: draw him in your style.
+
 ## Delivery
 
 1. Export each animation as its own PNG strip: `walk.png` (288×64), `windup.png`

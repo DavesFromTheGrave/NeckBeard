@@ -26,8 +26,8 @@ class GameScene extends Phaser.Scene {
 
   preload() {
     for (let i = 1; i <= 6; i++) {
-      this.load.image(`walk-${i}`, `assets/walk/mod-walk-${i}.png`);
-      this.load.image(`run-${i}`, `assets/run/mod-run-${i}.png`);
+      this.load.image(`walk-${i}`, `assets/walk/mod-walk2-${i}.png`);
+      this.load.image(`run-${i}`, `assets/run/mod-run2-${i}.png`);
       this.load.image(`charge-${i}`, `assets/charge/mod-charge-${i}.png`);
       this.load.image(`leap-${i}`, `assets/leap/mod-leap-${i}.png`);
       this.load.image(`pose-${i}`, `assets/poses/mod-pose2-${i}.png`);
@@ -70,41 +70,108 @@ class GameScene extends Phaser.Scene {
     this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'zattack-3' }], frameRate: 1 });
     this.anims.create({ key: 'anim-zlunge', frames: [{ key: 'zattack-4' }, { key: 'zattack-5' }], frameRate: 10, repeat: 0 });
 
-    // data -> stage
-    NB.fetchSubreddit().then(data => this.buildWorld(data))
-      .catch(e => { window.__buildErr = e.message + ' | ' + (e.stack || ''); console.error('BUILD FAIL:', e.message, e.stack); });
+    this.currentSub = 'all';
+    this.traveling = false;
+    NB.fetchArena('all').then(data => this.buildWorld(data))
+      .catch(e => {
+        window.__buildErr = e.message + ' | ' + (e.stack || '');
+        console.error('BUILD FAIL:', e.message, e.stack);
+        return NB.fetchArena('gaming').then(d => this.buildWorld(d));
+      });
   }
 
-  buildWorld(data) {
+  buildWorld(data, opts = {}) {
     const W = this.scale.width, H = this.scale.height;
+    const firstBoot = !opts.rebuild;
+
+    if (opts.rebuild && this.page?.dispose) this.page.dispose();
+
     this.page = NB.buildFakePage(this, W, H, data);
     this.cameras.main.setBounds(0, 0, W, this.page.WORLD_H);
     const feed = this.page.feed;
+    this.arenaData = data;
+    this.currentSub = data.subreddit || 'all';
 
-    this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
-    this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
-    this.cursorGfx = this.add.graphics().setDepth(20);
-    this.input.on('pointermove', (p) => {
-      this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
-    });
-    this.input.on('wheel', (_p, _o, _dx, dy) => {
-      this.cameras.main.scrollY = Phaser.Math.Clamp(
-        this.cameras.main.scrollY + dy * 0.9, 0, this.page.WORLD_H - H);
-    });
+    if (firstBoot) {
+      this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
+      this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
+      this.cursorGfx = this.add.graphics().setDepth(20);
+      this.input.on('pointermove', (p) => {
+        this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
+      });
+      this.input.on('wheel', (_p, _o, _dx, dy) => {
+        this.cameras.main.scrollY = Phaser.Math.Clamp(
+          this.cameras.main.scrollY + dy * 0.9, 0, this.page.WORLD_H - H);
+      });
+      this.mod = new NB.Supermod(this, this.page, feed.x + feed.w * 0.2, H * 0.35);
+      this.hud = this.add.text(W - 22, H - 12, '0.0s', {
+        fontFamily: 'Courier New', fontSize: '18px', color: '#1a1a1b',
+      }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
+      this.bindDebugKeys();
+      this.bindTravelClicks();
+      this.ready = true;
+      window.__gs = this;
+    } else {
+      this.mod.page = this.page;
+      if (this.pickups) this.pickups.page = this.page;
+      if (this.projectiles) {
+        this.projectiles.comments = data.comments;
+        this.projectiles.live.forEach(p => { p.card.destroy(); p.label.destroy(); });
+        this.projectiles.live = [];
+      }
+    }
 
-    this.mod = new NB.Supermod(this, this.page, feed.x + feed.w * 0.2, H * 0.35);
-    this.pickups = new NB.Pickups(this, this.page);
-    this.projectiles = new NB.Projectiles(this, data.comments);
-    this.npc = new NB.Cheerleader(this);
+    if (this.pickups) {
+      this.pickups.items.forEach(it => it.objs.forEach(o => o.destroy()));
+      this.pickups.items = [];
+    } else {
+      this.pickups = new NB.Pickups(this, this.page);
+    }
+    if (!this.projectiles) this.projectiles = new NB.Projectiles(this, data.comments);
+    if (!this.npc) this.npc = new NB.Cheerleader(this);
     this.userName = data.user;
 
-    this.hud = this.add.text(W - 22, H - 12, '0.0s', {
-      fontFamily: 'Courier New', fontSize: '18px', color: '#1a1a1b',
-    }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
+    if (opts.toast) this.floatText(W / 2, H * 0.22, opts.toast, '#0079d3');
+  }
 
-    this.bindDebugKeys();
-    this.ready = true;
-    window.__gs = this; // debug/test handle (harmless in prod; Devvit strips console access anyway)
+  bindTravelClicks() {
+    this.input.on('pointerdown', (p) => {
+      if (!this.ready || this.caught || this.ceremonyRunning || this.traveling) return;
+      const cam = this.cameras.main;
+      const wx = p.x, wy = p.y + cam.scrollY;
+      for (const z of this.page.clickZones || []) {
+        const hit = z.screen ? z.rect.contains(p.x, p.y) : z.rect.contains(wx, wy);
+        if (hit) {
+          this.travelToSub(z.sub, z.label);
+          return;
+        }
+      }
+    });
+  }
+
+  travelToSub(sub, label) {
+    if (this.traveling) return;
+    const clean = (sub || 'all').replace(/^r\//i, '');
+    if (clean === this.currentSub) return;
+    this.traveling = true;
+    this.floatText(this.scale.width / 2, this.scale.height * 0.16,
+      `loading ${label || 'r/' + clean}…`, '#576f76');
+    NB.fetchArena(clean).then(data => {
+      const modSnap = {
+        x: this.mod.sprite.x, y: this.mod.sprite.y,
+        state: this.mod.state, revenant: this.mod.revenant,
+        heat: this.mod.heat,
+      };
+      this.buildWorld(data, { rebuild: true, toast: `now browsing ${data.name}` });
+      this.mod.sprite.setPosition(modSnap.x, modSnap.y);
+      this.mod.revenant = modSnap.revenant;
+      this.mod.heat = modSnap.heat;
+      if (modSnap.revenant) this.mod.sprite.setTint(0xbbffbb);
+      this.traveling = false;
+    }).catch(e => {
+      this.traveling = false;
+      this.floatText(this.scale.width / 2, this.scale.height * 0.2, `fetch failed: ${e.message}`, '#d93900');
+    });
   }
 
   bindDebugKeys() {

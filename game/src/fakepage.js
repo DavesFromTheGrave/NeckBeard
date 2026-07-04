@@ -5,7 +5,14 @@ window.NB = window.NB || {};
 NB.buildFakePage = function (scene, W, viewH, data) {
   const R = NB.REDDIT;
   const els = [];
+  const spawned = [];
+  const clickZones = [];
   const F = R.font;
+  const isSub = data.mode === 'sub';
+  const track = (o) => { spawned.push(o); return o; };
+  const zone = (rect, sub, label, screen = false) => {
+    clickZones.push({ rect, sub: sub.replace(/^r\//i, ''), label: label || sub, screen });
+  };
   const isWide = W >= 768;
   const leftW = isWide ? R.leftNavW : 0;
   const rightW = isWide ? R.rightRailW : 0;
@@ -20,7 +27,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   }
 
   function txt(x, y, str, style, depth = -3) {
-    return scene.add.text(x, y, str, { fontFamily: F, ...style }).setDepth(depth);
+    return track(scene.add.text(x, y, str, { fontFamily: F, ...style }).setDepth(depth));
   }
 
   function snoo(g, cx, cy, r) {
@@ -43,10 +50,33 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     g.fillCircle(cx, cy - r * 1.08, r * 0.14);
   }
 
-  // ---- scrollable world base (reddit canvas gray) --------------------
   let y = headerH + 8;
 
-  // ---- HOME feed posts -----------------------------------------------
+  // ---- subreddit banner (when viewing a single sub) ------------------
+  if (isSub) {
+    const subName = data.name || `r/${data.subreddit}`;
+    const bannerH = 72;
+    const bobjs = [];
+    bobjs.push(track(scene.add.rectangle(feedX + feedW / 2, y + bannerH / 2, feedW, bannerH, R.card).setDepth(-6)));
+    const col = NB.subColor(subName);
+    bobjs.push(track(scene.add.circle(feedX + 28, y + bannerH / 2, 18,
+      Phaser.Display.Color.HexStringToColor(col).color).setDepth(-5)));
+    bobjs.push(txt(feedX + 28, y + bannerH / 2, NB.subAbbr(subName), {
+      fontSize: '12px', fontStyle: 'bold', color: '#fff',
+    }, -4).setOrigin(0.5));
+    bobjs.push(txt(feedX + 54, y + 18, subName, { fontSize: '20px', fontStyle: 'bold', color: R.text }));
+    bobjs.push(txt(feedX + 54, y + 42, '1 online · live threads from this community', {
+      fontSize: '12px', color: R.textWeak,
+    }));
+    bobjs.push(track(scene.add.rectangle(feedX + feedW - 52, y + bannerH / 2, 72, 30, R.pillBg).setDepth(-4)));
+    bobjs.push(txt(feedX + feedW - 52, y + bannerH / 2, 'Joined', {
+      fontSize: '12px', fontStyle: 'bold', color: '#fff',
+    }, -3).setOrigin(0.5));
+    solid(feedX, y, feedW, bannerH, 'chrome', bobjs);
+    y += bannerH + 8;
+  }
+
+  // ---- feed posts (home = multi-sub, sub = single community) -------
   for (const post of data.posts) {
     const sub = post.subreddit || data.name || 'r/popular';
     const objs = [];
@@ -81,8 +111,14 @@ NB.buildFakePage = function (scene, W, viewH, data) {
       fontSize: '8px', fontStyle: 'bold', color: '#ffffff',
     }, -3).setOrigin(0.5));
 
-    const meta = `${sub}  •  ${post.time || '5 hr. ago'}`;
+    const meta = isSub
+      ? `${post.author || 'u/anonymous'}  •  ${post.time || '5 hr. ago'}`
+      : `${sub}  •  ${post.time || '5 hr. ago'}`;
     objs.push(txt(contentX + 24, y + 10, meta, { fontSize: '12px', color: R.meta }));
+    if (!isSub) {
+      zone(new Phaser.Geom.Rectangle(contentX + 24, y + 8, 160, 18),
+        sub, sub, false);
+    }
     if (post.author) {
       objs.push(txt(contentX + 24, y + 26, post.author, { fontSize: '11px', color: R.textWeak }));
     }
@@ -120,7 +156,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
 
   const WORLD_H = Math.max(y + 24, viewH + 200);
 
-  scene.add.rectangle(W / 2, WORLD_H / 2, W, WORLD_H, R.canvas).setDepth(-12);
+  track(scene.add.rectangle(W / 2, WORLD_H / 2, W, WORLD_H, R.canvas).setDepth(-12));
 
   // ---- right rail (desktop home) -------------------------------------
   if (isWide && rightW > 100) {
@@ -143,9 +179,10 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     let iy = ry + 44;
     for (const c of railItems) {
       const col = NB.subColor(c.name);
-      robjs.push(scene.add.circle(rx + 18, iy + 10, 9, Phaser.Display.Color.HexStringToColor(col).color).setDepth(-4));
+      robjs.push(track(scene.add.circle(rx + 18, iy + 10, 9, Phaser.Display.Color.HexStringToColor(col).color).setDepth(-4)));
       robjs.push(txt(rx + 34, iy, c.name, { fontSize: '13px', fontStyle: 'bold', color: R.link }));
       robjs.push(txt(rx + 34, iy + 16, `${c.members} members`, { fontSize: '11px', color: R.textWeak }));
+      zone(new Phaser.Geom.Rectangle(rx + 8, iy, rightW - 16, 34), c.name, c.name, false);
       iy += 36;
     }
     solid(rx, ry, rightW, railH, 'sidebar', robjs);
@@ -168,95 +205,107 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   }
 
   // ---- fixed top header (reddit.com chrome) --------------------------
-  const hdrGfx = scene.add.graphics().setDepth(26).setScrollFactor(0);
+  zone(new Phaser.Geom.Rectangle(8, 8, 120, headerH - 16), 'all', 'Home', true);
+  const hdrGfx = track(scene.add.graphics().setDepth(26).setScrollFactor(0));
   hdrGfx.fillStyle(Phaser.Display.Color.HexStringToColor(R.card).color, 1);
   hdrGfx.fillRect(0, 0, W, headerH);
   hdrGfx.lineStyle(1, Phaser.Display.Color.HexStringToColor(R.border).color, 1);
   hdrGfx.lineBetween(0, headerH, W, headerH);
 
   snoo(hdrGfx, isWide ? 36 : 28, headerH / 2, 14);
-  const logo = scene.add.text(isWide ? 56 : 48, headerH / 2, 'reddit', {
+  track(scene.add.text(isWide ? 56 : 48, headerH / 2, 'reddit', {
     fontFamily: F, fontSize: '22px', fontStyle: 'bold', color: R.brandWord,
-  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0);
+  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0));
 
   const searchX = isWide ? 200 : 88;
   const searchW = isWide ? Math.min(560, W - searchX - 200) : W - searchX - 56;
-  const search = scene.add.rectangle(searchX + searchW / 2, headerH / 2, searchW, 36, R.searchBg)
-    .setStrokeStyle(1, R.searchBorder).setDepth(26).setScrollFactor(0);
-  const searchTxt = scene.add.text(searchX + 14, headerH / 2, 'Search Reddit', {
+  track(scene.add.rectangle(searchX + searchW / 2, headerH / 2, searchW, 36, R.searchBg)
+    .setStrokeStyle(1, R.searchBorder).setDepth(26).setScrollFactor(0));
+  track(scene.add.text(searchX + 14, headerH / 2, 'Search Reddit', {
     fontFamily: F, fontSize: '14px', color: R.textWeak,
-  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0);
+  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0));
 
-  const createBtn = scene.add.circle(W - (isWide ? 120 : 72), headerH / 2, 14, R.pillBg)
-    .setDepth(26).setScrollFactor(0);
-  scene.add.text(W - (isWide ? 120 : 72), headerH / 2, '+', {
+  track(scene.add.circle(W - (isWide ? 120 : 72), headerH / 2, 14, R.pillBg)
+    .setDepth(26).setScrollFactor(0));
+  track(scene.add.text(W - (isWide ? 120 : 72), headerH / 2, '+', {
     fontFamily: F, fontSize: '22px', color: '#ffffff',
-  }).setOrigin(0.5).setDepth(27).setScrollFactor(0);
+  }).setOrigin(0.5).setDepth(27).setScrollFactor(0));
 
   if (isWide) {
-    scene.add.text(W - 168, headerH / 2, '◌  ◌', {
+    track(scene.add.text(W - 168, headerH / 2, '◌  ◌', {
       fontFamily: F, fontSize: '18px', color: R.textWeak,
-    }).setOrigin(0.5).setDepth(27).setScrollFactor(0);
+    }).setOrigin(0.5).setDepth(27).setScrollFactor(0));
   }
 
-  scene.add.circle(W - 28, headerH / 2, 14, R.searchBg)
-    .setStrokeStyle(2, R.border).setDepth(26).setScrollFactor(0);
-  const avaSnoo = scene.add.graphics().setDepth(27).setScrollFactor(0);
+  track(scene.add.circle(W - 28, headerH / 2, 14, R.searchBg)
+    .setStrokeStyle(2, R.border).setDepth(26).setScrollFactor(0));
+  const avaSnoo = track(scene.add.graphics().setDepth(27).setScrollFactor(0));
   snoo(avaSnoo, W - 28, headerH / 2, 8);
 
   solid(0, 0, W, headerH, 'header', []);
 
   // ---- fixed left nav (desktop) --------------------------------------
   if (isWide) {
-    const navGfx = scene.add.rectangle(leftW / 2, viewH / 2, leftW, viewH, R.card)
-      .setDepth(24).setScrollFactor(0).setOrigin(0.5);
+    const navGfx = track(scene.add.rectangle(leftW / 2, viewH / 2, leftW, viewH, R.card)
+      .setDepth(24).setScrollFactor(0).setOrigin(0.5));
     navGfx.setStrokeStyle(1, R.border);
     const navItems = [
-      { label: 'Home', active: true },
-      { label: 'Popular', active: false },
-      { label: 'Answers', active: false },
-      { label: 'Explore', active: false },
-      { label: 'All', active: false },
+      { label: 'Home', sub: 'all', active: !isSub && (data.subreddit === 'all' || data.mode === 'home') },
+      { label: 'Popular', sub: 'popular', active: data.subreddit === 'popular' },
+      { label: 'All', sub: 'all', active: false },
+      { label: 'Gaming', sub: 'gaming', active: data.subreddit === 'gaming' },
+      { label: 'AskReddit', sub: 'AskReddit', active: data.subreddit === 'AskReddit' },
     ];
     let ny = headerH + 12;
     for (const item of navItems) {
       if (item.active) {
-        scene.add.rectangle(8 + (leftW - 16) / 2, ny + 14, leftW - 16, 32, R.navActive)
-          .setDepth(25).setScrollFactor(0).setOrigin(0.5);
+        track(scene.add.rectangle(8 + (leftW - 16) / 2, ny + 14, leftW - 16, 32, R.navActive)
+          .setDepth(25).setScrollFactor(0).setOrigin(0.5));
       }
-      scene.add.text(20, ny + 6, item.label, {
+      track(scene.add.text(20, ny + 6, item.label, {
         fontFamily: F, fontSize: '14px',
         fontStyle: item.active ? 'bold' : 'normal',
         color: item.active ? R.navActiveText : R.text,
-      }).setDepth(26).setScrollFactor(0);
+      }).setDepth(26).setScrollFactor(0));
+      zone(new Phaser.Geom.Rectangle(8, ny, leftW - 8, 36), item.sub, item.label, true);
       ny += 40;
     }
-    scene.add.text(20, ny + 8, 'GAMES ON REDDIT', {
+    track(scene.add.text(20, ny + 8, 'GAMES ON REDDIT', {
       fontFamily: F, fontSize: '10px', fontStyle: 'bold', color: R.textWeak,
-    }).setDepth(26).setScrollFactor(0);
+    }).setDepth(26).setScrollFactor(0));
     solid(0, headerH, leftW, viewH - headerH, 'sidebar', []);
   }
 
   // ---- sort bar under header (scrolls with feed) ---------------------
   const sortY = headerH + 4;
   const sortObjs = [];
-  sortObjs.push(txt(feedX, sortY, 'Hot Posts', { fontSize: '13px', fontStyle: 'bold', color: R.text }));
+  const sortLabel = isSub ? `Hot Posts in ${data.name}` : 'Hot Posts';
+  sortObjs.push(txt(feedX, sortY, sortLabel, { fontSize: '13px', fontStyle: 'bold', color: R.text }));
   sortObjs.push(txt(feedX + 90, sortY, '  ◇ Card  ▣ Classic', { fontSize: '12px', color: R.textWeak }));
   solid(feedX, sortY - 4, feedW, 28, 'chrome', sortObjs);
 
   // ---- scrollbar (game object — mod grabs this) ----------------------
-  const sbTrack = scene.add.rectangle(W - 6, viewH / 2, 8, viewH, 0xc8ccd0)
-    .setDepth(24).setScrollFactor(0);
+  const sbTrack = track(scene.add.rectangle(W - 6, viewH / 2, 8, viewH, 0xc8ccd0)
+    .setDepth(24).setScrollFactor(0));
   const thumbH = Math.max(48, viewH * (viewH / WORLD_H));
-  const sbThumb = scene.add.rectangle(W - 6, 0, 6, thumbH, 0x878a8c)
-    .setDepth(25).setScrollFactor(0);
+  const sbThumb = track(scene.add.rectangle(W - 6, 0, 6, thumbH, 0x878a8c)
+    .setDepth(25).setScrollFactor(0));
 
   return {
     elements: els,
     WORLD_H,
     headerH,
     feed: { x: feedX, y: headerH, w: feedW },
+    clickZones,
     scrollbar: { track: sbTrack, thumb: sbThumb, thumbH },
+
+    dispose() {
+      for (const el of els) el.objs.forEach(o => { try { o.destroy(); } catch {} });
+      for (const o of spawned) { try { o.destroy(); } catch {} }
+      els.length = 0;
+      spawned.length = 0;
+      clickZones.length = 0;
+    },
 
     updateScrollbar(cam) {
       const frac = cam.scrollY / Math.max(1, WORLD_H - viewH);

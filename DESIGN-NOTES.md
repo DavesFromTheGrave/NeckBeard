@@ -44,6 +44,24 @@ It is the ranged sibling of the scrollbar yank: repositions the fight, never end
 - **Choreography: 🔶 DAVE IS WRITING IT.** Do not invent beats. Slot in his
   sequence when delivered.
 
+## THE GIMMICK ✅ (locked 2026-07-04, Dave: "exactly what I was trying to get")
+
+**The game eats the subreddit it's posted in and makes you survive inside it.**
+
+The arena is built from REAL Reddit data fetched by the Devvit app at run start:
+actual hot posts of the host subreddit (titles, usernames, vote counts), real
+comments. Not a fake internet — a re-staging of the live one. "It plays on the
+pages of Reddit" stays true, which is the magic the extension had.
+
+- Post cards = terrain/walls; gutters between them = chase lanes (Pac-Man
+  corridor readability WITHOUT a designed maze — the feed layout IS the maze)
+- The mod throws REAL comments as projectiles
+- Every subreddit = a different level for free (content is the geometry) —
+  this IS the community-layouts/User-Contributions play: crosspost = new arena
+- Side-view sprites stay (top-down was considered and rejected — obsoletes
+  the whole processed cast; corridor chase gives the Pac-Man feel instead)
+- Scrolling long level, Phaser camera follows the action
+
 ## Player-facing actions still to spec
 
 - Touch-first: finger = the hunted cursor. Viewport-fit UI. (Jam bonus for mobile.)

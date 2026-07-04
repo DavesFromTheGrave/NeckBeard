@@ -17,9 +17,18 @@ NB.TUNE = {
   CATCH_RADIUS: 34,        // pixel distance = caught (during lunge only)
 
   // terrain (the AvA rule: blocked, never stopped)
-  CLIMB_MULT: 0.45,        // speed while climbing over page furniture
-  CLIMB_BOB_DEG: 9,        // body tilt while climbing
+  CLIMB_MULT: 0.45,        // speed while incidentally on top of furniture
+  CLIMB_BOB_DEG: 9,        // body tilt while walking on a card
   ELEMENT_SHAKE_PX: 3,     // page furniture shudders when he tramples it
+
+  // the VAULT — the Animator-vs-Animation moment: he grabs a post's edge
+  // and hauls his fat body up and over it. Committed = your escape window.
+  VAULT_REACH: 30,         // how far ahead he senses a card edge to vault
+  VAULT_MS: 480,           // vault duration (no lunge possible during it)
+  VAULT_ARC: 40,           // how high he heaves up mid-vault
+  VAULT_FORWARD: 104,      // distance carried across the card
+  VAULT_CD: 560,           // cooldown before he can vault again
+  VAULT_TILT_DEG: 20,      // forward body lean at the apex
 
   // escalation
   HEAT_RAMP_S: 25,         // every N seconds survived, he gets meaner

@@ -23,6 +23,9 @@ NB.Supermod = class {
     this.revenant = false;
     this.frozen = false;
     this.speedBurstT = 0;
+    this.climbCd = 0;
+    this.climbData = null;
+    this.distraction = null;   // set by the Cheerleader NPC while she's on screen
     this.telegraphRing = scene.add.circle(x, y, 46)
       .setStrokeStyle(3, 0xe0452a).setVisible(false).setDepth(9);
     this.sprite.play('anim-walk');
@@ -35,6 +38,7 @@ NB.Supermod = class {
       hunt: rev ? 'anim-zwalk' : (this.heat >= 2 ? 'anim-charge' : 'anim-run'),
       telegraph: rev ? 'anim-ztelegraph' : 'anim-crouch',
       lunge: rev ? 'anim-zlunge' : 'anim-leap',
+      climb: rev ? 'anim-zwalk' : 'anim-climb',
       stumble: 'anim-stumble',
       victory: 'anim-victory',
       throw: 'anim-throw',
@@ -57,6 +61,7 @@ NB.Supermod = class {
         break;
       }
       case 'LUNGE': this.anim('lunge'); NB.sfx.lunge(); break;
+      case 'CLIMB': this.anim('climb'); NB.sfx.vault(); this.telegraphRing.setVisible(false); break;
       case 'THROW': this.anim('throw'); break;
       case 'YANK': this.anim('hunt'); break;
       case 'STUMBLE': this.anim('stumble'); NB.sfx.stumble(); this.telegraphRing.setVisible(false); break;
@@ -93,6 +98,9 @@ NB.Supermod = class {
   }
 
   target(player) {
+    // the cheerleader pulls his aggro, but only while he's still free-roaming —
+    // once he's committed to a telegraph/lunge/vault, nothing diverts him
+    if (this.distraction && (this.state === 'HUNT' || this.state === 'LURK')) return this.distraction;
     return this.decoy ? { x: this.decoy.x, y: this.decoy.y } : player;
   }
 
@@ -115,6 +123,7 @@ NB.Supermod = class {
     this.throwCd -= dt;
     this.yankCd -= dt;
     if (this.speedBurstT > 0) this.speedBurstT -= dt;
+    if (this.climbCd > 0) this.climbCd -= dt;
 
     const tgt = this.target(player);
     const dx = tgt.x - s.x, dy = tgt.y - s.y;
@@ -123,16 +132,16 @@ NB.Supermod = class {
 
     this.heat = Math.min(T.HEAT_MAX, Math.floor(this.scene.survivalMs / 1000 / T.HEAT_RAMP_S));
 
-    // terrain: blocked, never stopped
+    // terrain: incidental slow while atop a card (the discrete vault is its own state)
     const el = this.page.onFurniture(s.x, s.y + s.displayHeight * 0.3);
-    const climbing = !!el && this.state !== 'LUNGE';
-    if (climbing) {
+    const onCard = !!el && this.state !== 'LUNGE' && this.state !== 'CLIMB';
+    if (onCard) {
       this.page.shake(el, this.scene);
       s.setAngle(Math.sin(this.stateT / 90) * T.CLIMB_BOB_DEG);
-    } else if (this.state !== 'STUMBLE') {
+    } else if (this.state !== 'STUMBLE' && this.state !== 'CLIMB') {
       s.setAngle(0);
     }
-    let mult = climbing ? T.CLIMB_MULT : 1;
+    let mult = onCard ? T.CLIMB_MULT : 1;
     if (this.speedBurstT > 0) mult *= 1.35;
     if (this.revenant) mult *= 1.32;
 
@@ -154,6 +163,18 @@ NB.Supermod = class {
         const speed = (T.HUNT_SPEED + this.heat * T.HEAT_SPEED_BONUS) * mult;
         this.moveToward(this.aim, speed, dt);
         if (dist < T.LUNGE_RANGE) { this.setState('TELEGRAPH'); break; }
+        // AvA VAULT: a post card sits in his path and he isn't already on it —
+        // he grabs the edge and hauls himself over. This IS Animator vs Animation.
+        if (this.climbCd <= 0 && dist > 6) {
+          const nx = dx / dist, ny = dy / dist;
+          const footY = s.y + s.displayHeight * 0.3;
+          const here = this.page.onFurniture(s.x, footY);
+          const ahead = this.page.onFurniture(s.x + nx * T.VAULT_REACH, footY + ny * T.VAULT_REACH);
+          if (ahead && ahead.kind === 'post' && ahead !== here) {
+            this.beginVault(nx, ny, ahead);
+            break;
+          }
+        }
         // ranged pressure: comment throw (never while close — it's a poke, not a kill)
         if (this.heat >= 1 && this.throwCd <= 0 && realDist > 260 && !this.decoy) {
           this.setState('THROW');
@@ -221,6 +242,17 @@ NB.Supermod = class {
         if (this.stateT >= T.LUNGE_MS) this.setState('STUMBLE');
         break;
       }
+      case 'CLIMB': {
+        // committed vault — no catch possible here, this is the player's window
+        const cd = this.climbData;
+        const k = Math.min(1, this.stateT / T.VAULT_MS);
+        const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        s.x = cd.fromX + (cd.toX - cd.fromX) * ease;
+        s.y = cd.fromY + (cd.toY - cd.fromY) * ease - Math.sin(k * Math.PI) * T.VAULT_ARC;
+        s.setAngle(Math.sin(k * Math.PI) * T.VAULT_TILT_DEG * (s.flipX ? -1 : 1));
+        if (k >= 1) { s.setAngle(0); this.climbCd = T.VAULT_CD; this.climbData = null; this.setState('HUNT'); }
+        break;
+      }
       case 'STUMBLE': {
         s.setAngle(Math.sin(this.stateT / 60) * 6);
         if (this.stateT >= T.STUMBLE_MS) { s.setAngle(0); this.setState('HUNT'); }
@@ -244,6 +276,17 @@ NB.Supermod = class {
 
     if (this.state !== 'CAUGHT_YOU') s.setFlipX((tgt.x - s.x) < 0);
     this.clamp();
+  }
+
+  beginVault(nx, ny, el) {
+    const s = this.sprite, T = NB.TUNE;
+    this.climbData = {
+      fromX: s.x, fromY: s.y,
+      toX: s.x + nx * T.VAULT_FORWARD,
+      toY: s.y + ny * T.VAULT_FORWARD,
+    };
+    this.page.shake(el, this.scene);
+    this.setState('CLIMB');
   }
 
   moveToward(target, speed, dt) {

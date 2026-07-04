@@ -19,6 +19,9 @@ class GameScene extends Phaser.Scene {
       if (i <= 6) this.load.image(`carry-${i}`, `assets/carry/mod-carry-${i}.png`);
     }
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
+    for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
+      this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
+    }
   }
 
   create() {
@@ -37,6 +40,9 @@ class GameScene extends Phaser.Scene {
     anim('anim-charge', 'charge', 6, 12);
     anim('anim-leap', 'leap', 6, 14, 0);
     anim('anim-zwalk', 'zwalk', 6, 9);
+    // vault over a post card: run-up (leap 1-2) -> haul-over (leap 3-5)
+    this.anims.create({ key: 'anim-climb',
+      frames: [2, 3, 4, 5].map(i => ({ key: `leap-${i}` })), frameRate: 9, repeat: 0 });
     this.anims.create({ key: 'anim-crouch', frames: [{ key: 'pose-3' }], frameRate: 1 });
     this.anims.create({ key: 'anim-stumble', frames: [{ key: 'carry-6' }], frameRate: 1 });
     this.anims.create({ key: 'anim-victory', frames: [{ key: 'pose-1' }], frameRate: 1 });
@@ -46,7 +52,7 @@ class GameScene extends Phaser.Scene {
 
     // data -> stage
     NB.fetchSubreddit().then(data => this.buildWorld(data))
-      .catch(e => console.error('BUILD FAIL:', e.message, e.stack));
+      .catch(e => { window.__buildErr = e.message + ' | ' + (e.stack || ''); console.error('BUILD FAIL:', e.message, e.stack); });
   }
 
   buildWorld(data) {
@@ -68,6 +74,7 @@ class GameScene extends Phaser.Scene {
     this.mod = new NB.Supermod(this, this.page, W * 0.15, H * 0.25);
     this.pickups = new NB.Pickups(this, this.page);
     this.projectiles = new NB.Projectiles(this, data.comments);
+    this.npc = new NB.Cheerleader(this);
     this.userName = data.user;
 
     this.hud = this.add.text(W - 22, H - 12, '0.0s', {
@@ -196,6 +203,7 @@ class GameScene extends Phaser.Scene {
       this.mod.update(dt, this.playerPos);
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);
+      this.npc.update(dt);
       this.page.updateScrollbar(cam);
       const revTag = this.mod.revenant ? '  REVENANT' : '';
       this.hud.setText(`${(this.survivalMs / 1000).toFixed(1)}s  heat:${this.mod.heat}${revTag}`);

@@ -33,6 +33,8 @@ NB.sfx = (() => {
     telegraph: () => tone(180, 0.45, 'sawtooth', 0.10, 90),
     lunge:     () => tone(300, 0.18, 'square', 0.14, 700),
     stumble:   () => { tone(160, 0.12, 'triangle', 0.1, 80); noise(0.15, 0.06); },
+    vault:     () => { tone(140, 0.16, 'square', 0.09, 210); noise(0.1, 0.05); }, // grunt + scuff
+    cheer:     () => { tone(700, 0.1, 'square', 0.08, 1050); setTimeout(() => tone(920, 0.12, 'square', 0.07), 90); },
     caught:    () => { tone(120, 0.6, 'sawtooth', 0.18, 40); noise(0.5, 0.14); },
     pickup:    () => tone(660, 0.12, 'square', 0.1, 990),
     shieldPop: () => tone(440, 0.25, 'triangle', 0.14, 110),

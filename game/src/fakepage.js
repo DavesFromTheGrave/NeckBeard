@@ -1,96 +1,67 @@
-// The stage: a procedurally generated fake webpage rendered INSIDE the canvas.
-// Every element is physical — Supermod climbs over them (slowed, never stopped),
-// and they react when trampled. This is the Animator-vs-Animation contract:
-// the page is not a backdrop, it is terrain.
+// The stage: the host subreddit re-staged as terrain. Built from NB.fetchSubreddit()
+// data — post cards are climbable furniture, the feed extends into a scrollable
+// world, and the page reacts to being walked on. The page is not a backdrop.
 window.NB = window.NB || {};
 
-NB.buildFakePage = function (scene, W, H) {
-  const els = [];   // {rect, objs[], kind, baseX, baseY, crooked}
-  const g = { headerH: 64, pad: 16 };
-
-  const PAPER = 0xf6f7f9, CARD = 0xffffff, INK = 0x1a1a1b,
-        LINE = 0xd7dadc, ACCENT = 0x4a6ee0, MUTED = 0x878a8c;
-
-  scene.add.rectangle(W / 2, H / 2, W, H, PAPER).setDepth(-10);
+NB.buildFakePage = function (scene, W, viewH, data) {
+  const els = [];
+  const pad = 16, headerH = 64;
+  const PAPER = 0xf6f7f9, CARD = 0xffffff, LINE = 0xd7dadc,
+        ACCENT = 0x4a6ee0, GOLD = 0xd4af37;
 
   function solid(x, y, w, h, kind, objs) {
     const el = { rect: new Phaser.Geom.Rectangle(x, y, w, h), kind,
-                 objs, baseX: x, baseY: y, crooked: 0 };
+                 objs, crooked: 0 };
     els.push(el);
     return el;
   }
 
-  // ---- header bar (site chrome — solid wall of the world)
-  const hdr = scene.add.rectangle(W / 2, g.headerH / 2, W, g.headerH, CARD)
-    .setStrokeStyle(1, LINE).setDepth(-5);
-  const logo = scene.add.text(g.pad, g.headerH / 2, 'NWH', {
-    fontFamily: 'Impact, sans-serif', fontSize: '28px', color: '#e0452a',
-  }).setOrigin(0, 0.5).setDepth(-4);
-  const tag = scene.add.text(g.pad + 78, g.headerH / 2, 'the front page of what remains', {
-    fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'italic', color: '#878a8c',
-  }).setOrigin(0, 0.5).setDepth(-4);
-  const searchBox = scene.add.rectangle(W * 0.55, g.headerH / 2, W * 0.3, 32, PAPER)
-    .setStrokeStyle(1, LINE).setDepth(-4);
-  const searchTxt = scene.add.text(W * 0.55 - W * 0.15 + 10, g.headerH / 2, 'search…', {
-    fontFamily: 'Arial', fontSize: '13px', color: '#a0a3a5',
-  }).setOrigin(0, 0.5).setDepth(-4);
-  solid(0, 0, W, g.headerH, 'header', [hdr, logo, tag, searchBox, searchTxt]);
-
-  // ---- feed posts (left column ~64% width)
+  // ---- feed geometry from real posts --------------------------------
   const feedW = Math.min(W * 0.62, 620);
-  const feedX = g.pad;
-  let y = g.headerH + g.pad;
-  const titles = [
-    'You will not believe what the mods did this time',
-    'DAE remember when this place had people?',
-    '[SERIOUS] Last human spotted, upvote to scare him',
-    'Top 10 cursors that escaped (number 7 will be banned)',
-    'PSA: breathing in this subreddit requires approval',
-  ];
-  let ti = 0;
-  while (y < H - 140) {
-    const cardH = Phaser.Math.Between(96, 150);
-    if (y + cardH > H - g.pad) break;
+  const feedX = pad;
+  let y = headerH + pad;
+  for (const post of data.posts) {
+    const lines = Math.ceil(post.title.length / 38);
+    const cardH = 66 + lines * 18 + (post.has_image ? 46 : 0);
     const objs = [];
     objs.push(scene.add.rectangle(feedX + feedW / 2, y + cardH / 2, feedW, cardH, CARD)
       .setStrokeStyle(1, LINE).setDepth(-5));
-    // vote gutter
-    objs.push(scene.add.text(feedX + 14, y + 14, '▲', { fontSize: '16px', color: '#878a8c' }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 12, y + 36, String(Phaser.Math.Between(0, 3)), {
-      fontFamily: 'Arial', fontSize: '13px', color: '#1a1a1b' }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 14, y + 56, '▼', { fontSize: '16px', color: '#878a8c' }).setDepth(-4));
-    // title + body lines
-    objs.push(scene.add.text(feedX + 44, y + 12, titles[ti++ % titles.length], {
+    objs.push(scene.add.text(feedX + 14, y + 10, '▲', { fontSize: '15px', color: '#878a8c' }).setDepth(-4));
+    objs.push(scene.add.text(feedX + 12, y + 30, String(post.ups), {
+      fontFamily: 'Arial', fontSize: '12px', color: post.ups > 100 ? '#e0452a' : '#1a1a1b' }).setDepth(-4));
+    objs.push(scene.add.text(feedX + 14, y + 48, '▼', { fontSize: '15px', color: '#878a8c' }).setDepth(-4));
+    objs.push(scene.add.text(feedX + 44, y + 8, post.title, {
       fontFamily: 'Arial', fontSize: '15px', fontStyle: 'bold', color: '#1a1a1b',
-      wordWrap: { width: feedW - 60 } }).setDepth(-4));
-    const lines = Math.floor((cardH - 58) / 14);
-    for (let li = 0; li < lines; li++) {
-      objs.push(scene.add.rectangle(feedX + 44 + (feedW - 100) / 2,
-        y + 52 + li * 14, feedW - 100 - Phaser.Math.Between(0, 120), 7, LINE).setDepth(-4));
-    }
-    // occasional image block (prime climbing furniture)
-    if (cardH > 120) {
-      objs.push(scene.add.rectangle(feedX + feedW - 62, y + cardH / 2, 92, cardH - 28, 0xe8eaed)
+      wordWrap: { width: feedW - (post.has_image ? 160 : 60) } }).setDepth(-4));
+    objs.push(scene.add.text(feedX + 44, y + cardH - 22, `${post.author} · ${post.num_comments} comments`, {
+      fontFamily: 'Arial', fontSize: '11px', color: '#878a8c' }).setDepth(-4));
+    if (post.has_image) {
+      objs.push(scene.add.rectangle(feedX + feedW - 60, y + cardH / 2, 88, cardH - 24, 0xe8eaed)
         .setStrokeStyle(1, LINE).setDepth(-4));
-      objs.push(scene.add.text(feedX + feedW - 86, y + cardH / 2 - 8, 'img', {
-        fontFamily: 'Arial', fontSize: '12px', color: '#a0a3a5' }).setDepth(-3));
+      objs.push(scene.add.text(feedX + feedW - 82, y + cardH / 2 - 7, 'img', {
+        fontFamily: 'Arial', fontSize: '11px', color: '#a0a3a5' }).setDepth(-3));
     }
     solid(feedX, y, feedW, cardH, 'post', objs);
     y += cardH + 12;
   }
+  const WORLD_H = Math.max(y + pad, viewH);
 
-  // ---- sidebar (right column)
-  const sbX = feedX + feedW + g.pad;
-  const sbW = W - sbX - g.pad;
+  // ---- paper base (drawn after height known, sits under everything)
+  scene.add.rectangle(W / 2, WORLD_H / 2, W, WORLD_H, PAPER).setDepth(-10);
+
+  // ---- sidebar boxes repeating down the column ----------------------
+  const sbX = feedX + feedW + pad;
+  const sbW = W - sbX - pad - 14; // 14 = scrollbar gutter
   if (sbW > 120) {
-    let sy = g.headerH + g.pad;
     const boxes = [
-      { h: 130, title: 'About Community', body: 'r/whatremains\n1 member (you)\n∞ moderators' },
-      { h: 110, title: 'Community Rules', body: '1. No breathing\n2. No cursors\n3. See rule 1' },
-      { h: 90, title: 'Moderators', body: 'u/SUPERMOD_9000\n…and 12,847 others' },
+      { h: 128, title: 'About Community', body: `${data.name}\n1 member (you)\n∞ moderators` },
+      { h: 64 + data.rules.length * 18, title: 'Community Rules', body: data.rules.join('\n') },
+      { h: 60 + data.mods.length * 18, title: 'Moderators', body: data.mods.join('\n') },
     ];
-    for (const b of boxes) {
-      if (sy + b.h > H - g.pad) break;
+    let sy = headerH + pad, bi = 0;
+    while (sy + 90 < WORLD_H - pad) {
+      const b = boxes[bi % boxes.length];
+      if (sy + b.h > WORLD_H - pad) break;
       const objs = [];
       objs.push(scene.add.rectangle(sbX + sbW / 2, sy + b.h / 2, sbW, b.h, CARD)
         .setStrokeStyle(1, LINE).setDepth(-5));
@@ -101,35 +72,77 @@ NB.buildFakePage = function (scene, W, H) {
         fontFamily: 'Arial', fontSize: '12px', color: '#5a5d5f', lineSpacing: 5 }).setDepth(-3));
       solid(sbX, sy, sbW, b.h, 'sidebar', objs);
       sy += b.h + 12;
+      bi++;
     }
   }
 
-  // ---- API for physics + AvA reactions -------------------------------
+  // ---- header (fixed to camera — site chrome) ------------------------
+  const hdrObjs = [
+    scene.add.rectangle(W / 2, headerH / 2, W, headerH, CARD).setStrokeStyle(1, LINE),
+    scene.add.text(pad, headerH / 2, 'NWH', {
+      fontFamily: 'Impact, sans-serif', fontSize: '28px', color: '#e0452a' }).setOrigin(0, 0.5),
+    scene.add.text(pad + 78, headerH / 2, data.name, {
+      fontFamily: 'Georgia, serif', fontSize: '13px', fontStyle: 'italic', color: '#878a8c' }).setOrigin(0, 0.5),
+    scene.add.text(W - pad - 14, headerH / 2, `logged in as ${data.user}`, {
+      fontFamily: 'Arial', fontSize: '12px', color: '#4a6ee0' }).setOrigin(1, 0.5),
+  ];
+  for (const o of hdrObjs) o.setDepth(25).setScrollFactor(0);
+  solid(0, 0, W, headerH, 'header', []); // physics body only at world top
+
+  // ---- the scrollbar (HE CAN GRAB THIS) ------------------------------
+  const sbTrack = scene.add.rectangle(W - 7, viewH / 2, 12, viewH, 0xe4e6e8)
+    .setDepth(24).setScrollFactor(0);
+  const thumbH = Math.max(44, viewH * (viewH / WORLD_H));
+  const sbThumb = scene.add.rectangle(W - 7, 0, 10, thumbH, 0xb0b3b6)
+    .setDepth(25).setScrollFactor(0);
+
   return {
     elements: els,
-    // terrain query: is this point on page furniture?
+    WORLD_H,
+    headerH,
+    scrollbar: { track: sbTrack, thumb: sbThumb, thumbH },
+
+    updateScrollbar(cam) {
+      const frac = cam.scrollY / Math.max(1, WORLD_H - viewH);
+      sbThumb.y = thumbH / 2 + frac * (viewH - thumbH);
+    },
+
     onFurniture(x, y2) {
       for (const el of els) {
-        if (el.rect.contains(x, y2)) return el;
+        if (el.kind !== 'header' && el.rect.contains(x, y2)) return el;
       }
       return null;
     },
-    // the trample: furniture shudders under his weight
+
     shake(el, scene2) {
-      if (el._shaking) return;
+      if (el._shaking || !el.objs.length) return;
       el._shaking = true;
       const dx = Phaser.Math.Between(-NB.TUNE.ELEMENT_SHAKE_PX, NB.TUNE.ELEMENT_SHAKE_PX);
       scene2.tweens.add({
         targets: el.objs, x: `+=${dx}`, yoyo: true, duration: 45, repeat: 3,
         onComplete: () => { el._shaking = false; },
       });
-      // posts get progressively crooked — the page remembers being walked on
       if (el.kind === 'post' && Math.abs(el.crooked) < 2.5 && Math.random() < 0.35) {
         el.crooked += Phaser.Math.FloatBetween(-0.8, 0.8);
         for (const o of el.objs) {
           scene2.tweens.add({ targets: o, angle: el.crooked, duration: 120 });
         }
       }
+    },
+
+    // Balder ceremony prop: the gold elevator
+    makeElevator(x, groundY) {
+      const g = [];
+      const w = 74, h = 108;
+      g.push(scene.add.rectangle(x, groundY + h / 2, w, h, 0x2b2620).setDepth(15));
+      g.push(scene.add.rectangle(x, groundY + h / 2, w - 8, h - 8, GOLD).setDepth(15));
+      g.push(scene.add.rectangle(x, groundY + h / 2, w - 22, h - 18, 0x1c1a16).setDepth(16));
+      for (let i = 0; i < 3; i++) {
+        g.push(scene.add.rectangle(x - w / 2 + 11 + i * ((w - 22) / 2), groundY + h / 2, 2, h - 8, GOLD).setDepth(16));
+      }
+      g.push(scene.add.circle(x, groundY + 16, 5, 0xfff2b0).setDepth(17)); // chandelier glow
+      g.push(scene.add.rectangle(x, groundY + 6, w, 6, GOLD).setDepth(17));
+      return g;
     },
   };
 };

@@ -270,8 +270,16 @@ class GameScene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 - 16, `${this.userName} · Reason: none provided.`, {
         fontFamily: 'Courier New', fontSize: '16px', color: '#cccccc',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 + 22, `you lasted ${(this.survivalMs / 1000).toFixed(1)}s`, {
+      const newBest = NB.savePersonalBest(this.survivalMs);
+      const pb = NB.getPersonalBest();
+      const runLine = `you lasted ${NB.fmtTime(this.survivalMs)}`;
+      const bestLine = newBest ? 'NEW PERSONAL BEST' : `best: ${NB.fmtTime(pb)}`;
+      this.add.text(W / 2, H / 2 + 22, runLine, {
         fontFamily: 'Courier New', fontSize: '15px', color: '#888888',
+      }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
+      this.add.text(W / 2, H / 2 + 48, bestLine, {
+        fontFamily: 'Courier New', fontSize: newBest ? '17px' : '14px',
+        fontStyle: newBest ? 'bold' : 'normal', color: newBest ? '#ff4500' : '#666666',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
       // o7 salute swarm — DEVVIT-SWAP: real player deaths via redis + realtime
       const names = ['u/ghost_of_karma', 'u/former_lurker', 'u/deleted_2019', 'u/plz_no_ban',
@@ -335,5 +343,5 @@ new Phaser.Game({
   backgroundColor: '#f6f7f9',
   scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   pixelArt: true,
-  scene: GameScene,
+  scene: [TitleScene, GameScene],
 });

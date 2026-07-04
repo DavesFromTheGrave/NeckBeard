@@ -10,9 +10,26 @@ NB.playBalderCeremony = function (scene, done) {
   const W = scene.scale.width;
   const groundY = Math.min(mod.y + 60, scene.page.WORLD_H - 40);
   const elevX = Phaser.Math.Clamp(mod.x < W / 2 ? mod.x + 190 : mod.x - 190, 90, W - 90);
+  const seen = !!sessionStorage.getItem('nb_balder_seen');
+  let finished = false;
+  const skip = () => {
+    if (finished) return;
+    finished = true;
+    scene.ceremonyRunning = false;
+    scene.mod.frozen = false;
+    scene.mod.sprite.anims.resume();
+    cam.zoomTo(1, 200);
+    sessionStorage.setItem('nb_balder_seen', '1');
+    done();
+  };
 
   scene.ceremonyRunning = true;
   scene.mod.freezeHard();
+  if (seen) {
+    scene.time.delayedCall(120, skip);
+    return;
+  }
+  scene.input.once('pointerdown', () => { if (scene.ceremonyRunning) skip(); });
 
   // 1 — freeze + lens (0.8s)
   const shade = scene.add.rectangle(cam.scrollX + W / 2, cam.scrollY + scene.scale.height / 2,
@@ -22,9 +39,11 @@ NB.playBalderCeremony = function (scene, done) {
 
   const t = (ms, fn) => scene.time.delayedCall(ms, fn);
 
-  // 2 — the crack (at 0.8s)
+  // ~7s total (Dave spec). Timings tuned for jam pacing.
+  // 2 — the crack (at 0.5s)
   let crackG;
-  t(800, () => {
+  t(500, () => {
+    if (finished) return;
     NB.sfx.crack();
     cam.shake(420, 0.006);
     crackG = scene.add.graphics().setDepth(13);
@@ -42,18 +61,20 @@ NB.playBalderCeremony = function (scene, done) {
     }
   });
 
-  // 3 — the elevator rises (at 2.0s)
+  // 3 — the elevator rises (at 1.2s)
   let elev, balder;
-  t(2000, () => {
+  t(1200, () => {
+    if (finished) return;
     NB.sfx.ding();
     elev = scene.page.makeElevator(elevX, groundY + 120);
     for (const o of elev) {
-      scene.tweens.add({ targets: o, y: o.y - 120, duration: 1900, ease: 'Sine.easeOut' });
+      scene.tweens.add({ targets: o, y: o.y - 120, duration: 1300, ease: 'Sine.easeOut' });
     }
   });
 
-  // 4 — Balder steps out (at 4.4s)
-  t(4400, () => {
+  // 4 — Balder steps out (at 2.8s)
+  t(2800, () => {
+    if (finished) return;
     balder = scene.add.sprite(elevX, groundY - 46, 'balder')
       .setScale(1.05).setDepth(18).setAlpha(0);
     balder.setFlipX(mod.x < elevX);
@@ -67,8 +88,9 @@ NB.playBalderCeremony = function (scene, done) {
     }});
   });
 
-  // 5 — the suck (at 6.4s)
-  t(6400, () => {
+  // 5 — the suck (at 4.2s)
+  t(4200, () => {
+    if (finished) return;
     NB.sfx.gulp();
     cam.shake(300, 0.004);
     const under = scene.add.graphics().setDepth(13);
@@ -84,8 +106,9 @@ NB.playBalderCeremony = function (scene, done) {
     });
   });
 
-  // 6 — exit (at 8.2s)
-  t(8200, () => {
+  // 6 — exit (at 5.4s)
+  t(5400, () => {
+    if (finished) return;
     if (balder) {
       balder.setFlipX(!balder.flipX);
       scene.tweens.add({ targets: balder, x: elevX, alpha: 0.9, duration: 700 });
@@ -102,18 +125,19 @@ NB.playBalderCeremony = function (scene, done) {
     });
   });
 
-  // 7 — color back, the line, resume (at 10.6s)
-  t(10600, () => {
-    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 600,
+  // 7 — color back, the line, resume (at 7.0s)
+  t(7000, () => {
+    if (finished) return;
+    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 500,
       onComplete: () => shade.destroy() });
-    cam.zoomTo(1, 700, 'Sine.easeInOut');
+    cam.zoomTo(1, 500, 'Sine.easeInOut');
     const note = scene.add.text(W / 2, 92, 'management has been notified.', {
       fontFamily: 'Courier New', fontSize: '16px', color: '#9a3fd4',
     }).setOrigin(0.5).setDepth(30).setScrollFactor(0).setAlpha(0);
-    scene.tweens.add({ targets: note, alpha: 1, duration: 500, yoyo: true, hold: 2200,
+    scene.tweens.add({ targets: note, alpha: 1, duration: 400, yoyo: true, hold: 1400,
       onComplete: () => note.destroy() });
-    scene.ceremonyRunning = false;
-    done();
+    sessionStorage.setItem('nb_balder_seen', '1');
+    skip();
   });
 };
 

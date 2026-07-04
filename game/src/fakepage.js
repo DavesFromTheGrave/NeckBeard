@@ -130,19 +130,12 @@ NB.buildFakePage = function (scene, W, viewH, data) {
       }
     },
 
-    // Balder ceremony prop: the gold elevator
+    // Balder ceremony prop: the gold elevator (real art; black bg stripped via blend)
     makeElevator(x, groundY) {
-      const g = [];
-      const w = 74, h = 108;
-      g.push(scene.add.rectangle(x, groundY + h / 2, w, h, 0x2b2620).setDepth(15));
-      g.push(scene.add.rectangle(x, groundY + h / 2, w - 8, h - 8, GOLD).setDepth(15));
-      g.push(scene.add.rectangle(x, groundY + h / 2, w - 22, h - 18, 0x1c1a16).setDepth(16));
-      for (let i = 0; i < 3; i++) {
-        g.push(scene.add.rectangle(x - w / 2 + 11 + i * ((w - 22) / 2), groundY + h / 2, 2, h - 8, GOLD).setDepth(16));
-      }
-      g.push(scene.add.circle(x, groundY + 16, 5, 0xfff2b0).setDepth(17)); // chandelier glow
-      g.push(scene.add.rectangle(x, groundY + 6, w, 6, GOLD).setDepth(17));
-      return g;
+      const elev = scene.add.sprite(x, groundY + 54, 'elevator')
+        .setOrigin(0.5, 0.5).setDepth(15).setScale(1.35);
+      elev.setBlendMode(Phaser.BlendModes.NORMAL);
+      return [elev];
     },
   };
 };

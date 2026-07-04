@@ -1,0 +1,14 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "phaser.min.js",
+  "scripts": {
+    "start": "node server.js",
+    "test:boot": "node test-boot.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

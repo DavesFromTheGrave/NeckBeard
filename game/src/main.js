@@ -3,6 +3,24 @@
 // World is a scrollable feed; camera follows via edge-push + wheel.
 window.NB = window.NB || {};
 
+// Strip near-black pixels so painted assets with flat BGs composite cleanly.
+NB.keyBlack = function (scene, key, tol = 28) {
+  if (!scene.textures.exists(key)) return;
+  const src = scene.textures.get(key).getSourceImage();
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] < tol && d[i + 1] < tol && d[i + 2] < tol) d[i + 3] = 0;
+  }
+  ctx.putImageData(img, 0, 0);
+  scene.textures.remove(key);
+  scene.textures.addCanvas(key, c);
+};
+
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
 
@@ -19,12 +37,14 @@ class GameScene extends Phaser.Scene {
       if (i <= 6) this.load.image(`carry-${i}`, `assets/carry/mod-carry-${i}.png`);
     }
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
+    this.load.image('elevator', 'assets/balder/elevator.png');
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
   }
 
   create() {
+    try { NB.keyBlack(this, 'elevator'); } catch (e) { console.warn('elevator key:', e); }
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this.caught = false;
@@ -81,8 +101,37 @@ class GameScene extends Phaser.Scene {
       fontFamily: 'Courier New', fontSize: '18px', color: '#1a1a1b',
     }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
 
+    this.bindDebugKeys();
     this.ready = true;
     window.__gs = this; // debug/test handle (harmless in prod; Devvit strips console access anyway)
+  }
+
+  bindDebugKeys() {
+    // Alt+Shift — Huion owns Ctrl+Alt. Stripped in production Devvit build.
+    if (!this.input.keyboard) return;
+    this.input.keyboard.on('keydown', (ev) => {
+      if (!ev.altKey || !ev.shiftKey || !this.ready) return;
+      const k = ev.key.toLowerCase();
+      if (k === 'b' && !this.balderUsed && !this.ceremonyRunning) {
+        this.balderUsed = true;
+        this.survivalMs = Math.max(this.survivalMs, 61000);
+        NB.playBalderCeremony(this, () => {
+          this.time.delayedCall(2000, () => { if (!this.caught) NB.spawnRevenant(this); });
+        });
+      } else if (k === 'r' && !this.ceremonyRunning && !this.caught) {
+        NB.spawnRevenant(this);
+      } else if (k === 't') {
+        this.survivalMs += 30000;
+      } else if (k === 'd' && !this.caught) {
+        this.mod.setState('CAUGHT_YOU');
+        this.onCaught();
+      } else if (k === 's' && this.ceremonyRunning) {
+        this.ceremonyRunning = false;
+        this.mod.frozen = false;
+        this.mod.sprite.anims.resume();
+        this.cameras.main.zoomTo(1, 200);
+      }
+    });
   }
 
   drawCursor(x, y) {
@@ -131,7 +180,7 @@ class GameScene extends Phaser.Scene {
   onCaught() {
     if (this.caught || this.ceremonyRunning) return;
     // the promotion review: survive past the threshold and the catch is intercepted
-    if (!this.balderUsed && this.survivalMs > 60000) {
+    if (!this.balderUsed && this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS) {
       this.balderUsed = true;
       NB.playBalderCeremony(this, () => {
         this.time.delayedCall(Phaser.Math.Between(4000, 8000), () => {

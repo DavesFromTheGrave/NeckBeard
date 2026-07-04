@@ -4,7 +4,15 @@
 window.NB = window.NB || {};
 
 NB.fetchSubreddit = function () {
-  // DEVVIT-SWAP: return context.reddit.getHotPosts(...) mapped to this shape.
+  // On Devvit the server exposes /api/arena with real subreddit data.
+  const api = '/api/arena';
+  if (typeof fetch === 'function' && !location.hostname.match(/localhost|127\.0\.0\.1/)) {
+    return fetch(api).then(r => {
+      if (!r.ok) throw new Error(`arena ${r.status}`);
+      return r.json();
+    });
+  }
+  // Local dev fallback — same shape as the Devvit mapper.
   return Promise.resolve({
     name: 'r/whatremains',
     user: 'u/last_human_2026',           // DEVVIT-SWAP: real username

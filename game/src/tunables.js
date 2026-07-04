@@ -36,4 +36,7 @@ NB.TUNE = {
   HEAT_MAX: 6,
 
   SPRITE_SCALE: 1.15,
+
+  // Balder promotion review — survive past this, then a catch triggers ceremony (once/run)
+  BALDER_SURVIVAL_MS: 60000,
 };

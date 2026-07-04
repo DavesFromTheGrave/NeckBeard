@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "neckbeard-go",
+  "name": "neckbeard",
   "post": {
     "dir": "dist/client",
     "entrypoints": {

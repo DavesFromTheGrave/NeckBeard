@@ -6,7 +6,9 @@ const { buildArena } = require('./reddit-fetch');
 
 const ROOT = __dirname;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png',
-               '.json': 'application/json', '.css': 'text/css' };
+               '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+               '.json': 'application/json', '.css': 'text/css',
+               '.otf': 'font/otf', '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2' };
 const arenaCache = new Map();
 const CACHE_MS = 90_000;
 

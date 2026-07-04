@@ -337,11 +337,16 @@ class GameScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  backgroundColor: '#f6f7f9',
-  scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-  pixelArt: true,
-  scene: [TitleScene, GameScene],
+// Wait for brand fonts to be confirmed-loaded before the first scene ever
+// draws text — otherwise the title card's first paint silently falls back
+// to the system font and never re-renders.
+NB.fontsReady.then(() => {
+  new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    backgroundColor: '#f6f7f9',
+    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+    pixelArt: true,
+    scene: [TitleScene, GameScene],
+  });
 });

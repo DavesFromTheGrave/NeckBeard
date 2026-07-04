@@ -30,7 +30,7 @@ fs.writeFileSync(path.join(CLIENT, 'game.html'), index);
 fs.writeFileSync(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Neckbeard Go</title>
+<title>Neckbeard</title>
 <style>
   *{box-sizing:border-box}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#1a1a1b 0%,#2d1b2e 55%,#1a1a1b 100%);color:#fff;font-family:Courier New,monospace}
@@ -40,7 +40,7 @@ fs.writeFileSync(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
   .tag{margin-top:18px;color:#ff4500;font-size:12px}
 </style></head><body>
 <div class="card">
-  <h1>NECKBEARD GO</h1>
+  <h1>NECKBEARD</h1>
   <p>Survive inside the feed. The mod never stops chasing your finger.</p>
   <p class="tag">expand to play · Games with a Hook</p>
 </div>

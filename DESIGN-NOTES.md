@@ -41,8 +41,24 @@ It is the ranged sibling of the scrollbar yank: repositions the fight, never end
 - **Effect after sequence (locked):** chaos/difficulty escalates (management has
   noticed you).
 - **Rule (locked):** Balder never touches the player, never touches Supermod.
-- **Choreography: 🔶 DAVE IS WRITING IT.** Do not invent beats. Slot in his
-  sequence when delivered.
+- **Choreography ✅ DELIVERED (Dave, 2026-07-04 ~02:38):**
+  - **Trigger (revised):** you survive LONGER THAN ~60s (tunable) and THEN get
+    caught — instead of instant death, the Balder event plays. One time per run.
+  - **The sequence:**
+    1. Catch freezes — no [ REMOVED ] yet
+    2. A crack splits open in the ground; a SLICK GOLD ELEVATOR rises out
+       (Dave: he's too good to crawl out; "slick one, made of gold or some
+       shit — I'll let you figure that part out" = detailing delegated)
+    3. Balder steps out (suit-vest canon look, cigar)
+    4. A crack opens UNDER SUPERMOD — Balder SUCKS HIM INTO THE GROUND
+       (the physical beat: swift, effortless, management-grade violence)
+    5. Player is SPARED — the run continues
+    6. **When Supermod comes back up... he comes back as REVENANT** (the
+       escalated form — the true endgame tier)
+  - Reading: it's not mercy, it's a performance review. You were good enough
+    prey that the employee gets disciplined — and replaced with something worse.
+  - Art needs: gold elevator asset, Balder emerge/gesture, Revenant-Supermod
+    skin (zombie set is the natural base). Placeholders acceptable for jam.
 
 ## THE GIMMICK ✅ (locked 2026-07-04, Dave: "exactly what I was trying to get")
 

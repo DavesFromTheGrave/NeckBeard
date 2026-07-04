@@ -16,6 +16,7 @@ const state = await page.evaluate(() => ({
   posts: window.__gs?.page?.elements?.filter(e => e.kind === 'post').length,
   mod: window.__gs?.mod?.state,
   buildErr: window.__buildErr || null,
+  worldH: window.__gs?.page?.WORLD_H,
 }));
 
 console.log(JSON.stringify({ ok: state.ready && !state.buildErr, state, errors }, null, 2));

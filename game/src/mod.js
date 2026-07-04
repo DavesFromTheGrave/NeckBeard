@@ -275,6 +275,13 @@ NB.Supermod = class {
     }
 
     if (this.state !== 'CAUGHT_YOU') s.setFlipX((tgt.x - s.x) < 0);
+    // stride reads better when run anim accelerates with heat
+    if (s.anims.currentAnim) {
+      const spd = this.state === 'LURK' ? 0.85
+        : (this.state === 'HUNT' || this.state === 'YANK') ? 1 + this.heat * 0.18
+        : 1;
+      s.anims.timeScale = spd;
+    }
     this.clamp();
   }
 

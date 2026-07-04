@@ -1,105 +1,261 @@
-// The stage: the host subreddit re-staged as terrain. Built from NB.fetchSubreddit()
-// data — post cards are climbable furniture, the feed extends into a scrollable
-// world, and the page reacts to being walked on. The page is not a backdrop.
+// Reddit home feed — 1:1 layout recreation for the chase arena.
+// Posts from the feed are climbable terrain; chrome is fixed like reddit.com.
 window.NB = window.NB || {};
 
 NB.buildFakePage = function (scene, W, viewH, data) {
+  const R = NB.REDDIT;
   const els = [];
-  const pad = 16, headerH = 64;
-  const PAPER = 0xf6f7f9, CARD = 0xffffff, LINE = 0xd7dadc,
-        ACCENT = 0x4a6ee0, GOLD = 0xd4af37;
+  const F = R.font;
+  const isWide = W >= 768;
+  const leftW = isWide ? R.leftNavW : 0;
+  const rightW = isWide ? R.rightRailW : 0;
+  const feedX = leftW + (isWide ? 24 : 0);
+  const feedW = Math.min(R.feedMaxW, W - feedX - rightW - (isWide ? 48 : 16));
+  const headerH = R.headerH;
 
   function solid(x, y, w, h, kind, objs) {
-    const el = { rect: new Phaser.Geom.Rectangle(x, y, w, h), kind,
-                 objs, crooked: 0 };
+    const el = { rect: new Phaser.Geom.Rectangle(x, y, w, h), kind, objs, crooked: 0 };
     els.push(el);
     return el;
   }
 
-  // ---- feed geometry from real posts --------------------------------
-  const feedW = Math.min(W * 0.62, 620);
-  const feedX = pad;
-  let y = headerH + pad;
+  function txt(x, y, str, style, depth = -3) {
+    return scene.add.text(x, y, str, { fontFamily: F, ...style }).setDepth(depth);
+  }
+
+  function snoo(g, cx, cy, r) {
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(cx, cy, r);
+    g.fillStyle(0xff4500, 1);
+    g.fillCircle(cx, cy, r * 0.72);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(cx - r * 0.28, cy - r * 0.12, r * 0.22);
+    g.fillCircle(cx + r * 0.28, cy - r * 0.12, r * 0.22);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(cx - r * 0.28, cy - r * 0.12, r * 0.09);
+    g.fillCircle(cx + r * 0.28, cy - r * 0.12, r * 0.09);
+    g.lineStyle(2.5, 0xff4500, 1);
+    g.beginPath();
+    g.moveTo(cx, cy - r * 0.55);
+    g.lineTo(cx, cy - r * 1.05);
+    g.strokePath();
+    g.fillStyle(0xff4500, 1);
+    g.fillCircle(cx, cy - r * 1.08, r * 0.14);
+  }
+
+  // ---- scrollable world base (reddit canvas gray) --------------------
+  let y = headerH + 8;
+
+  // ---- HOME feed posts -----------------------------------------------
   for (const post of data.posts) {
-    const lines = Math.ceil(post.title.length / 38);
-    const cardH = 66 + lines * 18 + (post.has_image ? 46 : 0);
+    const sub = post.subreddit || data.name || 'r/popular';
     const objs = [];
-    objs.push(scene.add.rectangle(feedX + feedW / 2, y + cardH / 2, feedW, cardH, CARD)
-      .setStrokeStyle(1, LINE).setDepth(-5));
-    objs.push(scene.add.text(feedX + 14, y + 10, '▲', { fontSize: '15px', color: '#878a8c' }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 12, y + 30, String(post.ups), {
-      fontFamily: 'Arial', fontSize: '12px', color: post.ups > 100 ? '#e0452a' : '#1a1a1b' }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 14, y + 48, '▼', { fontSize: '15px', color: '#878a8c' }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 44, y + 8, post.title, {
-      fontFamily: 'Arial', fontSize: '15px', fontStyle: 'bold', color: '#1a1a1b',
-      wordWrap: { width: feedW - (post.has_image ? 160 : 60) } }).setDepth(-4));
-    objs.push(scene.add.text(feedX + 44, y + cardH - 22, `${post.author} · ${post.num_comments} comments`, {
-      fontFamily: 'Arial', fontSize: '11px', color: '#878a8c' }).setDepth(-4));
+    const voteX = feedX + R.voteW / 2;
+    const contentX = feedX + R.voteW + 8;
+    const contentW = feedW - R.voteW - 16;
+
+    const titleLines = Math.max(1, Math.ceil(post.title.length / Math.floor(contentW / 9.2)));
+    const titleH = titleLines * 20;
+    const metaH = 20;
+    const imgH = post.has_image ? (post.image_tall ? 220 : 140) : 0;
+    const actionH = 36;
+    const cardH = 12 + metaH + titleH + imgH + actionH + 8;
+
+    objs.push(scene.add.rectangle(feedX + feedW / 2, y + cardH / 2, feedW, cardH, R.card)
+      .setDepth(-6));
+
+    // vote column (left pill stack)
+    objs.push(txt(voteX, y + 14, '▲', { fontSize: '18px', color: R.textWeak }, -4).setOrigin(0.5, 0));
+    const score = post.ups >= 1000 ? `${(post.ups / 1000).toFixed(1)}k` : String(post.ups);
+    objs.push(txt(voteX, y + 34, score, {
+      fontSize: '12px', fontStyle: 'bold', color: post.ups > 500 ? R.upvote : R.text,
+    }, -4).setOrigin(0.5, 0));
+    objs.push(txt(voteX, y + 52, '▼', { fontSize: '18px', color: R.textWeak }, -4).setOrigin(0.5, 0));
+
+    // subreddit icon
+    const iconColor = NB.subColor(sub);
+    const iconX = contentX + 10;
+    const iconY = y + 18;
+    objs.push(scene.add.circle(iconX, iconY, 10, Phaser.Display.Color.HexStringToColor(iconColor).color).setDepth(-4));
+    objs.push(txt(iconX, iconY, NB.subAbbr(sub), {
+      fontSize: '8px', fontStyle: 'bold', color: '#ffffff',
+    }, -3).setOrigin(0.5));
+
+    const meta = `${sub}  •  ${post.time || '5 hr. ago'}`;
+    objs.push(txt(contentX + 24, y + 10, meta, { fontSize: '12px', color: R.meta }));
+    if (post.author) {
+      objs.push(txt(contentX + 24, y + 26, post.author, { fontSize: '11px', color: R.textWeak }));
+    }
+
+    objs.push(txt(contentX, y + 44, post.title, {
+      fontSize: '17px', fontStyle: 'bold', color: R.text,
+      wordWrap: { width: contentW },
+      lineSpacing: 2,
+    }));
+
+    let cy = y + 44 + titleH + 6;
     if (post.has_image) {
-      objs.push(scene.add.rectangle(feedX + feedW - 60, y + cardH / 2, 88, cardH - 24, 0xe8eaed)
-        .setStrokeStyle(1, LINE).setDepth(-4));
-      objs.push(scene.add.text(feedX + feedW - 82, y + cardH / 2 - 7, 'img', {
-        fontFamily: 'Arial', fontSize: '11px', color: '#a0a3a5' }).setDepth(-3));
+      objs.push(scene.add.rectangle(contentX + contentW / 2, cy + imgH / 2, contentW, imgH, 0x0b1416)
+        .setDepth(-5));
+      objs.push(txt(contentX + contentW / 2, cy + imgH / 2, post.image_label || 'Image', {
+        fontSize: '12px', color: '#818384',
+      }).setOrigin(0.5));
+      cy += imgH + 4;
     }
-    solid(feedX, y, feedW, cardH, 'post', objs);
-    y += cardH + 12;
-  }
-  const WORLD_H = Math.max(y + pad, viewH);
 
-  // ---- paper base (drawn after height known, sits under everything)
-  scene.add.rectangle(W / 2, WORLD_H / 2, W, WORLD_H, PAPER).setDepth(-10);
-
-  // ---- sidebar boxes repeating down the column ----------------------
-  const sbX = feedX + feedW + pad;
-  const sbW = W - sbX - pad - 14; // 14 = scrollbar gutter
-  if (sbW > 120) {
-    const boxes = [
-      { h: 128, title: 'About Community', body: `${data.name}\n1 member (you)\n∞ moderators` },
-      { h: 64 + data.rules.length * 18, title: 'Community Rules', body: data.rules.join('\n') },
-      { h: 60 + data.mods.length * 18, title: 'Moderators', body: data.mods.join('\n') },
+    const actions = [
+      { label: `${post.num_comments} Comments`, x: 0 },
+      { label: 'Share', x: 118 },
+      { label: 'Award', x: 188 },
     ];
-    let sy = headerH + pad, bi = 0;
-    while (sy + 90 < WORLD_H - pad) {
-      const b = boxes[bi % boxes.length];
-      if (sy + b.h > WORLD_H - pad) break;
-      const objs = [];
-      objs.push(scene.add.rectangle(sbX + sbW / 2, sy + b.h / 2, sbW, b.h, CARD)
-        .setStrokeStyle(1, LINE).setDepth(-5));
-      objs.push(scene.add.rectangle(sbX + sbW / 2, sy + 16, sbW, 32, ACCENT).setDepth(-4));
-      objs.push(scene.add.text(sbX + 10, sy + 8, b.title, {
-        fontFamily: 'Arial', fontSize: '13px', fontStyle: 'bold', color: '#ffffff' }).setDepth(-3));
-      objs.push(scene.add.text(sbX + 10, sy + 40, b.body, {
-        fontFamily: 'Arial', fontSize: '12px', color: '#5a5d5f', lineSpacing: 5 }).setDepth(-3));
-      solid(sbX, sy, sbW, b.h, 'sidebar', objs);
-      sy += b.h + 12;
-      bi++;
+    for (const a of actions) {
+      objs.push(txt(contentX + a.x, cy + 6, a.label, {
+        fontSize: '12px', fontStyle: 'bold', color: R.textWeak,
+      }));
     }
+
+    solid(feedX, y, feedW, cardH, 'post', objs);
+    y += cardH + R.postGap;
   }
 
-  // ---- header (fixed to camera — site chrome) ------------------------
-  const hdrObjs = [
-    scene.add.rectangle(W / 2, headerH / 2, W, headerH, CARD).setStrokeStyle(1, LINE),
-    scene.add.text(pad, headerH / 2, 'NWH', {
-      fontFamily: 'Impact, sans-serif', fontSize: '28px', color: '#e0452a' }).setOrigin(0, 0.5),
-    scene.add.text(pad + 78, headerH / 2, data.name, {
-      fontFamily: 'Georgia, serif', fontSize: '13px', fontStyle: 'italic', color: '#878a8c' }).setOrigin(0, 0.5),
-    scene.add.text(W - pad - 14, headerH / 2, `logged in as ${data.user}`, {
-      fontFamily: 'Arial', fontSize: '12px', color: '#4a6ee0' }).setOrigin(1, 0.5),
-  ];
-  for (const o of hdrObjs) o.setDepth(25).setScrollFactor(0);
-  solid(0, 0, W, headerH, 'header', []); // physics body only at world top
+  const WORLD_H = Math.max(y + 24, viewH + 200);
 
-  // ---- the scrollbar (HE CAN GRAB THIS) ------------------------------
-  const sbTrack = scene.add.rectangle(W - 7, viewH / 2, 12, viewH, 0xe4e6e8)
+  scene.add.rectangle(W / 2, WORLD_H / 2, W, WORLD_H, R.canvas).setDepth(-12);
+
+  // ---- right rail (desktop home) -------------------------------------
+  if (isWide && rightW > 100) {
+    const rx = feedX + feedW + 24;
+    let ry = headerH + 16;
+    const railItems = data.popular || [
+      { name: 'r/AskReddit', members: '57.2m' },
+      { name: 'r/funny', members: '66.8m' },
+      { name: 'r/gaming', members: '47.3m' },
+      { name: 'r/worldnews', members: '46.1m' },
+      { name: 'r/todayilearned', members: '41.2m' },
+    ];
+    const railH = 56 + railItems.length * 36 + 20;
+    const robjs = [];
+    robjs.push(scene.add.rectangle(rx + rightW / 2, ry + railH / 2, rightW, railH, R.card).setDepth(-5));
+    robjs.push(scene.add.rectangle(rx + rightW / 2, ry + 18, rightW, 36, R.searchBg).setDepth(-4));
+    robjs.push(txt(rx + 12, ry + 10, 'POPULAR COMMUNITIES', {
+      fontSize: '11px', fontStyle: 'bold', color: R.textWeak,
+    }));
+    let iy = ry + 44;
+    for (const c of railItems) {
+      const col = NB.subColor(c.name);
+      robjs.push(scene.add.circle(rx + 18, iy + 10, 9, Phaser.Display.Color.HexStringToColor(col).color).setDepth(-4));
+      robjs.push(txt(rx + 34, iy, c.name, { fontSize: '13px', fontStyle: 'bold', color: R.link }));
+      robjs.push(txt(rx + 34, iy + 16, `${c.members} members`, { fontSize: '11px', color: R.textWeak }));
+      iy += 36;
+    }
+    solid(rx, ry, rightW, railH, 'sidebar', robjs);
+
+    // Reddit Premium card
+    ry += railH + 16;
+    const premH = 120;
+    const pobjs = [];
+    pobjs.push(scene.add.rectangle(rx + rightW / 2, ry + premH / 2, rightW, premH, R.card).setDepth(-5));
+    pobjs.push(txt(rx + 12, ry + 12, 'Reddit Premium', { fontSize: '15px', fontStyle: 'bold', color: R.text }));
+    pobjs.push(txt(rx + 12, ry + 36, 'The best of Reddit\nwith no ads', {
+      fontSize: '12px', color: R.textWeak, lineSpacing: 4,
+    }));
+    pobjs.push(scene.add.rectangle(rx + rightW / 2, ry + premH - 22, rightW - 24, 28, R.premium)
+      .setDepth(-4));
+    pobjs.push(txt(rx + rightW / 2, ry + premH - 22, 'Try Now', {
+      fontSize: '13px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5));
+    solid(rx, ry, rightW, premH, 'sidebar', pobjs);
+  }
+
+  // ---- fixed top header (reddit.com chrome) --------------------------
+  const hdrGfx = scene.add.graphics().setDepth(26).setScrollFactor(0);
+  hdrGfx.fillStyle(Phaser.Display.Color.HexStringToColor(R.card).color, 1);
+  hdrGfx.fillRect(0, 0, W, headerH);
+  hdrGfx.lineStyle(1, Phaser.Display.Color.HexStringToColor(R.border).color, 1);
+  hdrGfx.lineBetween(0, headerH, W, headerH);
+
+  snoo(hdrGfx, isWide ? 36 : 28, headerH / 2, 14);
+  const logo = scene.add.text(isWide ? 56 : 48, headerH / 2, 'reddit', {
+    fontFamily: F, fontSize: '22px', fontStyle: 'bold', color: R.brandWord,
+  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0);
+
+  const searchX = isWide ? 200 : 88;
+  const searchW = isWide ? Math.min(560, W - searchX - 200) : W - searchX - 56;
+  const search = scene.add.rectangle(searchX + searchW / 2, headerH / 2, searchW, 36, R.searchBg)
+    .setStrokeStyle(1, R.searchBorder).setDepth(26).setScrollFactor(0);
+  const searchTxt = scene.add.text(searchX + 14, headerH / 2, 'Search Reddit', {
+    fontFamily: F, fontSize: '14px', color: R.textWeak,
+  }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0);
+
+  const createBtn = scene.add.circle(W - (isWide ? 120 : 72), headerH / 2, 14, R.pillBg)
+    .setDepth(26).setScrollFactor(0);
+  scene.add.text(W - (isWide ? 120 : 72), headerH / 2, '+', {
+    fontFamily: F, fontSize: '22px', color: '#ffffff',
+  }).setOrigin(0.5).setDepth(27).setScrollFactor(0);
+
+  if (isWide) {
+    scene.add.text(W - 168, headerH / 2, '◌  ◌', {
+      fontFamily: F, fontSize: '18px', color: R.textWeak,
+    }).setOrigin(0.5).setDepth(27).setScrollFactor(0);
+  }
+
+  scene.add.circle(W - 28, headerH / 2, 14, R.searchBg)
+    .setStrokeStyle(2, R.border).setDepth(26).setScrollFactor(0);
+  const avaSnoo = scene.add.graphics().setDepth(27).setScrollFactor(0);
+  snoo(avaSnoo, W - 28, headerH / 2, 8);
+
+  solid(0, 0, W, headerH, 'header', []);
+
+  // ---- fixed left nav (desktop) --------------------------------------
+  if (isWide) {
+    const navGfx = scene.add.rectangle(leftW / 2, viewH / 2, leftW, viewH, R.card)
+      .setDepth(24).setScrollFactor(0).setOrigin(0.5);
+    navGfx.setStrokeStyle(1, R.border);
+    const navItems = [
+      { label: 'Home', active: true },
+      { label: 'Popular', active: false },
+      { label: 'Answers', active: false },
+      { label: 'Explore', active: false },
+      { label: 'All', active: false },
+    ];
+    let ny = headerH + 12;
+    for (const item of navItems) {
+      if (item.active) {
+        scene.add.rectangle(8 + (leftW - 16) / 2, ny + 14, leftW - 16, 32, R.navActive)
+          .setDepth(25).setScrollFactor(0).setOrigin(0.5);
+      }
+      scene.add.text(20, ny + 6, item.label, {
+        fontFamily: F, fontSize: '14px',
+        fontStyle: item.active ? 'bold' : 'normal',
+        color: item.active ? R.navActiveText : R.text,
+      }).setDepth(26).setScrollFactor(0);
+      ny += 40;
+    }
+    scene.add.text(20, ny + 8, 'GAMES ON REDDIT', {
+      fontFamily: F, fontSize: '10px', fontStyle: 'bold', color: R.textWeak,
+    }).setDepth(26).setScrollFactor(0);
+    solid(0, headerH, leftW, viewH - headerH, 'sidebar', []);
+  }
+
+  // ---- sort bar under header (scrolls with feed) ---------------------
+  const sortY = headerH + 4;
+  const sortObjs = [];
+  sortObjs.push(txt(feedX, sortY, 'Hot Posts', { fontSize: '13px', fontStyle: 'bold', color: R.text }));
+  sortObjs.push(txt(feedX + 90, sortY, '  ◇ Card  ▣ Classic', { fontSize: '12px', color: R.textWeak }));
+  solid(feedX, sortY - 4, feedW, 28, 'chrome', sortObjs);
+
+  // ---- scrollbar (game object — mod grabs this) ----------------------
+  const sbTrack = scene.add.rectangle(W - 6, viewH / 2, 8, viewH, 0xc8ccd0)
     .setDepth(24).setScrollFactor(0);
-  const thumbH = Math.max(44, viewH * (viewH / WORLD_H));
-  const sbThumb = scene.add.rectangle(W - 7, 0, 10, thumbH, 0xb0b3b6)
+  const thumbH = Math.max(48, viewH * (viewH / WORLD_H));
+  const sbThumb = scene.add.rectangle(W - 6, 0, 6, thumbH, 0x878a8c)
     .setDepth(25).setScrollFactor(0);
 
   return {
     elements: els,
     WORLD_H,
     headerH,
+    feed: { x: feedX, y: headerH, w: feedW },
     scrollbar: { track: sbTrack, thumb: sbThumb, thumbH },
 
     updateScrollbar(cam) {
@@ -130,11 +286,9 @@ NB.buildFakePage = function (scene, W, viewH, data) {
       }
     },
 
-    // Balder ceremony prop: the gold elevator (real art; black bg stripped via blend)
     makeElevator(x, groundY) {
       const elev = scene.add.sprite(x, groundY + 54, 'elevator')
         .setOrigin(0.5, 0.5).setDepth(15).setScale(1.35);
-      elev.setBlendMode(Phaser.BlendModes.NORMAL);
       return [elev];
     },
   };

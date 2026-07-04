@@ -26,8 +26,8 @@ class GameScene extends Phaser.Scene {
 
   preload() {
     for (let i = 1; i <= 6; i++) {
-      this.load.image(`walk-${i}`, `assets/walk/mod-walk2-${i}.png`);
-      this.load.image(`run-${i}`, `assets/run/mod-run2-${i}.png`);
+      this.load.image(`walk-${i}`, `assets/walk/mod-walk-${i}.png`);
+      this.load.image(`run-${i}`, `assets/run/mod-run-${i}.png`);
       this.load.image(`charge-${i}`, `assets/charge/mod-charge-${i}.png`);
       this.load.image(`leap-${i}`, `assets/leap/mod-leap-${i}.png`);
       this.load.image(`pose-${i}`, `assets/poses/mod-pose2-${i}.png`);
@@ -55,8 +55,8 @@ class GameScene extends Phaser.Scene {
       key, frames: Array.from({ length: n }, (_, i) => ({ key: `${prefix}-${i + 1}` })),
       frameRate: rate, repeat,
     });
-    anim('anim-walk', 'walk', 6, 7);
-    anim('anim-run', 'run', 6, 11);
+    anim('anim-walk', 'walk', 6, 8);
+    anim('anim-run', 'run', 6, 14);
     anim('anim-charge', 'charge', 6, 12);
     anim('anim-leap', 'leap', 6, 14, 0);
     anim('anim-zwalk', 'zwalk', 6, 9);
@@ -79,9 +79,10 @@ class GameScene extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     this.page = NB.buildFakePage(this, W, H, data);
     this.cameras.main.setBounds(0, 0, W, this.page.WORLD_H);
+    const feed = this.page.feed;
 
-    this.playerPos = { x: W * 0.7, y: H * 0.6 };  // world coords
-    this.pointerScreen = { x: W * 0.7, y: H * 0.6 };
+    this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
+    this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
     this.cursorGfx = this.add.graphics().setDepth(20);
     this.input.on('pointermove', (p) => {
       this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
@@ -91,7 +92,7 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.scrollY + dy * 0.9, 0, this.page.WORLD_H - H);
     });
 
-    this.mod = new NB.Supermod(this, this.page, W * 0.15, H * 0.25);
+    this.mod = new NB.Supermod(this, this.page, feed.x + feed.w * 0.2, H * 0.35);
     this.pickups = new NB.Pickups(this, this.page);
     this.projectiles = new NB.Projectiles(this, data.comments);
     this.npc = new NB.Cheerleader(this);

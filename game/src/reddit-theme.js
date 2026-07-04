@@ -3,7 +3,7 @@
 window.NB = window.NB || {};
 
 NB.REDDIT = {
-  canvas: '#dae0e6',
+  canvas: '#f2f4f5',
   card: '#ffffff',
   border: '#edeff1',
   text: '#1a1a1b',
@@ -26,7 +26,7 @@ NB.REDDIT = {
   feedMaxW: 640,
   leftNavW: 272,
   rightRailW: 312,
-  cardRadius: 4,
+  cardRadius: 12,
   postGap: 10,
 };
 

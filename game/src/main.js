@@ -109,6 +109,7 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
       this.bindDebugKeys();
       this.bindTravelClicks();
+      this.bindSubredditSearch();
       this.ready = true;
       window.__gs = this;
     } else {
@@ -149,10 +150,10 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  travelToSub(sub, label) {
+  travelToSub(sub, label, onArrive) {
     if (this.traveling) return;
     const clean = (sub || 'all').replace(/^r\//i, '');
-    if (clean === this.currentSub) return;
+    if (clean === this.currentSub) { if (onArrive) onArrive(); return; }
     this.traveling = true;
     this.floatText(this.scale.width / 2, this.scale.height * 0.16,
       `loading ${label || 'r/' + clean}…`, '#576f76');
@@ -168,10 +169,50 @@ class GameScene extends Phaser.Scene {
       this.mod.heat = modSnap.heat;
       if (modSnap.revenant) this.mod.sprite.setTint(0xbbffbb);
       this.traveling = false;
+      if (onArrive) onArrive();
     }).catch(e => {
       this.traveling = false;
       this.floatText(this.scale.width / 2, this.scale.height * 0.2, `fetch failed: ${e.message}`, '#d93900');
     });
+  }
+
+  // Real <input> overlaid on the header's search box (Phaser DOM element) —
+  // needed for a native mobile keyboard since this ships inside Reddit's
+  // webview. Typing any subreddit browses there; a "cursed" one also
+  // spawns a bonus pickup regardless of whether you were already there.
+  bindSubredditSearch() {
+    const bar = this.page.searchBar;
+    if (!bar) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'search a subreddit…';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.style.cssText = `width:${Math.max(80, bar.w)}px;box-sizing:border-box;height:${bar.h}px;` +
+      `border:none;outline:none;background:transparent;font-family:${NB.REDDIT.font};` +
+      `font-size:14px;color:${NB.REDDIT.text};padding:0;`;
+    this.searchInput = input;
+    this.searchDom = this.add.dom(bar.x + bar.w / 2, bar.y, input).setDepth(28).setScrollFactor(0);
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        const raw = input.value;
+        input.value = '';
+        input.blur();
+        if (raw.trim()) this.trySubredditSearch(raw);
+      }
+    });
+  }
+
+  trySubredditSearch(raw) {
+    const clean = raw.replace(/^r\//i, '').trim();
+    if (!clean) return;
+    const cursedMsg = NB.CURSED_SUBS[clean.toLowerCase()];
+    this.travelToSub(clean, `r/${clean}`, cursedMsg ? () => {
+      if (this.caught || !this.pickups) return;
+      this.pickups.spawnCursed(this.playerPos.x, this.playerPos.y - 50);
+      this.floatText(this.scale.width / 2, this.scale.height * 0.22, cursedMsg, '#2ecc71');
+    } : null);
   }
 
   bindDebugKeys() {
@@ -301,11 +342,14 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  hitStop(ms) { this.hitStopT = Math.max(this.hitStopT || 0, ms); }
+
   update(_, rawDt) {
     if (!this.ready || this.caught) return;
     // dt clamp: throttled/background tabs hand out second-long deltas that
     // teleport him — cap the step so time dilates instead of skipping (fairness)
     const dt = Math.min(rawDt, 50);
+    if (this.hitStopT > 0) { this.hitStopT -= dt; return; } // freeze-frame beat
     const H = this.scale.height;
     const cam = this.cameras.main;
 
@@ -341,12 +385,18 @@ class GameScene extends Phaser.Scene {
 // draws text — otherwise the title card's first paint silently falls back
 // to the system font and never re-renders.
 NB.fontsReady.then(() => {
+  // Hidden/backgrounded tabs (headless test harnesses included) throttle
+  // requestAnimationFrame to zero — forcetimer=1 drives the loop off
+  // setTimeout instead so automated verification can actually observe play.
+  const forceTimer = new URLSearchParams(location.search).has('forcetimer');
   new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: '#f6f7f9',
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
     pixelArt: true,
+    fps: forceTimer ? { forceSetTimeOut: true } : undefined,
+    dom: { createContainer: true },
     scene: [TitleScene, GameScene],
   });
 });

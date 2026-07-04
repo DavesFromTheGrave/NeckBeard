@@ -47,6 +47,18 @@ NB.Pickups = class {
     this.items.push({ x, y, kind, objs });
   }
 
+  // The cursed-subreddit reward — stronger than a normal stun, and it wipes
+  // heat so a close call becomes real breathing room.
+  spawnCursed(x, y) {
+    const objs = [
+      this.scene.add.circle(x, y, 18, 0x2ecc71, 0.95).setDepth(8).setStrokeStyle(3, 0xffffff),
+      this.scene.add.text(x, y, '☠', { fontSize: '16px' }).setOrigin(0.5).setDepth(9),
+    ];
+    this.scene.tweens.add({ targets: objs, y: '-=6', yoyo: true, repeat: -1, duration: 500 });
+    this.scene.tweens.add({ targets: objs, scale: 1.15, yoyo: true, repeat: -1, duration: 350 });
+    this.items.push({ x, y, kind: 'cursed', objs });
+  }
+
   apply(it) {
     NB.sfx.pickup();
     const scene = this.scene;
@@ -61,6 +73,10 @@ NB.Pickups = class {
     } else if (it.kind === 'decoy') {
       scene.mod.setDecoy(it.x, it.y, 3200);
       scene.floatText(it.x, it.y, 'DECOY', '#9b59b6');
+    } else if (it.kind === 'cursed') {
+      scene.mod.stun(3000);
+      scene.mod.heat = 0;
+      scene.floatText(it.x, it.y, 'CURSED POWER', '#2ecc71');
     }
   }
 

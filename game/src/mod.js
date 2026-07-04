@@ -50,23 +50,64 @@ NB.Supermod = class {
     this.state = s;
     this.stateT = 0;
     switch (s) {
-      case 'LURK': this.anim('walk'); break;
-      case 'HUNT': this.anim('hunt'); break;
+      case 'LURK': this.anim('walk'); this.resetSquash(120); break;
+      case 'HUNT': this.anim('hunt'); this.resetSquash(120); break;
       case 'TELEGRAPH': {
         this.anim('telegraph');
         NB.sfx.telegraph();
         this.telegraphRing.setVisible(true).setStrokeStyle(3, this.revenant ? 0x3fae54 : 0xe0452a);
         this.scene.tweens.add({ targets: this.telegraphRing, scale: { from: 1.4, to: 0.7 },
           alpha: { from: 0.4, to: 1 }, duration: this.telegraphMs() });
+        // anticipation: coil down before the burst — the "held breath" beat
+        this.squash(1.1, 0.86, this.telegraphMs());
+        this.scene.cameras.main.zoomTo(1.045, this.telegraphMs(), 'Sine.easeIn');
         break;
       }
-      case 'LUNGE': this.anim('lunge'); NB.sfx.lunge(); break;
-      case 'CLIMB': this.anim('climb'); NB.sfx.vault(); this.telegraphRing.setVisible(false); break;
+      case 'LUNGE': {
+        this.anim('lunge'); NB.sfx.lunge();
+        this.scene.hitStop(60);
+        this.scene.cameras.main.shake(140, 0.006);
+        this.scene.cameras.main.zoomTo(1, 160, 'Sine.easeOut');
+        this.squash(1.28, 0.82, 90); // explosive stretch on commit
+        break;
+      }
+      case 'CLIMB':
+        this.anim('climb'); NB.sfx.vault(); this.telegraphRing.setVisible(false);
+        this.scene.cameras.main.shake(90, 0.004); // grabbing the edge, hauling weight up
+        this.resetSquash(0);
+        break;
       case 'THROW': this.anim('throw'); break;
       case 'YANK': this.anim('hunt'); break;
-      case 'STUMBLE': this.anim('stumble'); NB.sfx.stumble(); this.telegraphRing.setVisible(false); break;
+      case 'STUMBLE':
+        this.anim('stumble'); NB.sfx.stumble(); this.telegraphRing.setVisible(false);
+        this.scene.cameras.main.shake(90, 0.003); // the whiff
+        this.resetSquash(180);
+        break;
       case 'RISE': this.anim('walk'); break;
       case 'CAUGHT_YOU': this.anim('victory'); this.telegraphRing.setVisible(false); break;
+    }
+  }
+
+  // Cartoon-impact squash/stretch — held pose eased back to baseline scale.
+  squash(sx, sy, holdMs) {
+    const s = this.sprite, T = NB.TUNE;
+    if (this._squashTween) this._squashTween.stop();
+    s.setScale(T.SPRITE_SCALE * sx, T.SPRITE_SCALE * sy);
+    this._squashTween = this.scene.tweens.add({
+      targets: s, scaleX: T.SPRITE_SCALE, scaleY: T.SPRITE_SCALE,
+      duration: holdMs, ease: 'Back.easeOut',
+    });
+  }
+
+  resetSquash(duration) {
+    const s = this.sprite, T = NB.TUNE;
+    if (this._squashTween) { this._squashTween.stop(); this._squashTween = null; }
+    if (duration > 0) {
+      this._squashTween = this.scene.tweens.add({
+        targets: s, scaleX: T.SPRITE_SCALE, scaleY: T.SPRITE_SCALE, duration, ease: 'Sine.easeOut',
+      });
+    } else {
+      s.setScale(T.SPRITE_SCALE, T.SPRITE_SCALE);
     }
   }
 
@@ -235,6 +276,7 @@ NB.Supermod = class {
             this.speedBurstT = 0;
             break;
           }
+          this.scene.hitStop(110); // the freeze-frame beat right as he grabs you
           this.setState('CAUGHT_YOU');
           this.scene.onCaught();
           return;
@@ -250,7 +292,11 @@ NB.Supermod = class {
         s.x = cd.fromX + (cd.toX - cd.fromX) * ease;
         s.y = cd.fromY + (cd.toY - cd.fromY) * ease - Math.sin(k * Math.PI) * T.VAULT_ARC;
         s.setAngle(Math.sin(k * Math.PI) * T.VAULT_TILT_DEG * (s.flipX ? -1 : 1));
-        if (k >= 1) { s.setAngle(0); this.climbCd = T.VAULT_CD; this.climbData = null; this.setState('HUNT'); }
+        if (k >= 1) {
+          s.setAngle(0); this.climbCd = T.VAULT_CD; this.climbData = null;
+          this.scene.cameras.main.shake(70, 0.003); // the landing thud
+          this.setState('HUNT');
+        }
         break;
       }
       case 'STUMBLE': {

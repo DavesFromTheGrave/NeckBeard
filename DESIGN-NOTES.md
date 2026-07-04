@@ -53,8 +53,11 @@ actual hot posts of the host subreddit (titles, usernames, vote counts), real
 comments. Not a fake internet — a re-staging of the live one. "It plays on the
 pages of Reddit" stays true, which is the magic the extension had.
 
-- Post cards = terrain/walls; gutters between them = chase lanes (Pac-Man
-  corridor readability WITHOUT a designed maze — the feed layout IS the maze)
+- **MECHANICS ARE LOCKED (Dave, 2026-07-04: "I loved the way that it moved
+  already"):** the prototype's chase feel — free 2D movement, climb-slowdown
+  over cards, telegraph/lunge fairness — ships AS IS. Pac-Man/maze idea is
+  DEAD (it was only a fallback for when we thought real pages were impossible).
+  Do not corridor-ify movement; post cards stay climbable furniture, not walls.
 - The mod throws REAL comments as projectiles
 - Every subreddit = a different level for free (content is the geometry) —
   this IS the community-layouts/User-Contributions play: crosspost = new arena

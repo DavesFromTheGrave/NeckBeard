@@ -37,6 +37,23 @@ NB.TUNE = {
 
   SPRITE_SCALE: 1.15,
 
+  // wreckage — persistent, compounding page destruction
+  // damage floats accrue per element; each whole point = one visual stage (max 3)
+  WRECK_TRAMPLE: 0.12,     // per tick while he walks on a card
+  WRECK_TICK_MS: 450,      // trample damage accrual rate limit
+  WRECK_VAULT: 0.4,        // hauling himself over a card crunches it
+  WRECK_LUNGE: 0.6,        // a whiffed lunge craters whatever he lands on
+  WRECK_YANK: 0.35,        // the scroll slam rattles a few posts loose
+  WRECK_SMASH: 1.4,        // the sledgehammer — always advances a full stage
+  WRECK_DEBRIS_MAX: 60,    // global cap on persistent debris chunks
+
+  // SMASH — deliberate sledgehammer strike on the card under his feet.
+  // Fairness: never a catch. He's committed for SMASH_MS = your window.
+  SMASH_CD_MS: 9000,
+  SMASH_RANGE_MIN: 170,    // only bothers wrecking furniture when you're not in reach
+  SMASH_MS: 640,
+  SMASH_IMPACT_MS: 360,    // wind-up before the hammer lands
+
   // Balder promotion review — survive past this, then a catch triggers ceremony (once/run)
   BALDER_SURVIVAL_MS: 60000,
 };

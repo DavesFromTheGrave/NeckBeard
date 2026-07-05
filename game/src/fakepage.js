@@ -20,8 +20,15 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   const feedW = Math.min(R.feedMaxW, W - feedX - rightW - (isWide ? 48 : 16));
   const headerH = R.headerH;
 
+  // Deterministic per-build key (kind + build order) — the wreckage store
+  // uses it so damage survives dispose/rebuild when you travel back here.
+  const kindCounts = {};
   function solid(x, y, w, h, kind, objs) {
-    const el = { rect: new Phaser.Geom.Rectangle(x, y, w, h), kind, objs, crooked: 0 };
+    const idx = kindCounts[kind] = (kindCounts[kind] || 0) + 1;
+    const el = {
+      rect: new Phaser.Geom.Rectangle(x, y, w, h),
+      kind, objs, crooked: 0, key: `${kind}:${idx}`,
+    };
     els.push(el);
     return el;
   }

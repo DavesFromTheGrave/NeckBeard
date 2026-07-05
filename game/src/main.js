@@ -67,6 +67,9 @@ class GameScene extends Phaser.Scene {
     this.anims.create({ key: 'anim-stumble', frames: [{ key: 'carry-6' }], frameRate: 1 });
     this.anims.create({ key: 'anim-victory', frames: [{ key: 'pose-1' }], frameRate: 1 });
     this.anims.create({ key: 'anim-throw', frames: [{ key: 'sledge-3' }, { key: 'sledge-4' }], frameRate: 5, repeat: 0 });
+    // full sledgehammer swing: wind-up 1-3, impact 4-5 (SMASH state)
+    this.anims.create({ key: 'anim-sledge',
+      frames: [1, 2, 3, 4, 5].map(i => ({ key: `sledge-${i}` })), frameRate: 8, repeat: 0 });
     this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'zattack-3' }], frameRate: 1 });
     this.anims.create({ key: 'anim-zlunge', frames: [{ key: 'zattack-4' }, { key: 'zattack-5' }], frameRate: 10, repeat: 0 });
 
@@ -91,6 +94,11 @@ class GameScene extends Phaser.Scene {
     const feed = this.page.feed;
     this.arenaData = data;
     this.currentSub = data.subreddit || 'all';
+
+    // persistent destruction: fresh tracker per arena, then replay every
+    // scar this sub already earned — wreckage survives travel AND death
+    this.wreck = new NB.Wreckage(this, this.page, this.currentSub);
+    this.wreck.applyStored();
 
     if (firstBoot) {
       this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
@@ -283,6 +291,12 @@ class GameScene extends Phaser.Scene {
     cam.shake(350, 0.012);
     this.tweens.add({ targets: cam, scrollY: dest, duration: 380, ease: 'Quad.easeIn' });
     for (const el of this.page.elements) this.page.shake(el, this);
+    // the slam rattles a few posts loose — permanent damage, not just a shake
+    if (this.wreck) {
+      const posts = this.page.elements.filter(e => e.kind === 'post');
+      Phaser.Utils.Array.Shuffle(posts).slice(0, 3)
+        .forEach(el => this.wreck.hit(el, NB.TUNE.WRECK_YANK));
+    }
     this.floatText(this.playerPos.x, this.playerPos.y - 50, 'SCROLL YANKED', '#e0452a');
   }
 

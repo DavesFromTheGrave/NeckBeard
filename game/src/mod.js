@@ -20,6 +20,10 @@ NB.Supermod = class {
     this.decoy = null;       // {x, y, ttl, gfx}
     this.throwCd = 6000;
     this.yankCd = 20000;
+    this.smashCd = 12000;
+    this.smashEl = null;
+    this.smashHitDone = false;
+    this.wreckTickT = 0;
     this.revenant = false;
     this.frozen = false;
     this.speedBurstT = 0;
@@ -42,6 +46,7 @@ NB.Supermod = class {
       stumble: 'anim-stumble',
       victory: 'anim-victory',
       throw: 'anim-throw',
+      smash: rev ? 'anim-zlunge' : 'anim-sledge',
     };
     this.sprite.play(map[kind]);
   }
@@ -77,6 +82,12 @@ NB.Supermod = class {
         this.resetSquash(0);
         break;
       case 'THROW': this.anim('throw'); break;
+      case 'SMASH':
+        this.anim('smash');
+        this.smashHitDone = false;
+        this.telegraphRing.setVisible(false);
+        this.squash(0.94, 1.08, NB.TUNE.SMASH_IMPACT_MS); // rears up with the hammer
+        break;
       case 'YANK': this.anim('hunt'); break;
       case 'STUMBLE':
         this.anim('stumble'); NB.sfx.stumble(); this.telegraphRing.setVisible(false);
@@ -163,6 +174,8 @@ NB.Supermod = class {
     }
     this.throwCd -= dt;
     this.yankCd -= dt;
+    this.smashCd -= dt;
+    this.wreckTickT -= dt;
     if (this.speedBurstT > 0) this.speedBurstT -= dt;
     if (this.climbCd > 0) this.climbCd -= dt;
 
@@ -178,6 +191,11 @@ NB.Supermod = class {
     const onCard = !!el && this.state !== 'LUNGE' && this.state !== 'CLIMB';
     if (onCard) {
       this.page.shake(el, this.scene);
+      // trampling grinds the card down — rate-limited so it accrues, not spikes
+      if (this.wreckTickT <= 0 && this.scene.wreck) {
+        this.scene.wreck.hit(el, T.WRECK_TRAMPLE);
+        this.wreckTickT = T.WRECK_TICK_MS;
+      }
       s.setAngle(Math.sin(this.stateT / 90) * T.CLIMB_BOB_DEG);
     } else if (this.state !== 'STUMBLE' && this.state !== 'CLIMB') {
       s.setAngle(0);
@@ -216,6 +234,14 @@ NB.Supermod = class {
             break;
           }
         }
+        // SLEDGEHAMMER: player's out of reach and he's standing on a card —
+        // so he takes his frustration out on the page. Persistent wreckage.
+        if (this.heat >= 1 && this.smashCd <= 0 && onCard && el.kind === 'post'
+            && realDist > T.SMASH_RANGE_MIN) {
+          this.smashEl = el;
+          this.setState('SMASH');
+          break;
+        }
         // ranged pressure: comment throw (never while close — it's a poke, not a kill)
         if (this.heat >= 1 && this.throwCd <= 0 && realDist > 260 && !this.decoy) {
           this.setState('THROW');
@@ -226,6 +252,25 @@ NB.Supermod = class {
           this.setState('YANK');
           this.yankTargetY = s.y;
           break;
+        }
+        break;
+      }
+      case 'SMASH': {
+        // committed to the swing — no catch possible, this is a breather beat
+        if (!this.smashHitDone && this.stateT >= T.SMASH_IMPACT_MS) {
+          this.smashHitDone = true;
+          NB.sfx.smash();
+          this.scene.hitStop(50);
+          this.scene.cameras.main.shake(180, 0.009);
+          this.squash(1.22, 0.8, 140); // the follow-through slam
+          if (this.scene.wreck && this.smashEl) {
+            this.scene.wreck.hit(this.smashEl, T.WRECK_SMASH);
+          }
+        }
+        if (this.stateT >= T.SMASH_MS) {
+          this.smashEl = null;
+          this.smashCd = Math.max(4500, T.SMASH_CD_MS - this.heat * 800);
+          this.setState('HUNT');
         }
         break;
       }
@@ -281,7 +326,14 @@ NB.Supermod = class {
           this.scene.onCaught();
           return;
         }
-        if (this.stateT >= T.LUNGE_MS) this.setState('STUMBLE');
+        if (this.stateT >= T.LUNGE_MS) {
+          // the whiff has weight: he craters whatever card he lands on
+          if (this.scene.wreck) {
+            const crashEl = this.page.onFurniture(s.x, s.y + s.displayHeight * 0.3);
+            if (crashEl) this.scene.wreck.hit(crashEl, T.WRECK_LUNGE);
+          }
+          this.setState('STUMBLE');
+        }
         break;
       }
       case 'CLIMB': {
@@ -339,6 +391,7 @@ NB.Supermod = class {
       toY: s.y + ny * T.VAULT_FORWARD,
     };
     this.page.shake(el, this.scene);
+    if (this.scene.wreck) this.scene.wreck.hit(el, NB.TUNE.WRECK_VAULT);
     this.setState('CLIMB');
   }
 

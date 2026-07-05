@@ -42,6 +42,7 @@ NB.sfx = (() => {
     commentHit:() => { tone(200, 0.15, 'square', 0.12, 60); noise(0.12, 0.08); },
     yank:      () => tone(500, 0.5, 'sawtooth', 0.12, 60),
     crack:     () => { noise(0.6, 0.18); tone(70, 0.7, 'sawtooth', 0.14, 35); },
+    smash:     () => { noise(0.3, 0.2); tone(90, 0.4, 'square', 0.16, 45); },
     ding:      () => { tone(880, 0.4, 'sine', 0.12); setTimeout(() => tone(1174, 0.5, 'sine', 0.1), 140); },
     gulp:      () => tone(400, 0.5, 'sine', 0.14, 55),
     revenant:  () => { tone(55, 1.4, 'sawtooth', 0.16, 110); noise(0.8, 0.08); },

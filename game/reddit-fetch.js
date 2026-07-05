@@ -16,6 +16,16 @@ function cleanSub(sub) {
   return s.replace(/[^a-zA-Z0-9_]/g, '');
 }
 
+// SFW-only. Home pulls from these (NOT r/all, which is NSFW-heavy). A typed
+// NSFW sub still gets its over_18 posts filtered out per-post below.
+const SFW_SUBS = ['AskReddit', 'gaming', 'funny', 'worldnews', 'todayilearned', 'mildlyinteresting', 'pics', 'science'];
+const NSFW_DENY = /^(gonewild|nsfw|porn|sex|rule34|hentai|cumsluts|milf|boobies|ass|nsfw_)/i;
+
+function isSafe(d) {
+  // reddit marks adult content with over_18; thumbnail 'nsfw' is a second tell
+  return !d.over_18 && d.thumbnail !== 'nsfw' && !NSFW_DENY.test(d.subreddit || '');
+}
+
 function mapPost(d, forceSub) {
   const sub = forceSub ? `r/${forceSub}` : `r/${d.subreddit}`;
   const preview = d.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&');
@@ -54,7 +64,7 @@ async function fetchPullpushSub(sub, limit) {
   const res = await fetch(url, { headers: { 'User-Agent': UA } });
   if (!res.ok) throw new Error(`pullpush ${res.status}`);
   const json = await res.json();
-  return (json.data || []).map(p => mapPost({
+  return (json.data || []).filter(isSafe).map(p => mapPost({
     id: p.id,
     subreddit: p.subreddit,
     author: p.author,
@@ -81,20 +91,34 @@ async function fetchPullpushComments(sub, limit) {
 }
 
 async function fetchListing(sub, limit = 15) {
-  const path = `/r/${sub}/hot.json?limit=${limit}&raw_json=1`;
+  // Home: aggregate curated SFW subs (never r/all). Specific sub: fetch it,
+  // but drop any over_18 posts. NSFW never reaches the game.
+  if (sub === 'all') {
+    try {
+      const chunks = await Promise.all(SFW_SUBS.map(s => fetchListingOne(s, 4)));
+      const posts = chunks.flat().sort((a, b) => (b.ups || 0) - (a.ups || 0)).slice(0, limit);
+      if (posts.length) return posts;
+    } catch { /* fall through to pullpush */ }
+    const chunks = await Promise.all(SFW_SUBS.slice(0, 5).map(s => fetchPullpushSub(s, 4)));
+    return chunks.flat().sort((a, b) => (b.ups || 0) - (a.ups || 0)).slice(0, limit);
+  }
+  const one = await fetchListingOne(sub, limit);
+  if (one.length) return one;
+  return fetchPullpushSub(sub, limit);
+}
+
+async function fetchListingOne(sub, limit) {
+  const path = `/r/${sub}/hot.json?limit=${limit + 8}&raw_json=1`;
   try {
     const json = await fetchRedditJson(path);
     const kids = json?.data?.children || [];
-    const posts = kids.filter(c => c.kind === 't3').map(c => mapPost(c.data, sub === 'all' ? null : sub));
-    if (posts.length) return posts;
-  } catch { /* try fallback */ }
-  let posts = await fetchPullpushSub(sub, limit);
-  if (!posts.length && sub === 'all') {
-    const subs = ['AskReddit', 'gaming', 'funny', 'worldnews', 'todayilearned'];
-    const chunks = await Promise.all(subs.map(s => fetchPullpushSub(s, 4)));
-    posts = chunks.flat().sort((a, b) => (b.ups || 0) - (a.ups || 0)).slice(0, limit);
+    return kids
+      .filter(c => c.kind === 't3' && isSafe(c.data))
+      .slice(0, limit)
+      .map(c => mapPost(c.data, sub === 'all' ? null : sub));
+  } catch {
+    return [];
   }
-  return posts;
 }
 
 async function fetchCommentsForSub(sub, limit = 12) {

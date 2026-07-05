@@ -2,7 +2,24 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { buildArena } = require('./reddit-fetch');
+
+// Real home-LAN IPv4(s) so other devices on the same router can reach the game.
+// Deliberately EXCLUDES link-local (169.254.x) dead adapters and 172.x virtual
+// switches (Hyper-V/WSL). Prefers 192.168.x, then 10.x — the normal home ranges.
+function lanAddrs() {
+  const out = [];
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const i of ifaces || []) {
+      if (i.family !== 'IPv4' || i.internal) continue;
+      if (i.address.startsWith('169.254.') || i.address.startsWith('172.')) continue;
+      out.push(i.address);
+    }
+  }
+  const rank = (ip) => ip.startsWith('192.168.') ? 0 : ip.startsWith('10.') ? 1 : 2;
+  return out.sort((a, b) => rank(a) - rank(b));
+}
 
 const ROOT = __dirname;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png',
@@ -11,6 +28,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/pn
                '.otf': 'font/otf', '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2' };
 const arenaCache = new Map();
 const CACHE_MS = 90_000;
+const UA = 'NeckbeardHackathon/1.0 (Games with a Hook; +https://revenantsystems.net)';
 
 function parseQuery(raw) {
   const q = {};
@@ -61,7 +79,44 @@ function serveStatic(req, res) {
   });
 }
 
-http.createServer((req, res) => {
+// Image proxy: fetch reddit-hosted images server-side and serve same-origin,
+// so the canvas can use them without CORS taint. Host-allowlisted (no SSRF).
+const IMG_HOSTS = /(^|\.)(redd\.it|redditmedia\.com|imgur\.com|redditstatic\.com)$/i;
+async function handleImg(req, res) {
+  const u = parseQuery(req.url).u;
+  let url;
+  try { url = new URL(u); } catch { res.writeHead(400); return res.end('bad url'); }
+  if (url.protocol !== 'https:' || !IMG_HOSTS.test(url.hostname)) {
+    res.writeHead(403); return res.end('host not allowed');
+  }
+  try {
+    const r = await fetch(url.href, { headers: { 'User-Agent': UA } });
+    if (!r.ok) { res.writeHead(502); return res.end('img fetch failed'); }
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.writeHead(200, {
+      'Content-Type': r.headers.get('content-type') || 'image/jpeg',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.end(buf);
+  } catch (e) {
+    res.writeHead(502); res.end('img error');
+  }
+}
+
+const handler = (req, res) => {
   if (req.url.startsWith('/api/arena')) return handleArena(req, res);
+  if (req.url.startsWith('/api/img')) return handleImg(req, res);
   serveStatic(req, res);
-}).listen(4181, () => console.log('neckbeard-devvit on :4181 (api: /api/arena?sub=gaming)'));
+};
+
+// Bind ONLY to loopback (you) + the real home-LAN address(es) (your son on the
+// same router). NOT 0.0.0.0 — no virtual/VPN adapters, nothing else.
+const PORT = 4181;
+const hosts = ['127.0.0.1', ...lanAddrs()];
+for (const host of hosts) {
+  http.createServer(handler).listen(PORT, host, () => {
+    const label = host === '127.0.0.1' ? '(you)' : '(share this with your son)';
+    console.log(`neckbeard on http://${host}:${PORT}  ${label}`);
+  });
+}

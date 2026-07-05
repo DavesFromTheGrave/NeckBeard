@@ -14,7 +14,9 @@ NB.TUNE = {
   STUMBLE_MS: 900,         // recovery after a miss
   HUNT_REPATH_MS: 120,     // how often he re-aims while hunting
   LUNGE_RANGE: 190,        // lunges from further out (was 150)
-  CATCH_RADIUS: 34,        // pixel distance = caught (during lunge only)
+  CATCH_RADIUS: 62,        // caught if within this of the mod during a lunge (was 34 — too small vs the sprite, lunges phased through)
+  CORNER_RANGE: 78,        // cursor this close when he winds up = cornered
+  CORNER_TELEGRAPH_MS: 260, // point-blank telegraph is fast — contact IS dangerous (still a warning)
 
   // terrain (the AvA rule: blocked, never stopped)
   CLIMB_MULT: 0.45,        // speed while incidentally on top of furniture

@@ -9,6 +9,27 @@ window.NB = window.NB || {};
 
 NB.RECENT_SUBS = NB.RECENT_SUBS || ['aliens', 'gaming'];
 
+// Async-load a real post image (via the same-origin proxy) and drop it into
+// the card's image box, cover-fit + cropped. Placeholder stays if it fails.
+NB.loadPostImage = function (scene, url, x, y, w, h, objs) {
+  const key = 'postimg_' + (NB._imgN = (NB._imgN || 0) + 1);
+  const proxied = '/api/img?u=' + encodeURIComponent(url);
+  const onErr = (file) => { if (file && file.key === key) { /* keep placeholder */ } };
+  scene.load.once('filecomplete-image-' + key, () => {
+    if (!scene.textures.exists(key)) return;
+    const src = scene.textures.get(key).getSourceImage();
+    if (!src || !src.width) return;
+    const img = scene.add.image(x + w / 2, y + h / 2, key).setDepth(-4.9);
+    const s = Math.max(w / src.width, h / src.height);   // cover-fit
+    img.setScale(s);
+    const cw = Math.min(src.width, w / s), ch = Math.min(src.height, h / s);
+    img.setCrop((src.width - cw) / 2, (src.height - ch) / 2, cw, ch);
+    objs.push(img);
+  });
+  scene.load.on('loaderror', onErr);
+  try { scene.load.image(key, proxied); scene.load.start(); } catch { /* ignore */ }
+};
+
 NB.buildFakePage = function (scene, W, viewH, data) {
   const R = NB.REDDIT;
   const dark = R.mode === 'dark';
@@ -272,6 +293,10 @@ NB.buildFakePage = function (scene, W, viewH, data) {
 
     if (post.has_image) {
       objs.push(roundedPanel(contentX + contentW / 2, cy + imgH / 2, contentW, imgH, R.imgBg, -5, 14));
+      // real image loads in over the placeholder (async, keeps placeholder on fail)
+      if (post.image_url && !spoiler) {
+        NB.loadPostImage(scene, post.image_url, contentX, cy, contentW, imgH, objs);
+      }
       if (spoiler) {
         objs.push(txt(contentX + 16, y + 12 + metaH - 24, '⚠ SPOILER', {
           fontSize: '12px', fontStyle: 'bold', color: R.textWeak,

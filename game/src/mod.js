@@ -27,6 +27,7 @@ NB.Supermod = class {
     this.revenant = false;
     this.frozen = false;
     this.speedBurstT = 0;
+    this.cornered = false;   // was the cursor point-blank when he wound up?
     this.slowT = 0;          // meme slow (Harambe, Yakety Sax, Banana Phone…)
     this.slowMult = 1;
     this.climbCd = 0;
@@ -125,8 +126,11 @@ NB.Supermod = class {
   }
 
   telegraphMs() {
-    // Revenant is faster but the fairness floor is inviolable
-    return this.revenant ? Math.max(360, NB.TUNE.TELEGRAPH_MS - 90) : NB.TUNE.TELEGRAPH_MS;
+    // Cornered (you let him get point-blank) = fast telegraph, so contact is
+    // dangerous — but there's STILL a windup. Revenant shaves more; fairness floor holds.
+    let ms = this.cornered ? NB.TUNE.CORNER_TELEGRAPH_MS : NB.TUNE.TELEGRAPH_MS;
+    if (this.revenant) ms = Math.max(200, ms - 90);
+    return ms;
   }
 
   stun(ms) {
@@ -229,7 +233,7 @@ NB.Supermod = class {
         if (this.repathT <= 0) { this.aim = { x: tgt.x, y: tgt.y }; this.repathT = T.HUNT_REPATH_MS; }
         const speed = (T.HUNT_SPEED + this.heat * T.HEAT_SPEED_BONUS) * mult;
         this.moveToward(this.aim, speed, dt);
-        if (dist < T.LUNGE_RANGE) { this.setState('TELEGRAPH'); break; }
+        if (dist < T.LUNGE_RANGE) { this.cornered = realDist < T.CORNER_RANGE; this.setState('TELEGRAPH'); break; }
         // AvA VAULT: a post card sits in his path and he isn't already on it —
         // he grabs the edge and hauls himself over. This IS Animator vs Animation.
         if (this.climbCd <= 0 && dist > 6) {

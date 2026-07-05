@@ -151,7 +151,10 @@ class GameScene extends Phaser.Scene {
     if (firstBoot) {
       this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
       this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
-      this.cursorGfx = this.add.graphics().setDepth(20);
+      // Cursor must ride ABOVE all fixed chrome (header/nav/scrollbar are
+      // depth 24-30) or it vanishes under every clickable surface. Below the
+      // death overlay (40) and loading interstitial (60), which cover it.
+      this.cursorGfx = this.add.graphics().setDepth(35);
       this.input.on('pointermove', (p) => {
         this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
       });

@@ -24,7 +24,17 @@ NB.Wreckage = class {
 
   storeKey(el) { return `${this.sub}|${el.key}`; }
   dmg(el) { return NB.WRECK_STORE.get(this.storeKey(el)) || 0; }
-  stage(el) { return Math.min(3, Math.floor(this.dmg(el))); }
+
+  // Threshold-based staging: the FIRST threshold is low so any real contact
+  // leaves a permanent crack immediately (no invisible sub-stage gap = no
+  // "it repaired" illusion). Tunable in NB.TUNE.WRECK_THRESH.
+  stageForDmg(d) {
+    const T = NB.TUNE.WRECK_THRESH || [0.3, 1.1, 2.1];
+    let s = 0;
+    for (const t of T) if (d >= t) s++;
+    return s;
+  }
+  stage(el) { return this.stageForDmg(this.dmg(el)); }
 
   // Accrue damage. `fresh` hits play sfx/shake/tweens; applyStored() replays
   // silently. Chrome/header never wreck — the page frame must stay readable.
@@ -33,7 +43,7 @@ NB.Wreckage = class {
     const before = this.stage(el);
     const d = Math.min(3, this.dmg(el) + amount);
     NB.WRECK_STORE.set(this.storeKey(el), d);
-    const after = Math.min(3, Math.floor(d));
+    const after = this.stageForDmg(d);
     if (after > before) {
       for (let s = before + 1; s <= after; s++) this.applyStage(el, s, fresh);
     }

@@ -39,8 +39,10 @@ NB.TUNE = {
 
   // wreckage — persistent, compounding page destruction
   // damage floats accrue per element; each whole point = one visual stage (max 3)
-  WRECK_TRAMPLE: 0.12,     // per tick while he walks on a card
-  WRECK_TICK_MS: 450,      // trample damage accrual rate limit
+  // damage staging: first crack lands fast so contact ALWAYS leaves a mark
+  WRECK_THRESH: [0.3, 1.1, 2.1],  // dmg needed for stage 1 / 2 / 3
+  WRECK_TRAMPLE: 0.42,     // per tick while he walks on a card (first tick = instant crack)
+  WRECK_TICK_MS: 240,      // trample damage accrual rate limit
   WRECK_VAULT: 0.4,        // hauling himself over a card crunches it
   WRECK_LUNGE: 0.6,        // a whiffed lunge craters whatever he lands on
   WRECK_YANK: 0.35,        // the scroll slam rattles a few posts loose

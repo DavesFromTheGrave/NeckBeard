@@ -50,11 +50,8 @@ class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5, 1).setDepth(2);
     });
 
-    // start cue — sits in the letterbox bar when there is one, else over the
-    // bottom edge of the art with a stroke
-    const barH = (H - ah) / 2;
-    const hintY = barH > 30 ? H - barH / 2 : H - 26;
-    const hint = this.add.text(W / 2, hintY, 'PLAYER 1  PRESS START', {
+    // start cue — anchored INSIDE the art, over superMOD's tie and vest
+    const hint = this.add.text(ax + aw * 0.5, ay + ah * 0.875, 'PLAYER 1  PRESS START', {
       fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: '20px', color: '#ffe14d',
     }).setOrigin(0.5).setDepth(5).setStroke('#000000', 6);
     // classic arcade attract-mode blink: hard on/off, not a fade

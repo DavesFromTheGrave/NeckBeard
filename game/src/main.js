@@ -227,6 +227,25 @@ class GameScene extends Phaser.Scene {
       this.mod.revenant = modSnap.revenant;
       this.mod.heat = modSnap.heat;
       if (modSnap.revenant) this.mod.sprite.setTint(0xbbffbb);
+      // The chase RE-ACQUIRES on the new page: drop any frozen lunge/telegraph
+      // so he can't land a mid-air attack the instant the load lifts, AND
+      // shove him back to a minimum gap — switching pages is meant to buy a
+      // head start, not dump you back onto the exact spot he had you pinned.
+      // He then has to close the distance and telegraph (500ms) before a catch.
+      const MIN_GAP = 440;
+      const mx = this.mod.sprite.x - this.playerPos.x;
+      const my = this.mod.sprite.y - this.playerPos.y;
+      const gap = Math.hypot(mx, my);
+      if (gap < MIN_GAP) {
+        const a = gap > 0.5 ? Math.atan2(my, mx) : Math.random() * Math.PI * 2;
+        this.mod.sprite.x = Phaser.Math.Clamp(
+          this.playerPos.x + Math.cos(a) * MIN_GAP, 30, this.scale.width - 30);
+        this.mod.sprite.y = Phaser.Math.Clamp(
+          this.playerPos.y + Math.sin(a) * MIN_GAP, this.page.headerH + 40, this.page.WORLD_H - 30);
+      }
+      this.mod.stunT = 0;
+      this.mod.telegraphRing.setVisible(false);
+      this.mod.setState('HUNT');
       this.hideLoading().then(() => {
         this.traveling = false;
         if (onArrive) onArrive();
@@ -421,7 +440,12 @@ class GameScene extends Phaser.Scene {
     const H = this.scale.height;
     const cam = this.cameras.main;
 
-    if (!this.ceremonyRunning) {
+    // SIM FREEZE: while a loading interstitial is up (boot OR sub-travel) the
+    // mod must not hunt or catch — the page underneath is mid-rebuild and it
+    // isn't fair to die to something you can't see. Ceremony freezes too.
+    const frozen = this.ceremonyRunning || !!this.loadingUI;
+
+    if (!frozen) {
       this.survivalMs += dt;
       // edge-push scrolling: finger near top/bottom scrolls the feed (touch-first)
       const py = this.pointerScreen.y;
@@ -436,7 +460,7 @@ class GameScene extends Phaser.Scene {
     this.playerPos.y = this.pointerScreen.y + cam.scrollY;
     this.drawCursor(this.playerPos.x, this.playerPos.y);
 
-    if (!this.ceremonyRunning) {
+    if (!frozen) {
       this.mod.update(dt, this.playerPos);
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);

@@ -24,9 +24,26 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   const isWide = W >= 768;
   const leftW = isWide ? R.leftNavW : 0;
   const rightW = isWide ? R.rightRailW : 0;
-  const feedX = leftW + (isWide ? 32 : 0);
-  const feedW = Math.min(R.feedMaxW, W - feedX - rightW - (isWide ? 64 : 16));
   const headerH = R.headerH;
+  // Reddit CENTERS the feed+rail block in the space beside the fixed left
+  // nav — it does not hug the nav. Left-hugging leaves a huge dead gutter on
+  // a wide monitor, which reads as "the page loaded tiny in the corner".
+  let feedX, feedW;
+  if (isWide) {
+    const gap = 24;
+    const avail = W - leftW;
+    const blockNatural = R.feedMaxW + gap + rightW;
+    if (avail - 48 >= blockNatural) {
+      feedW = R.feedMaxW;
+      feedX = leftW + (avail - (feedW + gap + rightW)) / 2;
+    } else {
+      feedX = leftW + 24;
+      feedW = Math.max(320, avail - 48 - gap - rightW);
+    }
+  } else {
+    feedX = 0;
+    feedW = Math.min(R.feedMaxW, W - 16);
+  }
 
   const kindCounts = {};
   function solid(x, y, w, h, kind, objs) {

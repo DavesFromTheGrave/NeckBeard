@@ -550,29 +550,73 @@ class GameScene extends Phaser.Scene {
 
   hitStop(ms) { this.hitStopT = Math.max(this.hitStopT || 0, ms); }
 
-  // KARMA HEIST: touch a fresh, not-yet-shredded post to steal its karma.
-  // One-time per post. Stealing a damaged post OR one he's right on top of =
-  // CLUTCH 2x (rewards farming under his hammer). A post he destroys (stage 3)
-  // is karma gone forever — the race.
-  farmCheck() {
+  // KARMA HEIST: HOLD position on a fresh, not-yet-shredded post to steal its
+  // karma (FARM_HOLD_MS dwell — flying through does nothing). Leaving the
+  // post decays your progress fast (no free credit from drive-bys). Stealing
+  // a damaged post OR one he's right on top of = CLUTCH 2x (rewards farming
+  // under his hammer, where the dwell time is genuinely dangerous). A post
+  // he destroys (stage 3) is karma gone forever — the race.
+  farmCheck(dt) {
     const p = this.playerPos;
+    const HOLD = NB.TUNE.FARM_HOLD_MS;
     for (const el of this.page.elements) {
       if (el.kind !== 'post' || !el.karma) continue;
       const fkey = `${this.currentSub}|${el.key}`;
-      if (NB.FARM_STORE.has(fkey)) continue;
-      if (this.wreck && this.wreck.stage(el) >= 3) continue;   // shredded = no karma
-      if (!el.rect.contains(p.x, p.y)) continue;
-      NB.FARM_STORE.add(fkey);
-      this.markFarmed(el);
-      const damaged = this.wreck && this.wreck.stage(el) >= 1;
-      const modClose = Math.hypot(this.mod.sprite.x - p.x, this.mod.sprite.y - p.y) < 175;
-      const clutch = damaged || modClose;
-      const gained = Math.round(el.karma * (clutch ? 2 : 1));
-      this.karma += gained;
-      NB.sfx.pickup();
-      this.floatText(p.x, el.rect.y + 16, `+${NB.fmtKarma(gained)}${clutch ? '  CLUTCH!' : ''}`,
-        clutch ? '#ff4500' : '#46d160');
+      if (NB.FARM_STORE.has(fkey) || (this.wreck && this.wreck.stage(el) >= 3)) {
+        this.clearFarmRing(el);
+        continue;
+      }
+      const inside = el.rect.contains(p.x, p.y);
+      if (!inside) {
+        if (el._farmT > 0) {
+          el._farmT = Math.max(0, el._farmT - dt * NB.TUNE.FARM_DECAY_MULT);
+          this.drawFarmRing(el, el._farmT / HOLD);
+        }
+        continue;
+      }
+      el._farmT = Math.min(HOLD, (el._farmT || 0) + dt);
+      this.drawFarmRing(el, el._farmT / HOLD);
+      if (el._farmT >= HOLD) this.completeFarm(el, fkey, p);
     }
+  }
+
+  completeFarm(el, fkey, p) {
+    NB.FARM_STORE.add(fkey);
+    this.markFarmed(el);
+    this.clearFarmRing(el);
+    const damaged = this.wreck && this.wreck.stage(el) >= 1;
+    const modClose = Math.hypot(this.mod.sprite.x - p.x, this.mod.sprite.y - p.y) < 175;
+    const clutch = damaged || modClose;
+    const gained = Math.round(el.karma * (clutch ? 2 : 1));
+    this.karma += gained;
+    NB.sfx.pickup();
+    this.floatText(p.x, el.rect.y + 16, `+${NB.fmtKarma(gained)}${clutch ? '  CLUTCH!' : ''}`,
+      clutch ? '#ff4500' : '#46d160');
+  }
+
+  // Progress ring in the post's corner — the visible "loading the steal" tell.
+  drawFarmRing(el, frac) {
+    if (!el._farmRing) {
+      el._farmRing = this.add.graphics().setDepth(9.5);
+      el.objs.push(el._farmRing);
+    }
+    const g = el._farmRing;
+    g.clear();
+    if (frac <= 0.02) return;
+    const r = el.rect;
+    const cx = r.x + r.width - 24, cy = r.y + 24, rad = 13;
+    g.lineStyle(4, 0x000000, 0.35);
+    g.strokeCircle(cx, cy, rad);
+    const color = frac >= 1 ? 0x46d160 : 0xffb648;
+    g.lineStyle(4, color, 0.95);
+    g.beginPath();
+    g.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, frac), false);
+    g.strokePath();
+  }
+
+  clearFarmRing(el) {
+    if (el._farmRing) el._farmRing.clear();
+    el._farmT = 0;
   }
 
   markFarmed(el) {
@@ -616,7 +660,7 @@ class GameScene extends Phaser.Scene {
     this.drawCursor(this.playerPos.x, this.playerPos.y);
 
     if (!frozen) {
-      this.farmCheck();               // steal karma off posts you touch
+      this.farmCheck(dt);              // hold-to-steal karma off posts
       this.mod.update(dt, this.playerPos);
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);

@@ -38,6 +38,11 @@ NB.TUNE = {
   HEAT_MAX: 6,
   KARMA_PER_HEAT: 900,     // every N karma farmed adds +1 heat (greed = danger)
 
+  // karma heist: you must HOLD position on a post to steal it — flying
+  // through does nothing. Leaving early decays your progress fast.
+  FARM_HOLD_MS: 650,       // ms of dwell required to complete a steal
+  FARM_DECAY_MULT: 3,      // progress drains this much faster than it fills when you leave
+
   SPRITE_SCALE: 1.15,
 
   // wreckage — persistent, compounding page destruction

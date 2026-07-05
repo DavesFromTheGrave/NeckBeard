@@ -187,7 +187,11 @@ NB.Supermod = class {
     const dist = Math.hypot(dx, dy);
     const realDist = Math.hypot(player.x - s.x, player.y - s.y);
 
-    this.heat = Math.min(T.HEAT_MAX, Math.floor(this.scene.survivalMs / 1000 / T.HEAT_RAMP_S));
+    // heat ramps on time AND on greed — the more karma you've farmed, the
+    // angrier (faster) he gets. Aggressive runs are high-score AND high-danger.
+    this.heat = Math.min(T.HEAT_MAX,
+      Math.floor(this.scene.survivalMs / 1000 / T.HEAT_RAMP_S)
+      + Math.floor((this.scene.karma || 0) / T.KARMA_PER_HEAT));
 
     // terrain: incidental slow while atop a card (the discrete vault is its own state)
     const el = this.page.onFurniture(s.x, s.y + s.displayHeight * 0.3);

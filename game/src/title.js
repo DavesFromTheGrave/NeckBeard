@@ -43,7 +43,7 @@ class TitleScene extends Phaser.Scene {
     const scores = NB.getTopScores();
     SCORE_LINES.forEach((ln, i) => {
       if (!scores[i]) return;
-      this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtTime(scores[i]), {
+      this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtKarma(scores[i]), {
         fontFamily: NB.FONT_ACCENT || 'Courier New',
         fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
         color: '#ffffff',

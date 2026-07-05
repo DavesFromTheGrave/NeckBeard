@@ -3,9 +3,9 @@ window.NB = window.NB || {};
 NB.TUNE = {
   // movement (px/sec)
   LURK_SPEED: 70,
-  HUNT_SPEED: 230,
-  LUNGE_SPEED: 950,
-  CHARGE_SPEED: 480,
+  HUNT_SPEED: 275,         // quicker onto the cursor (was 230)
+  LUNGE_SPEED: 1080,       // faster lunge (was 950)
+  CHARGE_SPEED: 520,
 
   // state timings (ms)
   LURK_MIN: 2500,          // wander before first hunt
@@ -13,7 +13,7 @@ NB.TUNE = {
   LUNGE_MS: 320,           // collision exists ONLY inside this window
   STUMBLE_MS: 900,         // recovery after a miss
   HUNT_REPATH_MS: 120,     // how often he re-aims while hunting
-  LUNGE_RANGE: 150,        // distance that triggers a telegraph
+  LUNGE_RANGE: 190,        // lunges from further out (was 150)
   CATCH_RADIUS: 34,        // pixel distance = caught (during lunge only)
 
   // terrain (the AvA rule: blocked, never stopped)
@@ -34,6 +34,7 @@ NB.TUNE = {
   HEAT_RAMP_S: 25,         // every N seconds survived, he gets meaner
   HEAT_SPEED_BONUS: 22,    // px/s per heat level
   HEAT_MAX: 6,
+  KARMA_PER_HEAT: 900,     // every N karma farmed adds +1 heat (greed = danger)
 
   SPRITE_SCALE: 1.15,
 

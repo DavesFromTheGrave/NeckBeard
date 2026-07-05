@@ -1,10 +1,14 @@
-// Scores — top-5 list + personal best, localStorage now; Devvit redis swap
-// at /api/score later (the title screen's HIGH SCORE panel maps 1:1 onto
-// the future subreddit leaderboard).
+// Scores — the score is KARMA farmed in a run. Top-5 + personal best in
+// localStorage now; Devvit redis swap at /api/score later (the title screen's
+// HIGH SCORE panel maps 1:1 onto the future subreddit leaderboard).
 window.NB = window.NB || {};
 
-NB.SCORE_KEY = 'neckbeard_pb_ms';
-NB.TOP5_KEY = 'neckbeard_top5_ms';
+// Posts farmed this run (`sub|key`), so a stolen post can't be re-farmed —
+// persists within a run (across sub-travel), cleared on a new round.
+NB.FARM_STORE = NB.FARM_STORE || new Set();
+
+NB.SCORE_KEY = 'neckbeard_karma_best';
+NB.TOP5_KEY = 'neckbeard_karma_top5';
 
 NB.getPersonalBest = function () {
   try {
@@ -43,4 +47,12 @@ NB.savePersonalBest = function (ms) {
 
 NB.fmtTime = function (ms) {
   return `${(ms / 1000).toFixed(1)}s`;
+};
+
+// Karma score formatting: 1234 -> "1,234", 12300 -> "12.3k"
+NB.fmtKarma = function (v) {
+  v = Math.round(v || 0);
+  if (v >= 100000) return `${Math.round(v / 1000)}k`;
+  if (v >= 10000) return `${(v / 1000).toFixed(1)}k`;
+  return v.toLocaleString('en-US');
 };

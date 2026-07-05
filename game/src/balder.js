@@ -72,17 +72,16 @@ NB.playBalderCeremony = function (scene, done) {
     }
   });
 
-  // 4 — Balder steps out (at 2.8s)
+  // 4 — Balder RISES up out of the elevator into the doorway (at 2.8s)
   t(2800, () => {
     if (finished) return;
-    balder = scene.add.sprite(elevX, groundY - 46, 'balder')
-      .setScale(1.05).setDepth(18).setAlpha(0);
-    balder.setFlipX(mod.x < elevX);
-    scene.tweens.add({ targets: balder, alpha: 1, x: balder.x + (mod.x < elevX ? -34 : 34), duration: 900 });
-    // cigar smoke
+    balder = scene.add.sprite(elevX, groundY + 130, 'balder').setDepth(18).setAlpha(0);
+    balder.setScale(210 / balder.height);   // real art -> doorway-sized
+    scene.tweens.add({ targets: balder, y: groundY - 6, alpha: 1, duration: 1000, ease: 'Sine.easeOut' });
+    // cigar smoke off the head
     scene.time.addEvent({ repeat: 5, delay: 300, callback: () => {
-      const puff = scene.add.circle(balder.x + (balder.flipX ? -14 : 14), balder.y - 30,
-        Phaser.Math.Between(3, 5), 0xbbbbbb, 0.5).setDepth(18);
+      const puff = scene.add.circle(balder.x + 14, balder.y - balder.displayHeight * 0.42,
+        Phaser.Math.Between(3, 5), 0xbbbbbb, 0.5).setDepth(19);
       scene.tweens.add({ targets: puff, y: puff.y - 24, alpha: 0, scale: 2, duration: 900,
         onComplete: () => puff.destroy() });
     }});
@@ -110,9 +109,9 @@ NB.playBalderCeremony = function (scene, done) {
   t(5400, () => {
     if (finished) return;
     if (balder) {
-      balder.setFlipX(!balder.flipX);
-      scene.tweens.add({ targets: balder, x: elevX, alpha: 0.9, duration: 700 });
-      scene.tweens.add({ targets: balder, alpha: 0, duration: 300, delay: 750 });
+      // sinks back down into the elevator
+      scene.tweens.add({ targets: balder, y: groundY + 130, alpha: 0, duration: 900,
+        ease: 'Sine.easeIn', onComplete: () => balder.destroy() });
     }
     t(1100, () => {
       NB.sfx.ding();

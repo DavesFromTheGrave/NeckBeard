@@ -84,15 +84,24 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
-    try { NB.keyBlack(this, 'elevator'); } catch (e) { console.warn('elevator key:', e); }
+    // (elevator art is now a real transparent PNG — no keying; black-keying it
+    // would punch a hole in the dark elevator interior.)
     try { NB.keyFloodFill(this, 'door-closed'); NB.keyFloodFill(this, 'door-open'); }
     catch (e) { console.warn('door key:', e); }
+    // Balder art ships on an opaque light-gray bg — flood it transparent.
+    try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this.caught = false;
     this.ceremonyRunning = false;
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
+    // Each run starts on a PRISTINE page. Wreckage + farmed-posts persist
+    // WITHIN a run (across sub-travel) but reset on a new round — otherwise the
+    // door opens onto a page still shattered/looted from your last life.
+    if (NB.WRECK_STORE) NB.WRECK_STORE.clear();
+    if (NB.FARM_STORE) NB.FARM_STORE.clear();
+    this.karma = 0;   // THE score: karma farmed off posts before he shreds them
 
     const anim = (key, prefix, n, rate, repeat = -1) => this.anims.create({
       key, frames: Array.from({ length: n }, (_, i) => ({ key: `${prefix}-${i + 1}` })),
@@ -243,9 +252,13 @@ class GameScene extends Phaser.Scene {
     this.currentSub = data.subreddit || 'all';
 
     // persistent destruction: fresh tracker per arena, then replay every
-    // scar this sub already earned — wreckage survives travel AND death
+    // scar this sub already earned this run (survives sub-travel)
     this.wreck = new NB.Wreckage(this, this.page, this.currentSub);
     this.wreck.applyStored();
+    // re-mark posts already looted this run so travel-back shows them claimed
+    for (const el of this.page.elements) {
+      if (el.kind === 'post' && NB.FARM_STORE.has(`${this.currentSub}|${el.key}`)) this.markFarmed(el);
+    }
 
     if (firstBoot) {
       this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
@@ -266,8 +279,8 @@ class GameScene extends Phaser.Scene {
       this.mod.sprite.setVisible(false);
       this.mod.telegraphRing.setVisible(false);
       this.entranceActive = true;
-      this.hud = this.add.text(W - 22, H - 12, '0.0s', {
-        fontFamily: 'Courier New', fontSize: '18px', color: NB.REDDIT.hudText,
+      this.hud = this.add.text(W - 22, H - 14, '★ 0', {
+        fontFamily: 'Courier New', fontSize: '22px', fontStyle: 'bold', color: '#ff4500',
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
       this.bindDebugKeys();
       this.bindTravelClicks();
@@ -504,10 +517,10 @@ class GameScene extends Phaser.Scene {
       this.add.text(W / 2, H / 2 - 16, `${this.userName} · Reason: none provided.`, {
         fontFamily: 'Courier New', fontSize: '16px', color: '#cccccc',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      const newBest = NB.savePersonalBest(this.survivalMs);
+      const newBest = NB.savePersonalBest(this.karma);
       const pb = NB.getPersonalBest();
-      const runLine = `you lasted ${NB.fmtTime(this.survivalMs)}`;
-      const bestLine = newBest ? 'NEW PERSONAL BEST' : `best: ${NB.fmtTime(pb)}`;
+      const runLine = `${NB.fmtKarma(this.karma)} karma farmed`;
+      const bestLine = newBest ? 'NEW HIGH SCORE' : `best: ${NB.fmtKarma(pb)}`;
       this.add.text(W / 2, H / 2 + 22, runLine, {
         fontFamily: 'Courier New', fontSize: '15px', color: '#888888',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
@@ -536,6 +549,42 @@ class GameScene extends Phaser.Scene {
   }
 
   hitStop(ms) { this.hitStopT = Math.max(this.hitStopT || 0, ms); }
+
+  // KARMA HEIST: touch a fresh, not-yet-shredded post to steal its karma.
+  // One-time per post. Stealing a damaged post OR one he's right on top of =
+  // CLUTCH 2x (rewards farming under his hammer). A post he destroys (stage 3)
+  // is karma gone forever — the race.
+  farmCheck() {
+    const p = this.playerPos;
+    for (const el of this.page.elements) {
+      if (el.kind !== 'post' || !el.karma) continue;
+      const fkey = `${this.currentSub}|${el.key}`;
+      if (NB.FARM_STORE.has(fkey)) continue;
+      if (this.wreck && this.wreck.stage(el) >= 3) continue;   // shredded = no karma
+      if (!el.rect.contains(p.x, p.y)) continue;
+      NB.FARM_STORE.add(fkey);
+      this.markFarmed(el);
+      const damaged = this.wreck && this.wreck.stage(el) >= 1;
+      const modClose = Math.hypot(this.mod.sprite.x - p.x, this.mod.sprite.y - p.y) < 175;
+      const clutch = damaged || modClose;
+      const gained = Math.round(el.karma * (clutch ? 2 : 1));
+      this.karma += gained;
+      NB.sfx.pickup();
+      this.floatText(p.x, el.rect.y + 16, `+${NB.fmtKarma(gained)}${clutch ? '  CLUTCH!' : ''}`,
+        clutch ? '#ff4500' : '#46d160');
+    }
+  }
+
+  markFarmed(el) {
+    if (el._farmed) return;
+    el._farmed = true;
+    const r = el.rect;
+    const c = this.add.circle(r.x + r.width - 20, r.y + 18, 11, 0xff4500, 0.92).setDepth(-0.5);
+    const t = this.add.text(r.x + r.width - 20, r.y + 18, '↑', {
+      fontFamily: 'Arial', fontSize: '13px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(-0.4);
+    el.objs.push(c, t);
+  }
 
   update(_, rawDt) {
     if (!this.ready || this.caught) return;
@@ -567,13 +616,14 @@ class GameScene extends Phaser.Scene {
     this.drawCursor(this.playerPos.x, this.playerPos.y);
 
     if (!frozen) {
+      this.farmCheck();               // steal karma off posts you touch
       this.mod.update(dt, this.playerPos);
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);
       this.npc.update(dt);
       this.page.updateScrollbar(cam);
-      const revTag = this.mod.revenant ? '  REVENANT' : '';
-      this.hud.setText(`${(this.survivalMs / 1000).toFixed(1)}s  heat:${this.mod.heat}${revTag}`);
+      const revTag = this.mod.revenant ? '  REV' : '';
+      this.hud.setText(`★ ${NB.fmtKarma(this.karma)}   heat ${this.mod.heat}${revTag}`);
       if (this.mod.revenant) this.hud.setColor('#3fae54');
     }
   }

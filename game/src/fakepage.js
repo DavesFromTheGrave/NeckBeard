@@ -318,7 +318,10 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     }
 
     objs.push(hairline(feedX, y + cardH + 1, feedW, -7));
-    solid(feedX, y, feedW, cardH, 'post', objs);
+    const pel = solid(feedX, y, feedW, cardH, 'post', objs);
+    // karma you steal off this post — scales with real engagement (ups +
+    // comments + an image bonus), so juicy posts are the tempting targets.
+    pel.karma = Math.max(50, (post.ups || 0) + (post.num_comments || 0) * 3 + (post.has_image ? 120 : 0));
     y += cardH + R.postGap;
   });
 
@@ -629,8 +632,8 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     },
 
     makeElevator(x, groundY) {
-      const elev = scene.add.sprite(x, groundY + 54, 'elevator')
-        .setOrigin(0.5, 0.5).setDepth(15).setScale(1.35);
+      const elev = scene.add.sprite(x, groundY + 54, 'elevator').setOrigin(0.5, 0.5).setDepth(14);
+      elev.setScale(320 / elev.height);   // real art -> sane on-screen size
       return [elev];
     },
   };

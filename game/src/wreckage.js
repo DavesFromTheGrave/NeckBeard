@@ -62,14 +62,15 @@ NB.Wreckage = class {
     const seed = this.hashKey(el.key);
     const rnd = this.mulberry(seed + stage * 7919);
 
+    const crackCol = Phaser.Display.Color.HexStringToColor(NB.REDDIT.wreckCrack || '#6b7280').color;
     if (stage === 1) {
-      this.drawCracks(g, r, 2, 0x9aa0a4, 0.65, rnd);
+      this.drawCracks(g, r, 2, crackCol, 0.65, rnd);
       this.tiltContents(el, (rnd() - 0.5) * 2.4, fresh);
       if (fresh) NB.sfx.commentHit();
     } else if (stage === 2) {
-      this.drawCracks(g, r, 5, 0x6b7280, 0.8, rnd);
-      // dent: dark scuffed blotch where he's been working the card over
-      g.fillStyle(0x0b1416, 0.09);
+      this.drawCracks(g, r, 5, crackCol, 0.8, rnd);
+      // dent: scuffed blotch where he's been working the card over
+      g.fillStyle(NB.REDDIT.wreckOverlay ?? 0x0b1416, 0.12);
       const bx = r.x + r.width * (0.2 + rnd() * 0.5);
       const by = r.y + r.height * (0.25 + rnd() * 0.4);
       g.fillEllipse(bx, by, 60 + rnd() * 70, 30 + rnd() * 30);
@@ -78,8 +79,8 @@ NB.Wreckage = class {
       this.dimContents(el, 0.85);
       if (fresh) NB.sfx.crack();
     } else if (stage === 3) {
-      this.drawCracks(g, r, 9, 0x374151, 0.9, rnd);
-      g.fillStyle(0x0b1416, 0.16);
+      this.drawCracks(g, r, 9, crackCol, 0.9, rnd);
+      g.fillStyle(NB.REDDIT.wreckOverlay ?? 0x0b1416, NB.REDDIT.wreckOverlayAlpha ?? 0.16);
       g.fillRoundedRect(r.x, r.y, r.width, r.height, NB.REDDIT.cardRadius);
       this.corruptText(el, 0.45, seed);
       this.dimContents(el, 0.55);
@@ -176,7 +177,8 @@ NB.Wreckage = class {
       if (this.debrisCount >= T.WRECK_DEBRIS_MAX) return;
       const x = el.rect.x + 10 + rnd() * (el.rect.width - 20);
       const y = el.rect.y + el.rect.height - 4 - rnd() * 8;
-      const shade = [0xc8ccd0, 0x9aa0a4, 0xe3e5e8][Math.floor(rnd() * 3)];
+      const shades = NB.REDDIT.debris || [0xc8ccd0, 0x9aa0a4, 0xe3e5e8];
+      const shade = shades[Math.floor(rnd() * shades.length)];
       const chunk = this.scene.add.rectangle(x, y, 4 + rnd() * 8, 3 + rnd() * 5, shade)
         .setAngle(rnd() * 90).setDepth(-0.8);
       el.objs.push(chunk);

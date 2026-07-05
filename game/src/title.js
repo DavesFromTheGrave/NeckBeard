@@ -1,57 +1,63 @@
-// Tap-to-start title card. Skipped when ?autostart=1 (boot test / dev).
+// Title screen = Dave's NECKBEARD-INTRO art, shown whole (contain-fit,
+// NEVER scaled past 1:1 — his brush strokes are composition, not texture).
+// The five blank HIGH SCORE lines in the art are the real top-5 list;
+// scores are drawn onto them at image-relative coordinates.
+// Skipped when ?autostart=1 (boot test / dev).
 window.NB = window.NB || {};
 
 NB.autostart = function () {
   try { return new URLSearchParams(location.search).has('autostart'); } catch { return false; }
 };
 
+// Image-relative anchors for the HIGH SCORE panel lines (fractions of the
+// art's width/height, measured off the source PNG).
+const SCORE_LINES = [
+  { x: 0.845, y: 0.208 },
+  { x: 0.845, y: 0.266 },
+  { x: 0.845, y: 0.322 },
+  { x: 0.845, y: 0.380 },
+  { x: 0.845, y: 0.440 },
+];
+
 class TitleScene extends Phaser.Scene {
   constructor() { super('title'); }
 
   preload() {
-    this.load.image('walk-1', 'assets/walk/mod-walk2-1.png');
-    this.load.image('cover', 'assets/cover/cover.jpg');
-    this.load.image('balder-hero', 'assets/cover/balder-hero.jpg');
+    this.load.image('intro-art', 'assets/title/neckbeard-intro.png');
   }
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.add.rectangle(W / 2, H / 2, W, H, 0x0d0b10).setDepth(0);
-    const cx = W / 2;
+    this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
 
-    // Full-bleed cover art, full opacity — text overlays it directly with a
-    // heavy black stroke for legibility instead of a panel/fade behind it.
-    if (this.textures.exists('balder-hero')) {
-      const hero = this.add.image(cx, H / 2, 'balder-hero').setDepth(1);
-      hero.setScale(Math.max(W / hero.width, H / hero.height));
-    } else if (this.textures.exists('cover')) {
-      const bg = this.add.image(cx, H / 2, 'cover').setDepth(1);
-      bg.setScale(Math.max(W / bg.width, H / bg.height));
-    }
+    const art = this.add.image(W / 2, H / 2, 'intro-art').setDepth(1);
+    // contain-fit, capped at native resolution
+    const s = Math.min(W / art.width, H / art.height, 1);
+    art.setScale(s);
 
-    this.add.text(cx, H * 0.09, 'NECKBEARD', {
-      fontFamily: NB.FONT_DISPLAY, fontSize: `${Math.min(56, W * 0.1)}px`,
-      color: '#ffffff',
-    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 8);
+    // the art's on-screen rect (for anchoring text to panels inside it)
+    const aw = art.width * s, ah = art.height * s;
+    const ax = W / 2 - aw / 2, ay = H / 2 - ah / 2;
 
-    this.add.text(cx, H * 0.27, 'the mod is always watching', {
-      fontFamily: NB.FONT_ACCENT, fontSize: '19px', color: '#ffffff',
-    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 5);
+    // top-5 survival times, handwritten onto the HIGH SCORE lines
+    const scores = NB.getTopScores();
+    SCORE_LINES.forEach((ln, i) => {
+      if (!scores[i]) return;
+      this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtTime(scores[i]), {
+        fontFamily: NB.FONT_ACCENT || 'Courier New',
+        fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
+        color: '#ffffff',
+      }).setOrigin(0.5, 1).setDepth(2);
+    });
 
-    const pb = NB.getPersonalBest();
-    const pbLine = pb > 0 ? `personal best: ${NB.fmtTime(pb)}` : 'no personal best yet';
-    this.add.text(cx, H * 0.67, pbLine, {
-      fontFamily: 'Courier New', fontSize: '16px', fontStyle: 'bold', color: '#ff6a3d',
-    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 5);
-
-    const hint = this.add.text(cx, H * 0.78, 'tap anywhere to start', {
-      fontFamily: 'Courier New', fontSize: '15px', fontStyle: 'bold', color: '#ffffff',
-    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 5);
-    this.tweens.add({ targets: hint, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
-
-    this.add.text(cx, H * 0.89, 'move your finger\ndodge comments\ntravel subs', {
-      fontFamily: 'Courier New', fontSize: '12px', color: '#e8e8e8', lineSpacing: 4, align: 'center',
-    }).setOrigin(0.5, 0).setDepth(5).setStroke('#000000', 4);
+    // start cue — sits in the letterbox bar when there is one, else over the
+    // bottom edge of the art with a stroke
+    const barH = (H - ah) / 2;
+    const hintY = barH > 30 ? H - barH / 2 : H - 26;
+    const hint = this.add.text(W / 2, hintY, 'TAP ANYWHERE TO START', {
+      fontFamily: 'Courier New', fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 6);
+    this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
     const go = () => {
       if (this.started) return;

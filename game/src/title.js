@@ -54,10 +54,11 @@ class TitleScene extends Phaser.Scene {
     // bottom edge of the art with a stroke
     const barH = (H - ah) / 2;
     const hintY = barH > 30 ? H - barH / 2 : H - 26;
-    const hint = this.add.text(W / 2, hintY, 'TAP ANYWHERE TO START', {
-      fontFamily: 'Courier New', fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
+    const hint = this.add.text(W / 2, hintY, 'PLAYER 1  PRESS START', {
+      fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: '20px', color: '#ffe14d',
     }).setOrigin(0.5).setDepth(5).setStroke('#000000', 6);
-    this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
+    // classic arcade attract-mode blink: hard on/off, not a fade
+    this.time.addEvent({ delay: 530, loop: true, callback: () => hint.setVisible(!hint.visible) });
 
     const go = () => {
       if (this.started) return;

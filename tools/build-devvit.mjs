@@ -8,8 +8,22 @@ const GAME = path.join(ROOT, 'game');
 const CLIENT = path.join(ROOT, 'dist', 'client');
 const SERVER = path.join(ROOT, 'dist', 'server');
 
-function rim(dir) {
-  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+// IDEMPOTENT BUILD — devvit playtest's watcher sees dist/ writes as source
+// changes; a delete-and-rewrite build loops it forever (rebuild → upload →
+// "AppVersion already exists" → EADDRINUSE). Only touch files whose bytes
+// actually changed so a no-op rebuild makes zero writes.
+function writeIfChanged(dest, buf) {
+  const data = typeof buf === 'string' ? Buffer.from(buf) : buf;
+  if (fs.existsSync(dest)) {
+    const old = fs.readFileSync(dest);
+    if (old.equals(data)) return false;
+  }
+  fs.writeFileSync(dest, data);
+  return true;
+}
+
+function copyFileIfChanged(src, dest) {
+  return writeIfChanged(dest, fs.readFileSync(src));
 }
 
 // Dev-only stuff must NOT ship in the client bundle (node_modules alone
@@ -26,16 +40,15 @@ function copyDir(src, dest, exclude) {
     const s = path.join(src, ent.name);
     const d = path.join(dest, ent.name);
     if (ent.isDirectory()) copyDir(s, d);
-    else fs.copyFileSync(s, d);
+    else copyFileIfChanged(s, d);
   }
 }
 
-rim(path.join(ROOT, 'dist'));
 copyDir(GAME, CLIENT, CLIENT_EXCLUDE);
 
 const index = fs.readFileSync(path.join(CLIENT, 'index.html'), 'utf8');
-fs.writeFileSync(path.join(CLIENT, 'game.html'), index);
-fs.writeFileSync(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
+writeIfChanged(path.join(CLIENT, 'game.html'), index);
+writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Neckbeard</title>
@@ -54,9 +67,21 @@ fs.writeFileSync(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 </div>
 </body></html>`);
 
-// Real Devvit server lives in server/ (ESM — @devvit/web is ESM-only, a CJS
-// require() of it dies at bundle time). It uses the first-party reddit API;
-// the external-fetch reddit-fetch.js stays local-dev only.
-copyDir(path.join(ROOT, 'server'), SERVER);
+// Real Devvit server lives in server/ (ESM source). The sandbox does NOT
+// npm-install anything — hono/@devvit must be BUNDLED into one file
+// (matches Reddit's own template: esbuild, cjs, node).
+const esbuild = await import('esbuild');
+const result = await esbuild.build({
+  entryPoints: [path.join(ROOT, 'server', 'index.js')],
+  bundle: true,
+  format: 'cjs',
+  platform: 'node',
+  target: 'es2023',
+  outfile: path.join(SERVER, 'index.js'),
+  logLevel: 'warning',
+  write: false, // we diff-write to keep the playtest watcher quiet
+});
+fs.mkdirSync(SERVER, { recursive: true });
+for (const f of result.outputFiles) writeIfChanged(f.path, Buffer.from(f.contents));
 
 console.log('devvit build ok → dist/client + dist/server');

@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "neckbeard",
+  "name": "neckbeard-supermod",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -30,6 +30,6 @@
   },
   "scripts": {
     "build": "node tools/build-devvit.mjs",
-    "dev": "node tools/build-devvit.mjs && devvit playtest"
+    "dev": "node tools/build-devvit.mjs"
   }
 }

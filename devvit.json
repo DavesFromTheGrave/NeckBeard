@@ -15,7 +15,7 @@
   },
   "server": {
     "dir": "dist/server",
-    "entry": "index.cjs"
+    "entry": "index.js"
   },
   "menu": {
     "items": [

@@ -12,9 +12,17 @@ function rim(dir) {
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 }
 
-function copyDir(src, dest) {
+// Dev-only stuff must NOT ship in the client bundle (node_modules alone
+// would blow the upload size).
+const CLIENT_EXCLUDE = new Set([
+  'node_modules', 'package.json', 'package-lock.json',
+  'server.js', 'reddit-fetch.js', 'test-boot.mjs',
+]);
+
+function copyDir(src, dest, exclude) {
   fs.mkdirSync(dest, { recursive: true });
   for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    if (exclude && exclude.has(ent.name)) continue;
     const s = path.join(src, ent.name);
     const d = path.join(dest, ent.name);
     if (ent.isDirectory()) copyDir(s, d);
@@ -23,7 +31,7 @@ function copyDir(src, dest) {
 }
 
 rim(path.join(ROOT, 'dist'));
-copyDir(GAME, CLIENT);
+copyDir(GAME, CLIENT, CLIENT_EXCLUDE);
 
 const index = fs.readFileSync(path.join(CLIENT, 'index.html'), 'utf8');
 fs.writeFileSync(path.join(CLIENT, 'game.html'), index);
@@ -46,36 +54,9 @@ fs.writeFileSync(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 </div>
 </body></html>`);
 
-fs.mkdirSync(SERVER, { recursive: true });
-fs.copyFileSync(path.join(GAME, 'reddit-fetch.js'), path.join(SERVER, 'reddit-fetch.cjs'));
-
-const serverEntry = `const { Hono } = require('hono');
-const { serve } = require('@hono/node-server');
-const { createServer, getServerPort } = require('@devvit/web/server');
-const { buildArena } = require('./reddit-fetch.cjs');
-
-const app = new Hono();
-const cache = new Map();
-const CACHE_MS = 90_000;
-
-app.get('/api/arena', async (c) => {
-  const sub = c.req.query('sub') || 'all';
-  const key = sub.toLowerCase();
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.t < CACHE_MS) return c.json(hit.data);
-  try {
-    const data = await buildArena(sub);
-    cache.set(key, { t: Date.now(), data });
-    return c.json(data);
-  } catch (e) {
-    return c.json({ error: e.message, sub }, 502);
-  }
-});
-
-app.get('/health', (c) => c.json({ ok: true }));
-
-serve({ fetch: app.fetch, createServer, port: getServerPort() });
-`;
-fs.writeFileSync(path.join(SERVER, 'index.cjs'), serverEntry);
+// Real Devvit server lives in server/ (ESM — @devvit/web is ESM-only, a CJS
+// require() of it dies at bundle time). It uses the first-party reddit API;
+// the external-fetch reddit-fetch.js stays local-dev only.
+copyDir(path.join(ROOT, 'server'), SERVER);
 
 console.log('devvit build ok → dist/client + dist/server');

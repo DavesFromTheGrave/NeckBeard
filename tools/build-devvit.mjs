@@ -51,8 +51,8 @@ fs.copyFileSync(path.join(GAME, 'reddit-fetch.js'), path.join(SERVER, 'reddit-fe
 
 const serverEntry = `const { Hono } = require('hono');
 const { serve } = require('@hono/node-server');
-const { createServer, getServerPort } = require('@devvit/web/server');
-const { buildArena } = require('./reddit-fetch.cjs');
+const { createServer, getServerPort, reddit } = require('@devvit/web/server');
+const { buildArenaViaDevvit } = require('./reddit-fetch.cjs');
 
 const app = new Hono();
 const cache = new Map();
@@ -63,13 +63,11 @@ app.get('/api/arena', async (c) => {
   const key = sub.toLowerCase();
   const hit = cache.get(key);
   if (hit && Date.now() - hit.t < CACHE_MS) return c.json(hit.data);
-  try {
-    const data = await buildArena(sub);
-    cache.set(key, { t: Date.now(), data });
-    return c.json(data);
-  } catch (e) {
-    return c.json({ error: e.message, sub }, 502);
-  }
+  // buildArenaViaDevvit never throws — it falls back to a static mock arena
+  // internally, so this route always returns 200 with playable data.
+  const data = await buildArenaViaDevvit(reddit, sub);
+  cache.set(key, { t: Date.now(), data });
+  return c.json(data);
 });
 
 app.get('/health', (c) => c.json({ ok: true }));

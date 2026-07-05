@@ -1,6 +1,9 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "neckbeard",
+  "permissions": {
+    "reddit": true
+  },
   "post": {
     "dir": "dist/client",
     "entrypoints": {

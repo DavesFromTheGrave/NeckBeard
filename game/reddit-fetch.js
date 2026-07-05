@@ -1,6 +1,13 @@
-// Fetches live subreddit listings for local dev. Tries reddit.com JSON first;
-// falls back to pullpush.io when Reddit serves the bot wall (common on datacenter IPs).
-// Devvit production replaces this with @devvit/web server reddit client.
+// Fetches live subreddit listings for local dev (`npm run dev:game`, plain
+// Node, no Devvit context available). Tries reddit.com JSON first; falls back
+// to pullpush.io when Reddit serves the bot wall (common on datacenter IPs);
+// falls back to static MOCK_ARENA if both are unreachable, so /api/arena never
+// hard-fails and the game always boots into something playable.
+//
+// The packaged Devvit server (tools/build-devvit.mjs) does NOT use this raw
+// scraper — it calls buildArenaViaDevvit() below with the platform's own
+// authenticated `reddit` client (@devvit/web/server), which isn't subject to
+// the bot-wall/rate-limit problems a public scrape hits.
 
 const UA = 'NeckbeardHackathon/1.0 (Games with a Hook entry; +https://revenantsystems.net)';
 
@@ -124,16 +131,7 @@ const POPULAR = [
   { name: 'r/memes', members: '35.4m' },
 ];
 
-async function buildArena(subRaw) {
-  const sub = cleanSub(subRaw);
-  const isHome = sub === 'all' || sub === 'home' || sub === '';
-  const listingSub = isHome ? 'all' : sub;
-  const [posts, comments] = await Promise.all([
-    fetchListing(listingSub, 15),
-    fetchCommentsForSub(isHome ? 'all' : sub, 12),
-  ]);
-  if (!posts.length) throw new Error(`no posts for r/${listingSub}`);
-
+function arenaFrom(listingSub, isHome, posts, comments) {
   return {
     mode: isHome ? 'home' : 'sub',
     subreddit: listingSub,
@@ -145,8 +143,106 @@ async function buildArena(subRaw) {
       body: p.title.slice(0, 120),
     })),
     popular: POPULAR,
-    source: 'live',
   };
 }
 
-module.exports = { buildArena, cleanSub };
+// Last-resort offline arena — used only when every live source fails, so a
+// bad network (or a Reddit/pullpush outage) degrades to "playable demo data"
+// instead of a boot failure.
+function mockPost(i, sub) {
+  const titles = [
+    'This community never sleeps, apparently', 'PSA: read the sidebar before posting',
+    'Finally beat my personal best', 'Unpopular opinion incoming', 'Found this in the wild, thoughts?',
+    'Daily discussion thread', 'Can we talk about this for a second', 'Mods asleep, post pixelated mod',
+    'The state of this sub right now', 'Someone had to say it',
+  ];
+  const authors = ['u/throwaway_acct', 'u/regular_poster', 'u/lurker_no_more', 'u/old_account_2011', 'u/new_here_be_nice'];
+  return {
+    id: `mock_${sub}_${i}`,
+    subreddit: `r/${sub}`,
+    author: authors[i % authors.length],
+    time: `${(i + 1) * 7} min. ago`,
+    title: titles[i % titles.length],
+    ups: 1200 - i * 63,
+    num_comments: 340 - i * 19,
+    has_image: false,
+    image_url: null,
+    image_label: null,
+    image_tall: false,
+  };
+}
+
+function buildMockArena(subRaw) {
+  const sub = cleanSub(subRaw);
+  const isHome = sub === 'all' || sub === 'home' || sub === '';
+  const listingSub = isHome ? 'all' : sub;
+  const posts = Array.from({ length: 12 }, (_, i) => mockPost(i, listingSub));
+  const comments = posts.slice(0, 6).map((p, i) => ({
+    author: `u/commenter_${i}`,
+    body: 'offline demo data — live subreddit fetch was unavailable',
+  }));
+  return { ...arenaFrom(listingSub, isHome, posts, comments), source: 'mock' };
+}
+
+async function buildArena(subRaw) {
+  const sub = cleanSub(subRaw);
+  const isHome = sub === 'all' || sub === 'home' || sub === '';
+  const listingSub = isHome ? 'all' : sub;
+  try {
+    const [posts, comments] = await Promise.all([
+      fetchListing(listingSub, 15),
+      fetchCommentsForSub(isHome ? 'all' : sub, 12),
+    ]);
+    if (!posts.length) throw new Error(`no posts for r/${listingSub}`);
+    return { ...arenaFrom(listingSub, isHome, posts, comments), source: 'live' };
+  } catch (e) {
+    console.warn(`buildArena: live fetch failed for r/${listingSub} (${e.message}), using mock arena`);
+    return buildMockArena(subRaw);
+  }
+}
+
+// Devvit-native path: uses the platform's own authenticated Reddit API client
+// (requires `permissions: { reddit: true }` in devvit.json) instead of public
+// scraping. `redditClient` is injected (the `reddit` export from
+// `@devvit/web/server`) so this file has no hard dependency on Devvit
+// packages and keeps working under plain Node for local dev.
+async function buildArenaViaDevvit(redditClient, subRaw) {
+  const sub = cleanSub(subRaw);
+  const isHome = sub === 'all' || sub === 'home' || sub === '';
+  const listingSub = isHome ? 'all' : sub;
+  try {
+    const hotPosts = await redditClient.getHotPosts({ subredditName: listingSub, limit: 15 }).all();
+    if (!hotPosts.length) throw new Error(`no posts for r/${listingSub}`);
+
+    const posts = hotPosts.map(p => ({
+      id: p.id,
+      subreddit: `r/${p.subredditName}`,
+      author: `u/${p.authorName}`,
+      time: timeAgo(Math.floor(p.createdAt.getTime() / 1000)),
+      title: p.title || '(untitled)',
+      ups: p.score ?? 0,
+      num_comments: p.numberOfComments ?? 0,
+      has_image: !!p.thumbnail?.url,
+      image_url: p.thumbnail?.url ?? null,
+      image_label: 'i.redd.it',
+      image_tall: !!p.thumbnail?.url && (p.title?.length || 0) < 80,
+    }));
+
+    // getComments() is per-post (there's no subreddit-wide "recent comments"
+    // call on RedditAPIClient), so pull a few from the top posts and flatten.
+    const commentBatches = await Promise.all(
+      hotPosts.slice(0, 4).map(p => redditClient.getComments({ postId: p.id, limit: 4 }).all().catch(() => []))
+    );
+    const comments = commentBatches.flat()
+      .filter(c => c.body && c.body.length > 2)
+      .slice(0, 12)
+      .map(c => ({ author: `u/${c.authorName}`, body: c.body.slice(0, 180) }));
+
+    return { ...arenaFrom(listingSub, isHome, posts, comments), source: 'live' };
+  } catch (e) {
+    console.warn(`buildArenaViaDevvit: fetch failed for r/${listingSub} (${e.message}), using mock arena`);
+    return buildMockArena(subRaw);
+  }
+}
+
+module.exports = { buildArena, buildArenaViaDevvit, buildMockArena, cleanSub };

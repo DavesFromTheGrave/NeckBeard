@@ -21,6 +21,42 @@ NB.keyBlack = function (scene, key, tol = 28) {
   scene.textures.addCanvas(key, c);
 };
 
+// Flood-fill the flat background transparent, starting from the four corners.
+// Better than a global threshold for JPG cutouts: it only removes the bg that
+// is CONNECTED to the edges, so interior light areas (the "superMOD" sign)
+// survive. tol = color distance from the sampled corner color.
+NB.keyFloodFill = function (scene, key, tol = 80) {
+  if (!scene.textures.exists(key)) return;
+  const src = scene.textures.get(key).getSourceImage();
+  const w = src.width, h = src.height;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const br = d[0], bg = d[1], bb = d[2]; // top-left = background reference
+  const near = (i) => (Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb)) <= tol * 3;
+  const seen = new Uint8Array(w * h);
+  const stack = [0, w - 1, (h - 1) * w, h * w - 1];
+  while (stack.length) {
+    const px = stack.pop();
+    if (seen[px]) continue;
+    const i = px * 4;
+    if (!near(i)) continue;
+    seen[px] = 1;
+    d[i + 3] = 0;
+    const x = px % w, y = (px / w) | 0;
+    if (x > 0) stack.push(px - 1);
+    if (x < w - 1) stack.push(px + 1);
+    if (y > 0) stack.push(px - w);
+    if (y < h - 1) stack.push(px + w);
+  }
+  ctx.putImageData(img, 0, 0);
+  scene.textures.remove(key);
+  scene.textures.addCanvas(key, c);
+};
+
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
 
@@ -41,14 +77,21 @@ class GameScene extends Phaser.Scene {
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
+    // superMOD's entrance: closed door (sign) -> open (void) -> he steps out
+    this.load.image('door-closed', 'assets/door/door-closed.jpg');
+    this.load.image('door-open', 'assets/door/door-open.jpg');
+    this.load.image('door-mod', 'assets/door/door-mod.png');
   }
 
   create() {
     try { NB.keyBlack(this, 'elevator'); } catch (e) { console.warn('elevator key:', e); }
+    try { NB.keyFloodFill(this, 'door-closed'); NB.keyFloodFill(this, 'door-open'); }
+    catch (e) { console.warn('door key:', e); }
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this.caught = false;
     this.ceremonyRunning = false;
+    this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
 
     const anim = (key, prefix, n, rate, repeat = -1) => this.anims.create({
@@ -83,7 +126,63 @@ class GameScene extends Phaser.Scene {
         console.error('BUILD FAIL:', e.message, e.stack);
         return NB.fetchArena('gaming')
           .then(d => { this.buildWorld(d); return this.hideLoading(); });
+      })
+      .then(() => this.beginEntrance());
+  }
+
+  // The door on the freshly-loaded page: click it to let superMOD out and
+  // start the round. (To make the door the title-screen start instead, move
+  // this call into TitleScene — the sequence itself is unchanged.)
+  beginEntrance() {
+    if (!this.entranceActive || this.doorUI) return;
+    const W = this.scale.width, H = this.scale.height;
+    const doorH = Math.min(H * 0.6, 500);
+    const img = this.add.image(W / 2, H * 0.5, 'door-closed').setDepth(18).setScrollFactor(0);
+    img.setScale(doorH / img.height);
+    const baseScale = img.scaleX;
+    const hint = this.add.text(W / 2, H * 0.5 + doorH / 2 + 26, 'CLICK THE DOOR', {
+      fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: '18px', color: '#e8c944',
+    }).setOrigin(0.5).setDepth(19).setScrollFactor(0).setStroke('#000000', 5);
+    this.tweens.add({ targets: img, scaleX: baseScale * 1.03, scaleY: baseScale * 1.03,
+      duration: 780, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.time.addEvent({ delay: 540, loop: true, callback: () => hint.setVisible(!hint.visible) });
+    img.setInteractive();
+    img.once('pointerdown', () => this.runEntrance(img, hint, baseScale));
+    this.doorUI = { img, hint };
+  }
+
+  runEntrance(img, hint, baseScale) {
+    if (this._entering) return;
+    this._entering = true;
+    this.tweens.killTweensOf(img);
+    hint.destroy();
+    const flash = () => {
+      const f = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
+        this.scale.width, this.scale.height, 0xffffff, 0.45).setDepth(17).setScrollFactor(0);
+      this.tweens.add({ targets: f, alpha: 0, duration: 170, onComplete: () => f.destroy() });
+    };
+    // beat 1 — the bolt throws, the door swings to the void
+    this.cameras.main.shake(150, 0.006); flash();
+    img.setScale(baseScale).setTexture('door-open');
+    NB.sfx.stumble();
+    this.time.delayedCall(650, () => {
+      // beat 2 — he's just THERE, filling the frame
+      this.cameras.main.shake(240, 0.011); flash();
+      img.setTexture('door-mod');
+      NB.sfx.caught();
+      this.tweens.add({ targets: img, scaleX: baseScale * 1.06, scaleY: baseScale * 1.06, duration: 260 });
+      this.time.delayedCall(1050, () => {
+        // beat 3 — hand off to the live mod; the hunt begins
+        this.tweens.add({ targets: img, alpha: 0, duration: 320, onComplete: () => img.destroy() });
+        const cam = this.cameras.main;
+        this.mod.sprite.setPosition(this.scale.width / 2, this.scale.height * 0.5 + cam.scrollY).setVisible(true);
+        this.mod.telegraphRing.setVisible(false);
+        this.mod.setState('LURK');
+        this.entranceActive = false;
+        this._entering = false;
+        this.doorUI = null;
       });
+    });
   }
 
   // Reddit-style loading interstitial: canvas-colored cover + shimmering
@@ -163,6 +262,10 @@ class GameScene extends Phaser.Scene {
           this.cameras.main.scrollY + dy * 0.9, 0, this.page.WORLD_H - H);
       });
       this.mod = new NB.Supermod(this, this.page, feed.x + feed.w * 0.2, H * 0.35);
+      // he waits behind the door — hidden + frozen until you open it
+      this.mod.sprite.setVisible(false);
+      this.mod.telegraphRing.setVisible(false);
+      this.entranceActive = true;
       this.hud = this.add.text(W - 22, H - 12, '0.0s', {
         fontFamily: 'Courier New', fontSize: '18px', color: NB.REDDIT.hudText,
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
@@ -196,7 +299,7 @@ class GameScene extends Phaser.Scene {
 
   bindTravelClicks() {
     this.input.on('pointerdown', (p) => {
-      if (!this.ready || this.caught || this.ceremonyRunning || this.traveling) return;
+      if (!this.ready || this.caught || this.ceremonyRunning || this.traveling || this.entranceActive) return;
       const cam = this.cameras.main;
       const wx = p.x, wy = p.y + cam.scrollY;
       for (const z of this.page.clickZones || []) {
@@ -446,7 +549,7 @@ class GameScene extends Phaser.Scene {
     // SIM FREEZE: while a loading interstitial is up (boot OR sub-travel) the
     // mod must not hunt or catch — the page underneath is mid-rebuild and it
     // isn't fair to die to something you can't see. Ceremony freezes too.
-    const frozen = this.ceremonyRunning || !!this.loadingUI;
+    const frozen = this.ceremonyRunning || !!this.loadingUI || this.entranceActive;
 
     if (!frozen) {
       this.survivalMs += dt;

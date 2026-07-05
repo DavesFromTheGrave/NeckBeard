@@ -1,5 +1,7 @@
-// Pickups — three jam-scoped items, spawned on real post cards.
-// SHIELD: absorbs one lunge. STUN: freezes him. DECOY: fake cursor he chases.
+// Pickups — spawns memes from the registry (memes.js) onto real post cards and
+// applies their effect on touch. SHIELD still absorbs one lunge (mod.js calls
+// absorb()). Effects run through the mod's primitives; durations inline here
+// are the tuning knobs. Cursed-sub bonus (spawnCursed) unchanged.
 window.NB = window.NB || {};
 
 NB.Pickups = class {
@@ -16,9 +18,8 @@ NB.Pickups = class {
     this.spawnT -= dt;
     if (this.spawnT <= 0 && this.items.length < 3) {
       this.spawn();
-      this.spawnT = Phaser.Math.Between(6000, 11000);
+      this.spawnT = Phaser.Math.Between(5000, 9000);
     }
-    // collect by touch
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       if (Phaser.Math.Distance.Between(player.x, player.y, it.x, it.y) < 26) {
@@ -34,21 +35,15 @@ NB.Pickups = class {
     const posts = this.page.elements.filter(e => e.kind === 'post');
     if (!posts.length) return;
     const el = Phaser.Utils.Array.GetRandom(posts);
-    const x = el.rect.x + Phaser.Math.Between(50, el.rect.width - 30);
-    const y = el.rect.y + Phaser.Math.Between(20, el.rect.height - 20);
-    const kind = Phaser.Utils.Array.GetRandom(['shield', 'stun', 'decoy']);
-    const color = { shield: 0x4a90d9, stun: 0xe8c944, decoy: 0x9b59b6 }[kind];
-    const icon = { shield: '🛡', stun: '⚡', decoy: '👆' }[kind];
-    const objs = [
-      this.scene.add.circle(x, y, 15, color, 0.9).setDepth(8).setStrokeStyle(2, 0xffffff),
-      this.scene.add.text(x, y, icon, { fontSize: '14px' }).setOrigin(0.5).setDepth(9),
-    ];
+    const x = el.rect.x + Phaser.Math.Between(50, Math.max(60, el.rect.width - 30));
+    const y = el.rect.y + Phaser.Math.Between(20, Math.max(30, el.rect.height - 20));
+    const id = NB.randomMemeId();
+    const objs = NB.drawMemeBadge(this.scene, x, y, id);
     this.scene.tweens.add({ targets: objs, y: '-=5', yoyo: true, repeat: -1, duration: 700 });
-    this.items.push({ x, y, kind, objs });
+    this.items.push({ x, y, id, objs });
   }
 
-  // The cursed-subreddit reward — stronger than a normal stun, and it wipes
-  // heat so a close call becomes real breathing room.
+  // The cursed-subreddit reward — stronger than a normal stun, wipes heat.
   spawnCursed(x, y) {
     const objs = [
       this.scene.add.circle(x, y, 18, 0x2ecc71, 0.95).setDepth(8).setStrokeStyle(3, 0xffffff),
@@ -56,28 +51,49 @@ NB.Pickups = class {
     ];
     this.scene.tweens.add({ targets: objs, y: '-=6', yoyo: true, repeat: -1, duration: 500 });
     this.scene.tweens.add({ targets: objs, scale: 1.15, yoyo: true, repeat: -1, duration: 350 });
-    this.items.push({ x, y, kind: 'cursed', objs });
+    this.items.push({ x, y, id: '__cursed', objs });
   }
 
   apply(it) {
-    NB.sfx.pickup();
-    const scene = this.scene;
-    if (it.kind === 'shield') {
-      this.shield = true;
-      if (this.shieldGfx) this.shieldGfx.destroy();
-      this.shieldGfx = scene.add.circle(it.x, it.y, 24)
-        .setStrokeStyle(2.5, 0x4a90d9, 0.9).setDepth(19);
-    } else if (it.kind === 'stun') {
-      scene.mod.stun(1600);
-      scene.floatText(it.x, it.y, 'STUNNED', '#e8c944');
-    } else if (it.kind === 'decoy') {
-      scene.mod.setDecoy(it.x, it.y, 3200);
-      scene.floatText(it.x, it.y, 'DECOY', '#9b59b6');
-    } else if (it.kind === 'cursed') {
-      scene.mod.stun(3000);
-      scene.mod.heat = 0;
+    const scene = this.scene, mod = scene.mod;
+    if (it.id === '__cursed') {
+      NB.sfx.pickup();
+      mod.stun(3000); mod.heat = 0;
       scene.floatText(it.x, it.y, 'CURSED POWER', '#2ecc71');
+      return;
     }
+    const m = NB.MEMES[it.id];
+    if (!m) return;
+    const good = m.cat !== 'trap';
+    NB.playMemeSound(scene, it.id, () => (good ? NB.sfx.pickup() : NB.sfx.commentHit()));
+
+    switch (m.fx) {
+      case 'stun':
+        mod.stun(m.big ? 2400 : 1600); break;
+      case 'decoy':
+        mod.setDecoy(it.x, it.y, 3200); break;
+      case 'shield':
+        this.shield = true;
+        if (this.shieldGfx) this.shieldGfx.destroy();
+        this.shieldGfx = scene.add.circle(it.x, it.y, 24).setStrokeStyle(2.5, 0x4a90d9, 0.9).setDepth(19);
+        break;
+      case 'heatwipe':
+        mod.heat = 0; mod.stun(400); break;
+      case 'knockback':
+        mod.knockback(m.big ? 360 : 220); break;
+      case 'slow':
+        mod.slow(3000, 0.6); break;
+      case 'score':
+        scene.survivalMs += (m.score || 1) * 1000; break;
+      case 'trap':
+        mod.burst(1600); mod.heat = Math.min(NB.TUNE.HEAT_MAX, mod.heat + 1); break;
+    }
+
+    const color = m.fx === 'trap' ? '#e0452a'
+      : m.fx === 'score' ? '#f1c40f'
+      : '#ffffff';
+    scene.floatText(it.x, it.y - 18, m.say || m.name, color);
+    if (m.fx === 'score') scene.floatText(it.x, it.y + 6, `+${m.score || 1}s`, '#f1c40f');
   }
 
   // returns true if the shield ate the hit

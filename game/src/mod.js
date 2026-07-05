@@ -27,6 +27,8 @@ NB.Supermod = class {
     this.revenant = false;
     this.frozen = false;
     this.speedBurstT = 0;
+    this.slowT = 0;          // meme slow (Harambe, Yakety Sax, Banana Phone…)
+    this.slowMult = 1;
     this.climbCd = 0;
     this.climbData = null;
     this.distraction = null;   // set by the Cheerleader NPC while she's on screen
@@ -177,6 +179,7 @@ NB.Supermod = class {
     this.smashCd -= dt;
     this.wreckTickT -= dt;
     if (this.speedBurstT > 0) this.speedBurstT -= dt;
+    if (this.slowT > 0) { this.slowT -= dt; if (this.slowT <= 0) this.slowMult = 1; }
     if (this.climbCd > 0) this.climbCd -= dt;
 
     const tgt = this.target(player);
@@ -202,6 +205,7 @@ NB.Supermod = class {
     }
     let mult = onCard ? T.CLIMB_MULT : 1;
     if (this.speedBurstT > 0) mult *= 1.35;
+    if (this.slowT > 0) mult *= this.slowMult;   // meme slow (Harambe, Yakety Sax…)
     if (this.revenant) mult *= 1.32;
 
     switch (this.state) {
@@ -411,4 +415,20 @@ NB.Supermod = class {
   }
 
   burst(ms) { this.speedBurstT = ms; }
+
+  // Meme powerup primitives (used by pickups via the meme registry).
+  slow(ms, mult) {
+    this.slowT = Math.max(this.slowT, ms);
+    this.slowMult = mult;
+  }
+
+  knockback(px) {
+    const s = this.sprite, p = this.scene.playerPos;
+    if (!p) return;
+    const dx = s.x - p.x, dy = s.y - p.y, d = Math.hypot(dx, dy) || 1;
+    s.x = Phaser.Math.Clamp(s.x + (dx / d) * px, 30, this.scene.scale.width - 30);
+    s.y = Phaser.Math.Clamp(s.y + (dy / d) * px, this.page.headerH + 40, this.page.WORLD_H - 30);
+    // a knockback out of a wind-up wastes the attack (your reward for the timing)
+    if (this.state === 'TELEGRAPH' || this.state === 'LUNGE') this.setState('STUMBLE');
+  }
 };

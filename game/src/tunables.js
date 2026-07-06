@@ -77,3 +77,26 @@ NB.TUNE = {
 // mouse are frustratingly small to hit (and half-hidden) under a real thumb.
 NB.IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
 if (NB.IS_TOUCH) NB.TUNE.FARM_TARGET_RADIUS = Math.round(NB.TUNE.FARM_TARGET_RADIUS * 1.7);
+
+// Every distance/speed above is an absolute pixel count, tuned by eye against
+// a wide desktop screen (the only kind anyone playtested on tonight). On a
+// phone-width viewport those same pixels eat up a much bigger FRACTION of
+// the visible width -- LUNGE_RANGE=190 is ~14% of a 1400px desktop test but
+// ~49% of a 390px phone (nearly half the screen becomes "he's about to
+// lunge"). Dave, on a real phone: "barely room to maneuver." Scale the
+// space- and speed-related tunables down for narrow screens so the danger
+// zone occupies roughly the same RELATIVE fraction of the screen it did
+// during desktop tuning, instead of the same absolute pixel count.
+// (768 matches the isWide breakpoint the layout itself already uses.)
+NB.MOBILE_SPACE_SCALE = Math.min(1, Math.max(0.55, window.innerWidth / 768));
+NB.MOBILE_SPRITE_SCALE = Math.min(1, Math.max(0.7, window.innerWidth / 768));
+if (NB.MOBILE_SPACE_SCALE < 1) {
+  NB.TUNE.LUNGE_RANGE = Math.round(NB.TUNE.LUNGE_RANGE * NB.MOBILE_SPACE_SCALE);
+  NB.TUNE.CORNER_RANGE = Math.round(NB.TUNE.CORNER_RANGE * NB.MOBILE_SPACE_SCALE);
+  NB.TUNE.HUNT_SPEED = Math.round(NB.TUNE.HUNT_SPEED * NB.MOBILE_SPACE_SCALE);
+  NB.TUNE.LUNGE_SPEED = Math.round(NB.TUNE.LUNGE_SPEED * NB.MOBILE_SPACE_SCALE);
+  // sprite + catch radius scale together (less aggressively -- he still
+  // needs to be visible) so the catch stays proportional to his own body
+  NB.TUNE.SPRITE_SCALE = +(NB.TUNE.SPRITE_SCALE * NB.MOBILE_SPRITE_SCALE).toFixed(3);
+  NB.TUNE.CATCH_RADIUS = Math.round(NB.TUNE.CATCH_RADIUS * NB.MOBILE_SPRITE_SCALE);
+}

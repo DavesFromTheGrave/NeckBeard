@@ -35,6 +35,11 @@ NB.keyFloodFill = function (scene, key, tol = 80) {
   ctx.drawImage(src, 0, 0);
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
+  // Already transparent at the corner (real alpha, not a flat-color bg)?
+  // Skip entirely — flood-filling by RGB alone can't tell "already-clear
+  // background" from "opaque black linework" when both sample as (0,0,0),
+  // and would eat into any outline art connected to the transparent edge.
+  if (d[3] < 40) { scene.textures.remove(key); scene.textures.addCanvas(key, c); return; }
   const br = d[0], bg = d[1], bb = d[2]; // top-left = background reference
   const near = (i) => (Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb)) <= tol * 3;
   const seen = new Uint8Array(w * h);
@@ -74,7 +79,7 @@ class GameScene extends Phaser.Scene {
     // Fix: drop any existing copy before preload's load.image() calls below,
     // so every scene start — first boot or restart — flood-fills a pristine
     // decode of the real file, never a previously-processed canvas.
-    for (const k of ['door-closed', 'door-open', 'door-mod', 'balder']) {
+    for (const k of ['door-closed', 'door-open', 'door-mod', 'balder', 'revenant-skull']) {
       if (this.textures.exists(k)) this.textures.remove(k);
     }
     for (let i = 1; i <= 6; i++) {
@@ -97,6 +102,9 @@ class GameScene extends Phaser.Scene {
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');
     this.load.image('door-mod', 'assets/door/door-mod.png');
+    // Revenant Systems crest — replaces the snoo face inside the header/avatar
+    // badge (same orange bubble, real brand art in place of the alien face).
+    this.load.image('revenant-skull', 'assets/brand/revenant-skull.png');
   }
 
   create() {
@@ -112,6 +120,8 @@ class GameScene extends Phaser.Scene {
     } catch (e) { console.warn('door key:', e); }
     // Balder art ships on an opaque light-gray bg — flood it transparent.
     try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
+    // Revenant crest ships on an opaque white bg too — flood it transparent.
+    try { NB.keyFloodFill(this, 'revenant-skull'); } catch (e) { console.warn('crest key:', e); }
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this.caught = false;

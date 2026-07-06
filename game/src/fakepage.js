@@ -103,26 +103,34 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     return g;
   }
 
-  function snoo(g, cx, cy, r) {
+  // Brand mark: same orange circular badge Reddit uses, Revenant Systems
+  // skull crest (real art) sitting inside it instead of the alien face.
+  function snoo(g, cx, cy, r, depth = 27) {
     g.fillStyle(0xff4500, 1);
     g.fillCircle(cx, cy, r);
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(cx - r * 0.32, cy - r * 0.05, r * 0.24);
-    g.fillCircle(cx + r * 0.32, cy - r * 0.05, r * 0.24);
-    g.fillStyle(0x000000, 1);
-    g.fillCircle(cx - r * 0.32, cy - r * 0.05, r * 0.1);
-    g.fillCircle(cx + r * 0.32, cy - r * 0.05, r * 0.1);
-    g.lineStyle(2, 0xffffff, 1);
+    if (scene.textures.exists('revenant-skull')) {
+      const img = track(scene.add.image(cx, cy, 'revenant-skull').setDepth(depth).setScrollFactor(0));
+      img.setScale((r * 1.7) / img.height);
+      img.setTintFill(0x000000);   // solid black recolor of the crest
+      return;
+    }
+    // fallback (asset not loaded): simplified drawn skull, same silhouette
+    g.fillStyle(0xf3f3f0, 1);
+    g.fillCircle(cx, cy - r * 0.06, r * 0.66);
+    g.fillCircle(cx - r * 0.22, cy + r * 0.42, r * 0.22);
+    g.fillCircle(cx + r * 0.22, cy + r * 0.42, r * 0.22);
+    g.fillStyle(0x1a1a1b, 1);
     g.beginPath();
-    g.arc(cx, cy + r * 0.3, r * 0.34, 0.15 * Math.PI, 0.85 * Math.PI);
-    g.strokePath();
-    g.lineStyle(2.5, 0xff4500, 1);
+    g.moveTo(cx - r * 0.44, cy - r * 0.08);
+    g.lineTo(cx - r * 0.08, cy - r * 0.02);
+    g.lineTo(cx - r * 0.14, cy + r * 0.22);
+    g.closePath(); g.fillPath();
     g.beginPath();
-    g.moveTo(cx + r * 0.1, cy - r * 0.7);
-    g.lineTo(cx + r * 0.45, cy - r * 1.05);
-    g.strokePath();
-    g.fillStyle(0xff4500, 1);
-    g.fillCircle(cx + r * 0.5, cy - r * 1.08, r * 0.16);
+    g.moveTo(cx + r * 0.44, cy - r * 0.08);
+    g.lineTo(cx + r * 0.08, cy - r * 0.02);
+    g.lineTo(cx + r * 0.14, cy + r * 0.22);
+    g.closePath(); g.fillPath();
+    g.fillTriangle(cx, cy + r * 0.2, cx - r * 0.08, cy + r * 0.4, cx + r * 0.08, cy + r * 0.4);
   }
 
   function subAvatar(cx, cy, r, name, objs, depth = -4) {
@@ -484,7 +492,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   hdrGfx.lineStyle(1, col(R.border), 1);
   hdrGfx.lineBetween(0, headerH, W, headerH);
 
-  snoo(hdrGfx, isWide ? 40 : 30, headerH / 2, 15);
+  snoo(hdrGfx, isWide ? 40 : 30, headerH / 2, 15, 27);
   track(scene.add.text(isWide ? 62 : 50, headerH / 2, 'reddit', {
     fontFamily: F, fontSize: '26px', fontStyle: 'bold', color: R.brandWord,
   }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0));
@@ -524,7 +532,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   track(scene.add.circle(W - 36, headerH / 2, 17, col(R.searchBg))
     .setStrokeStyle(1, col(R.border)).setDepth(26).setScrollFactor(0));
   const avaSnoo = track(scene.add.graphics().setDepth(27).setScrollFactor(0));
-  snoo(avaSnoo, W - 36, headerH / 2, 10);
+  snoo(avaSnoo, W - 36, headerH / 2, 10, 28);
 
   solid(0, 0, W, headerH, 'header', []);
 

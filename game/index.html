@@ -10,7 +10,10 @@
   @font-face { font-family: 'Arcade Normal'; src: url('assets/fonts/ARCADE_N.TTF') format('truetype'); font-display: block; }
   html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #ffffff; }
   @media (prefers-color-scheme: dark) { html, body { background: #0e1113; } }
-  #game { width: 100vw; height: 100vh; cursor: none; touch-action: none; }
+  /* 100vh/vw don't track mobile browsers' address-bar show/hide, leaving a
+     gap or cut-off edge; dvh/dvw do. vh/vw stay as the fallback for older
+     WebViews that don't support dvh yet. */
+  #game { width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; cursor: none; touch-action: none; }
 </style>
 </head>
 <body>

@@ -71,3 +71,9 @@ NB.TUNE = {
   // Balder promotion review — survive past this, then a catch triggers ceremony (once/run)
   BALDER_SURVIVAL_MS: 60000,
 };
+
+// A mouse pointer is a precise point; a fingertip is a ~40-50px contact patch
+// that also sits ON TOP of whatever it's aiming at. Farm targets sized for a
+// mouse are frustratingly small to hit (and half-hidden) under a real thumb.
+NB.IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+if (NB.IS_TOUCH) NB.TUNE.FARM_TARGET_RADIUS = Math.round(NB.TUNE.FARM_TARGET_RADIUS * 1.7);

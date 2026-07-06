@@ -22,8 +22,26 @@ function cleanSub(sub) {
   return s.replace(/[^a-zA-Z0-9_]/g, '');
 }
 
-function mapPost(p) {
-  const hasImage = !!(p.thumbnail?.url && p.thumbnail.url.startsWith('http'));
+// p.thumbnail is Reddit's tiny fixed-size crop (often ~140x105) — stretched
+// to fill a 190-300px-tall feed card it looks blocky. Some posts render fine
+// and others "really low res" because gallery/image posts have a real
+// full-size image available (via .gallery or getEnrichedThumbnail()) while
+// link/text posts only ever had the small thumbnail to begin with — the
+// inconsistency IS the bug. Prefer the highest-res source available, and
+// only fall back to the raw thumbnail when nothing better exists.
+async function mapPost(p) {
+  let img = null;
+  const gallery = (() => { try { return p.gallery; } catch { return []; } })();
+  if (gallery && gallery.length && gallery[0]?.url) {
+    img = gallery[0].url;
+  } else {
+    try {
+      const enriched = await p.getEnrichedThumbnail();
+      if (enriched?.image?.url) img = enriched.image.url;
+    } catch { /* not all posts have one — fall through */ }
+  }
+  if (!img && p.thumbnail?.url && p.thumbnail.url.startsWith('http')) img = p.thumbnail.url;
+  const hasImage = !!img;
   return {
     id: p.id,
     subreddit: `r/${p.subredditName}`,
@@ -33,7 +51,7 @@ function mapPost(p) {
     ups: p.score ?? 0,
     num_comments: p.numberOfComments ?? 0,
     has_image: hasImage,
-    image_url: hasImage ? p.thumbnail.url : null,
+    image_url: img,
     image_label: hasImage ? 'i.redd.it' : 'image',
     image_tall: hasImage && (p.title?.length || 0) < 80,
   };
@@ -51,10 +69,10 @@ async function buildArena(subRaw) {
   const raw = await reddit.getHotPosts({ subredditName: sub, limit: 25 }).all();
   // keep the arena clean: no NSFW cards, no stickied mod posts, and not the
   // game's own post
-  const posts = raw
+  const posts = await Promise.all(raw
     .filter(p => !p.isNsfw?.() && !p.nsfw && !p.stickied && p.id !== context.postId)
     .slice(0, 15)
-    .map(mapPost);
+    .map(mapPost));
   if (!posts.length) throw new Error(`no posts for r/${sub}`);
 
   // real comments become his projectiles — pulled from the top few posts

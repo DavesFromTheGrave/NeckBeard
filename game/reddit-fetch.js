@@ -30,7 +30,16 @@ function mapPost(d, forceSub) {
   const sub = forceSub ? `r/${forceSub}` : `r/${d.subreddit}`;
   const preview = d.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&');
   const thumb = d.thumbnail;
-  const hasImage = !!(preview || (thumb && thumb.startsWith('http')));
+  // d.thumbnail is reddit's tiny fixed-size crop (~140x105) — stretched to
+  // fill a 190-300px feed card it looks blocky. preview is usually near
+  // full-res but is only generated after a short delay, so freshly-posted
+  // image links can lack it. For those, d.url IS the actual full-size image
+  // (i.redd.it / imgur / etc host it directly) — use it before falling back
+  // to the low-res thumbnail. This "some sharp, some blocky" split — not a
+  // uniform resolution — was the reported bug.
+  const directImg = !preview && d.post_hint === 'image' && /^https?:\/\//i.test(d.url || '') ? d.url : null;
+  const bigImage = preview || directImg;
+  const hasImage = !!(bigImage || (thumb && thumb.startsWith('http')));
   return {
     id: d.id,
     subreddit: sub,
@@ -40,8 +49,8 @@ function mapPost(d, forceSub) {
     ups: d.ups ?? 0,
     num_comments: d.num_comments ?? 0,
     has_image: hasImage,
-    image_url: preview || (thumb?.startsWith('http') ? thumb : null),
-    image_label: preview ? 'i.redd.it' : (d.domain || 'image'),
+    image_url: bigImage || (thumb?.startsWith('http') ? thumb : null),
+    image_label: preview ? 'i.redd.it' : (directImg ? (d.domain || 'i.redd.it') : (d.domain || 'image')),
     image_tall: hasImage && (d.post_hint === 'image' || (d.title?.length || 0) < 80),
   };
 }

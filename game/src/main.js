@@ -61,6 +61,22 @@ class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
 
   preload() {
+    // scene.restart() (see onCaught()) reuses the SAME global TextureManager
+    // as first boot — it does not reset it. door-closed/door-open/door-mod/
+    // balder all get destructively reprocessed in create() (flood-filled
+    // transparent from their opaque source bg). If a restart's load.image()
+    // call finds the key already present, Phaser just warns and skips the
+    // load, so create() ends up flood-filling an ALREADY-flood-filled canvas
+    // instead of a fresh source image. Re-compositing a partially-transparent
+    // image onto a new canvas re-blends its semi-transparent edge pixels each
+    // pass, so every restart visibly degrades these four textures a little
+    // more (fine on a hard refresh, glitchy after "tap to appeal"->restart).
+    // Fix: drop any existing copy before preload's load.image() calls below,
+    // so every scene start — first boot or restart — flood-fills a pristine
+    // decode of the real file, never a previously-processed canvas.
+    for (const k of ['door-closed', 'door-open', 'door-mod', 'balder']) {
+      if (this.textures.exists(k)) this.textures.remove(k);
+    }
     for (let i = 1; i <= 6; i++) {
       this.load.image(`walk-${i}`, `assets/walk/mod-walk2-${i}.png`);
       this.load.image(`run-${i}`, `assets/run/mod-run2-${i}.png`);
@@ -86,8 +102,14 @@ class GameScene extends Phaser.Scene {
   create() {
     // (elevator art is now a real transparent PNG — no keying; black-keying it
     // would punch a hole in the dark elevator interior.)
-    try { NB.keyFloodFill(this, 'door-closed'); NB.keyFloodFill(this, 'door-open'); }
-    catch (e) { console.warn('door key:', e); }
+    // All three door-reveal frames ship on an opaque white bg — flood it
+    // transparent. (door-mod was missing here before — that was the white
+    // box behind superMOD on every single ceremony reveal, not random damage.)
+    try {
+      NB.keyFloodFill(this, 'door-closed');
+      NB.keyFloodFill(this, 'door-open');
+      NB.keyFloodFill(this, 'door-mod');
+    } catch (e) { console.warn('door key:', e); }
     // Balder art ships on an opaque light-gray bg — flood it transparent.
     try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
     const W = this.scale.width, H = this.scale.height;
@@ -96,6 +118,7 @@ class GameScene extends Phaser.Scene {
     this.ceremonyRunning = false;
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
+    this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
     // Each run starts on a PRISTINE page. Wreckage + farmed-posts persist
     // WITHIN a run (across sub-travel) but reset on a new round — otherwise the
     // door opens onto a page still shattered/looted from your last life.
@@ -282,6 +305,19 @@ class GameScene extends Phaser.Scene {
       this.hud = this.add.text(W - 22, H - 14, '★ 0', {
         fontFamily: 'Courier New', fontSize: '22px', fontStyle: 'bold', color: '#ff4500',
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
+      // Danger/heat meter — segmented bar (was a bare number, easy to not register).
+      this.heatBarG = this.add.graphics().setDepth(30).setScrollFactor(0);
+      // Balder promotion-review progress — the only visible sign a second
+      // chance is coming; fixes "banned right at a minute, no idea I was close."
+      this.balderBarBg = this.add.rectangle(W - 22, H - 64, 120, 6, 0x000000, 0.35)
+        .setOrigin(1, 0.5).setDepth(30).setScrollFactor(0);
+      this.balderBarFill = this.add.rectangle(W - 142, H - 64, 0, 6, 0xffb648, 0.95)
+        .setOrigin(0, 0.5).setDepth(30).setScrollFactor(0);
+      // Shield status — separate from the ring on the cursor, which is easy
+      // to lose track of mid-chase and gives no "you just used it" moment.
+      this.shieldPill = this.add.text(W - 22, H - 78, '🛡 SHIELD READY', {
+        fontFamily: 'Courier New', fontSize: '13px', fontStyle: 'bold', color: '#7ab8f5',
+      }).setOrigin(1, 1).setDepth(30).setScrollFactor(0).setVisible(false);
       this.bindDebugKeys();
       this.bindTravelClicks();
       this.bindSubredditSearch();
@@ -495,7 +531,7 @@ class GameScene extends Phaser.Scene {
   onCaught() {
     if (this.caught || this.ceremonyRunning) return;
     // the promotion review: survive past the threshold and the catch is intercepted
-    if (!this.balderUsed && this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS) {
+    if (!this.balderUsed && this.balderEligible) {
       this.balderUsed = true;
       NB.playBalderCeremony(this, () => {
         this.time.delayedCall(Phaser.Math.Between(4000, 8000), () => {
@@ -619,6 +655,49 @@ class GameScene extends Phaser.Scene {
     el._farmT = 0;
   }
 
+  // Danger meter, Balder progress, shield status — makes the game's existing
+  // discrete/binary state (heat level, one-time promotion review, single-charge
+  // shield) legible at a glance instead of a bare number or an easy-to-miss
+  // ring on the cursor. No new mechanics, just visibility for what already exists.
+  updateHudExtras() {
+    const W = this.scale.width, H = this.scale.height;
+
+    // heat: HEAT_MAX segments, green (calm) -> red (frenzied)
+    const g = this.heatBarG;
+    g.clear();
+    const n = NB.TUNE.HEAT_MAX, segW = 14, segH = 8, gap = 3;
+    const totalW = n * segW + (n - 1) * gap;
+    let x = W - 22 - totalW;
+    const y = H - 46;
+    for (let i = 0; i < n; i++) {
+      const filled = i < this.mod.heat;
+      const t = n > 1 ? i / (n - 1) : 0;
+      const r = Math.round(70 + (230 - 70) * t), gr = Math.round(200 + (60 - 200) * t), b = Math.round(120 + (50 - 120) * t);
+      g.fillStyle(filled ? (r << 16 | gr << 8 | b) : 0x333333, filled ? 0.95 : 0.35);
+      g.fillRoundedRect(x, y, segW, segH, 2);
+      x += segW + gap;
+    }
+
+    // Balder promotion review: hides once spent (one-time-per-run resource,
+    // shouldn't imply it recharges); pulses in the last 10% before ready.
+    if (this.balderUsed) {
+      this.balderBarBg.setVisible(false);
+      this.balderBarFill.setVisible(false);
+    } else {
+      this.balderBarBg.setVisible(true).setAlpha(1);
+      this.balderBarFill.setVisible(true);
+      const frac = Phaser.Math.Clamp(this.survivalMs / NB.TUNE.BALDER_SURVIVAL_MS, 0, 1);
+      this.balderBarFill.width = 120 * frac;
+      this.balderBarFill.setFillStyle(frac >= 1 ? 0x46d160 : 0xffb648);
+      this.balderBarFill.setAlpha(frac > 0.9 ? 0.7 + 0.3 * Math.sin(this.time.now / 120) : 0.95);
+    }
+
+    // Shield: only visible today as a small ring on the cursor — easy to lose
+    // track of mid-chase. This gives a persistent, fixed-position "you have a
+    // save" readout distinct from that ring.
+    this.shieldPill.setVisible(!!(this.pickups && this.pickups.shield));
+  }
+
   markFarmed(el) {
     if (el._farmed) return;
     el._farmed = true;
@@ -646,6 +725,12 @@ class GameScene extends Phaser.Scene {
 
     if (!frozen) {
       this.survivalMs += dt;
+      // Snapshot eligibility the instant the threshold crosses, rather than a
+      // live comparison at the moment of the catch — removes any "so close"
+      // edge case between when time actually passed and when a catch resolves.
+      if (!this.balderEligible && !this.balderUsed && this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS) {
+        this.balderEligible = true;
+      }
       // edge-push scrolling: finger near top/bottom scrolls the feed (touch-first)
       const py = this.pointerScreen.y;
       const zone = H * 0.13;
@@ -667,8 +752,9 @@ class GameScene extends Phaser.Scene {
       this.npc.update(dt);
       this.page.updateScrollbar(cam);
       const revTag = this.mod.revenant ? '  REV' : '';
-      this.hud.setText(`★ ${NB.fmtKarma(this.karma)}   heat ${this.mod.heat}${revTag}`);
+      this.hud.setText(`★ ${NB.fmtKarma(this.karma)}${revTag}`);
       if (this.mod.revenant) this.hud.setColor('#3fae54');
+      this.updateHudExtras();
     }
   }
 }

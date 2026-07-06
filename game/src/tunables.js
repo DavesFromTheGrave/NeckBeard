@@ -47,7 +47,7 @@ NB.TUNE = {
   FARM_TARGET_MS: 950,      // ms you have to reach each target before it expires (was 620 — too tight)
   FARM_TARGET_RADIUS: 20,   // px — how close the cursor must get to register a hit
 
-  SPRITE_SCALE: 1.15,
+  SPRITE_SCALE: 2.3,       // ~2x bigger per Dave (was 1.15)
 
   // wreckage — persistent, compounding page destruction
   // damage floats accrue per element; each whole point = one visual stage (max 3)

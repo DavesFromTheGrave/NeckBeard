@@ -44,7 +44,7 @@ NB.TUNE = {
   // leave the post) and the WHOLE sequence resets to target #1. That's what
   // makes it harder, not just longer.
   FARM_TARGETS: 3,          // targets to hit in sequence to complete a steal
-  FARM_TARGET_MS: 620,      // ms you have to reach each target before it expires
+  FARM_TARGET_MS: 950,      // ms you have to reach each target before it expires (was 620 — too tight)
   FARM_TARGET_RADIUS: 20,   // px — how close the cursor must get to register a hit
 
   SPRITE_SCALE: 1.15,

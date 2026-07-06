@@ -38,10 +38,14 @@ NB.TUNE = {
   HEAT_MAX: 6,
   KARMA_PER_HEAT: 900,     // every N karma farmed adds +1 heat (greed = danger)
 
-  // karma heist: you must HOLD position on a post to steal it — flying
-  // through does nothing. Leaving early decays your progress fast.
-  FARM_HOLD_MS: 650,       // ms of dwell required to complete a steal
-  FARM_DECAY_MULT: 3,      // progress drains this much faster than it fills when you leave
+  // karma heist: stealing is an ACTIVE aim challenge, not a wait-it-out timer.
+  // While inside a fresh post, targets pop up one at a time inside the card —
+  // track your cursor onto each before it expires. Miss one (timeout, or you
+  // leave the post) and the WHOLE sequence resets to target #1. That's what
+  // makes it harder, not just longer.
+  FARM_TARGETS: 3,          // targets to hit in sequence to complete a steal
+  FARM_TARGET_MS: 620,      // ms you have to reach each target before it expires
+  FARM_TARGET_RADIUS: 20,   // px — how close the cursor must get to register a hit
 
   SPRITE_SCALE: 1.15,
 

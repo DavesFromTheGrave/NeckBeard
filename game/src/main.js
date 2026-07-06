@@ -586,40 +586,79 @@ class GameScene extends Phaser.Scene {
 
   hitStop(ms) { this.hitStopT = Math.max(this.hitStopT || 0, ms); }
 
-  // KARMA HEIST: HOLD position on a fresh, not-yet-shredded post to steal its
-  // karma (FARM_HOLD_MS dwell — flying through does nothing). Leaving the
-  // post decays your progress fast (no free credit from drive-bys). Stealing
-  // a damaged post OR one he's right on top of = CLUTCH 2x (rewards farming
-  // under his hammer, where the dwell time is genuinely dangerous). A post
-  // he destroys (stage 3) is karma gone forever — the race.
+  // KARMA HEIST: stealing a fresh, not-yet-shredded post is an ACTIVE aim
+  // challenge — FARM_TARGETS reticles pop up one at a time inside the card;
+  // track your cursor onto each within FARM_TARGET_MS. Miss one (it expires,
+  // or you leave the post) and the WHOLE sequence resets to target #1 — no
+  // partial credit. That's the difficulty: it demands attention, not just
+  // patience. Stealing a damaged post OR one he's right on top of = CLUTCH 2x
+  // (rewards farming under his hammer, where missing a target is genuinely
+  // dangerous). A post he destroys (stage 3) is karma gone forever — the race.
   farmCheck(dt) {
     const p = this.playerPos;
-    const HOLD = NB.TUNE.FARM_HOLD_MS;
     for (const el of this.page.elements) {
       if (el.kind !== 'post' || !el.karma) continue;
       const fkey = `${this.currentSub}|${el.key}`;
       if (NB.FARM_STORE.has(fkey) || (this.wreck && this.wreck.stage(el) >= 3)) {
-        this.clearFarmRing(el);
+        this.clearFarmSeq(el);
         continue;
       }
       const inside = el.rect.contains(p.x, p.y);
       if (!inside) {
-        if (el._farmT > 0) {
-          el._farmT = Math.max(0, el._farmT - dt * NB.TUNE.FARM_DECAY_MULT);
-          this.drawFarmRing(el, el._farmT / HOLD);
-        }
+        if (el._farmSeq) this.resetFarmSeq(el, false);   // left the post — no float text, not a "miss"
         continue;
       }
-      el._farmT = Math.min(HOLD, (el._farmT || 0) + dt);
-      this.drawFarmRing(el, el._farmT / HOLD);
-      if (el._farmT >= HOLD) this.completeFarm(el, fkey, p);
+      if (!el._farmSeq) this.startFarmSeq(el);
+
+      const seq = el._farmSeq;
+      seq.t -= dt;
+      const tx = el.rect.x + seq.pts[seq.i].x, ty = el.rect.y + seq.pts[seq.i].y;
+      if (Math.hypot(p.x - tx, p.y - ty) < NB.TUNE.FARM_TARGET_RADIUS) {
+        seq.i++;
+        NB.sfx.pickup();
+        if (seq.i >= seq.pts.length) { this.completeFarm(el, fkey, p); continue; }
+        seq.t = NB.TUNE.FARM_TARGET_MS;   // next target, fresh window
+      } else if (seq.t <= 0) {
+        this.resetFarmSeq(el, true);   // timed out — a real miss, flagged
+        continue;
+      }
+      this.drawFarmSeq(el);
     }
+  }
+
+  // Pick FARM_TARGETS random points inside the card (inset so reticles never
+  // sit under the header/edges) and start the sequence at target #1.
+  startFarmSeq(el) {
+    const r = el.rect, pad = 26;
+    const pts = [];
+    for (let i = 0; i < NB.TUNE.FARM_TARGETS; i++) {
+      pts.push({
+        x: Phaser.Math.Between(pad, Math.max(pad + 1, r.width - pad)),
+        y: Phaser.Math.Between(pad, Math.max(pad + 1, r.height - pad)),
+      });
+    }
+    el._farmSeq = { pts, i: 0, t: NB.TUNE.FARM_TARGET_MS };
+  }
+
+  resetFarmSeq(el, missed) {
+    if (missed && el._farmSeq) {
+      const r = el.rect, pt = el._farmSeq.pts[el._farmSeq.i];
+      this.floatText(r.x + pt.x, r.y + pt.y - 10, 'MISSED', '#ff4d4d');
+      NB.sfx.commentHit();
+    }
+    el._farmSeq = null;
+    if (el._farmG) el._farmG.clear();
+  }
+
+  clearFarmSeq(el) {
+    el._farmSeq = null;
+    if (el._farmG) el._farmG.clear();
   }
 
   completeFarm(el, fkey, p) {
     NB.FARM_STORE.add(fkey);
     this.markFarmed(el);
-    this.clearFarmRing(el);
+    this.clearFarmSeq(el);
     const damaged = this.wreck && this.wreck.stage(el) >= 1;
     const modClose = Math.hypot(this.mod.sprite.x - p.x, this.mod.sprite.y - p.y) < 175;
     const clutch = damaged || modClose;
@@ -630,29 +669,36 @@ class GameScene extends Phaser.Scene {
       clutch ? '#ff4500' : '#46d160');
   }
 
-  // Progress ring in the post's corner — the visible "loading the steal" tell.
-  drawFarmRing(el, frac) {
-    if (!el._farmRing) {
-      el._farmRing = this.add.graphics().setDepth(9.5);
-      el.objs.push(el._farmRing);
+  // Current target reticle (pulses, shrinks visually as its window runs out)
+  // + progress pips for completed targets in the corner.
+  drawFarmSeq(el) {
+    if (!el._farmG) {
+      el._farmG = this.add.graphics().setDepth(9.5);
+      el.objs.push(el._farmG);
     }
-    const g = el._farmRing;
+    const g = el._farmG, seq = el._farmSeq, r = el.rect;
     g.clear();
-    if (frac <= 0.02) return;
-    const r = el.rect;
-    const cx = r.x + r.width - 24, cy = r.y + 24, rad = 13;
-    g.lineStyle(4, 0x000000, 0.35);
-    g.strokeCircle(cx, cy, rad);
-    const color = frac >= 1 ? 0x46d160 : 0xffb648;
-    g.lineStyle(4, color, 0.95);
-    g.beginPath();
-    g.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, frac), false);
-    g.strokePath();
-  }
+    if (!seq) return;
 
-  clearFarmRing(el) {
-    if (el._farmRing) el._farmRing.clear();
-    el._farmT = 0;
+    // progress pips, top-right corner
+    const n = seq.pts.length, pip = 6, gap = 5;
+    let px = r.x + r.width - 16 - (n - 1) * (pip * 2 + gap);
+    const py = r.y + 16;
+    for (let k = 0; k < n; k++) {
+      g.fillStyle(k < seq.i ? 0x46d160 : 0x000000, k < seq.i ? 0.95 : 0.3);
+      g.fillCircle(px, py, pip);
+      px += pip * 2 + gap;
+    }
+
+    // target reticle — shrinks as its window closes, so a miss is telegraphed
+    const t = el.rect.x + seq.pts[seq.i].x, ty = r.y + seq.pts[seq.i].y;
+    const frac = Phaser.Math.Clamp(seq.t / NB.TUNE.FARM_TARGET_MS, 0, 1);
+    g.lineStyle(3, 0x000000, 0.3);
+    g.strokeCircle(t, ty, NB.TUNE.FARM_TARGET_RADIUS + 3);
+    g.lineStyle(3, 0xffb648, 0.95);
+    g.strokeCircle(t, ty, NB.TUNE.FARM_TARGET_RADIUS * frac);
+    g.fillStyle(0xffb648, 0.5);
+    g.fillCircle(t, ty, 3);
   }
 
   // Danger meter, Balder progress, shield status — makes the game's existing

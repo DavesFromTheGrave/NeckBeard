@@ -48,6 +48,23 @@ copyDir(GAME, CLIENT, CLIENT_EXCLUDE);
 
 const index = fs.readFileSync(path.join(CLIENT, 'index.html'), 'utf8');
 writeIfChanged(path.join(CLIENT, 'game.html'), index);
+
+// splash-client.js imports @devvit/web/client (a bare npm specifier) --
+// browsers can't resolve that without bundling, so it has to go through
+// esbuild same as the server entry, not be shipped as raw source.
+const esbuild = await import('esbuild');
+const splashResult = await esbuild.build({
+  entryPoints: [path.join(ROOT, 'game', 'splash-client.js')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'es2020',
+  outfile: path.join(CLIENT, 'splash-client.js'),
+  logLevel: 'warning',
+  write: false,
+});
+for (const f of splashResult.outputFiles) writeIfChanged(f.path, Buffer.from(f.contents));
+
 writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -58,19 +75,22 @@ writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
   .card{text-align:center;padding:24px;max-width:420px}
   h1{margin:0 0 8px;font-size:28px;letter-spacing:1px}
   p{margin:0;color:#d7dadc;font-size:14px;line-height:1.5}
-  .tag{margin-top:18px;color:#ff4500;font-size:12px}
+  #play-button{margin-top:18px;background:#ff4500;color:#fff;border:none;border-radius:20px;
+  padding:12px 28px;font-family:Courier New,monospace;font-size:14px;font-weight:bold;
+  letter-spacing:0.5px;cursor:pointer;}
+  #play-button:active{background:#d93900}
 </style></head><body>
 <div class="card">
   <h1>NECKBEARD</h1>
   <p>Survive inside the feed. The mod never stops chasing your finger.</p>
-  <p class="tag">expand to play · Games with a Hook</p>
+  <button id="play-button">expand to play</button>
 </div>
+<script src="splash-client.js"></script>
 </body></html>`);
 
 // Real Devvit server lives in server/ (ESM source). The sandbox does NOT
 // npm-install anything — hono/@devvit must be BUNDLED into one file
 // (matches Reddit's own template: esbuild, cjs, node).
-const esbuild = await import('esbuild');
 const result = await esbuild.build({
   entryPoints: [path.join(ROOT, 'server', 'index.js')],
   bundle: true,

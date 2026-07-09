@@ -179,6 +179,7 @@ class GameScene extends Phaser.Scene {
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
     this.load.image('elevator', 'assets/balder/elevator.png');
+    this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
@@ -213,6 +214,8 @@ class GameScene extends Phaser.Scene {
     } catch (e) { console.warn('door key:', e); }
     // Balder art ships on an opaque light-gray bg — flood it transparent.
     try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
+    // Admin cameo art: flood-fill no-ops if it already has real alpha.
+    try { NB.keyFloodFill(this, 'admin-walk'); } catch (e) { console.warn('admin key:', e); }
     // Revenant crest ships on an opaque white bg too — flood it transparent.
     try { NB.keyFloodFill(this, 'revenant-skull'); } catch (e) { console.warn('crest key:', e); }
     // Character frames are Dave's detailed high-res art now — smooth-filter them
@@ -490,6 +493,7 @@ class GameScene extends Phaser.Scene {
     }
     if (!this.projectiles) this.projectiles = new NB.Projectiles(this, data.comments);
     if (!this.npc) this.npc = new NB.Cheerleader(this);
+    if (!this.admin) this.admin = new NB.AdminCameo(this);
     this.userName = data.user;
 
     if (opts.toast) this.floatText(W / 2, H * 0.22, opts.toast, '#0079d3');
@@ -1067,6 +1071,7 @@ class GameScene extends Phaser.Scene {
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);
       this.npc.update(dt);
+      this.admin.update(dt);
       this.page.updateScrollbar(cam);
       const revTag = this.mod.revenant ? '  REV' : '';
       this.hud.setText(`★ ${NB.fmtKarma(this.karma)}${revTag}`);

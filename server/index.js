@@ -6,7 +6,7 @@
 // runs inside Devvit.
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { createServer, getServerPort, context, reddit } from '@devvit/web/server';
+import { createServer, getServerPort, context, reddit, redis } from '@devvit/web/server';
 
 const app = new Hono();
 
@@ -143,6 +143,36 @@ app.post('/internal/menu/post-create', async (c) => {
     return c.json({ navigateTo: post.url });
   } catch (e) {
     return c.json({ showToast: `post failed: ${e.message}` }, 500);
+  }
+});
+
+// "Who died here" — every catch records the player in a per-subreddit sorted
+// set (score = death time). The death screen reads the most recent back for the
+// o7 swarm. Unique by name (a re-death just bumps the timestamp); trimmed to the
+// newest DEATHS_MAX so it can't grow unbounded.
+const DEATHS_MAX = 50;
+const deathsKey = () => `deaths:${context.subredditName || 'unknown'}`;
+
+app.post('/api/death', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    let name = (body.name || 'u/lurker').toString().slice(0, 40);
+    if (!/^u\//i.test(name)) name = `u/${name.replace(/^\/?u\//i, '')}`;
+    const key = deathsKey();
+    await redis.zAdd(key, { member: name, score: Date.now() });
+    await redis.zRemRangeByRank(key, 0, -(DEATHS_MAX + 1));   // keep newest DEATHS_MAX
+    return c.json({ ok: true });
+  } catch (e) {
+    return c.json({ ok: false, error: e.message }, 500);
+  }
+});
+
+app.get('/api/deaths/recent', async (c) => {
+  try {
+    const rows = await redis.zRange(deathsKey(), 0, 23, { by: 'rank', reverse: true });
+    return c.json({ names: rows.map(r => r.member) });
+  } catch (e) {
+    return c.json({ names: [], error: e.message });
   }
 });
 

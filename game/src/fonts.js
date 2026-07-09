@@ -6,9 +6,11 @@ window.NB = window.NB || {};
 NB.FONT_DISPLAY = "'Street Reich'";
 NB.FONT_ACCENT = "'Ghost Theory'";
 NB.FONT_ARCADE = "'Arcade Normal'";
+NB.FONT_SOUL = "'Sell Your Soul'";   // title panels (High Score, How to Play, etc.)
 
 NB.fontsReady = Promise.all([
   document.fonts.load("40px 'Street Reich'"),
   document.fonts.load("20px 'Ghost Theory'"),
   document.fonts.load("20px 'Arcade Normal'"),
+  document.fonts.load("40px 'Sell Your Soul'"),
 ]).catch((e) => console.warn('font load failed, falling back to system font', e));

@@ -18,6 +18,11 @@ NB.Cheerleader = class {
     this.hearts = null;
   }
 
+  // every hunter currently on the page (a frozen superM0D is "upstairs")
+  activeMods() {
+    return (this.scene.mods || [this.scene.mod]).filter(m => !m.frozen);
+  }
+
   update(dt) {
     if (this.scene.ceremonyRunning) return;   // she doesn't upstage management
     if (!this.active) {
@@ -32,11 +37,13 @@ NB.Cheerleader = class {
       this.sprite.setTexture(this.poses[this.poseI]);
       this.poseT = 240;
     }
-    // hold the mod's gaze while she's on stage
-    this.scene.mod.distraction = { x: this.sprite.x, y: this.sprite.y };
-    const m = this.scene.mod.sprite;
-    // bail JUST outside his telegraph range so he never gets to wind up at her
-    if (Phaser.Math.Distance.Between(m.x, m.y, this.sprite.x, this.sprite.y) < NB.TUNE.LUNGE_RANGE + 24) {
+    // hold EVERY mod's gaze while she's on stage — none of them can resist
+    const mods = this.activeMods();
+    for (const m of mods) m.distraction = { x: this.sprite.x, y: this.sprite.y };
+    // bail JUST outside telegraph range so nobody gets to wind up at her
+    const cornered = mods.some(m => Phaser.Math.Distance.Between(
+      m.sprite.x, m.sprite.y, this.sprite.x, this.sprite.y) < NB.TUNE.LUNGE_RANGE + 24);
+    if (cornered) {
       this.leave('banned');
     } else if (this.lifeT <= 0) {
       this.leave('bored');
@@ -48,14 +55,16 @@ NB.Cheerleader = class {
     const W = scene.scale.width, H = scene.scale.height;
     const cam = scene.cameras.main;
     const y = cam.scrollY + Phaser.Math.Between(Math.round(H * 0.32), Math.round(H * 0.72));
-    // opposite side from the mod so the diversion actually pulls him across
-    const x = scene.mod.sprite.x < W / 2 ? W - 64 : 64;
+    // opposite side from the (nearest active) mod so the diversion pulls him across
+    const ref = this.activeMods()[0] || scene.mod;
+    const x = ref.sprite.x < W / 2 ? W - 64 : 64;
     this.sprite = scene.add.sprite(x, y, 'cheer-idle').setScale(1).setDepth(11);
     this.sprite.setFlipX(x > W / 2);
     this.active = true;
     this.lifeT = Phaser.Math.Between(4500, 6800);
     this.poseT = 0; this.poseI = 0;
     NB.sfx.cheer();
+    NB.playMoment(scene, 'cheerleader');   // e-girl struts in → a thirst meme
     scene.floatText(x, y - 74, 'a wild e-girl appears', '#ff6ec7');
     this.hearts = scene.time.addEvent({ delay: 480, loop: true, callback: () => {
       if (!this.sprite) return;
@@ -68,7 +77,7 @@ NB.Cheerleader = class {
   leave(why) {
     const scene = this.scene;
     if (this.hearts) { this.hearts.remove(); this.hearts = null; }
-    scene.mod.distraction = null;
+    for (const m of (scene.mods || [scene.mod])) m.distraction = null;
     if (this.sprite) {
       const s = this.sprite;
       scene.floatText(s.x, s.y - 64, why === 'banned' ? 'BANNED \u{1F494}' : 'o7', '#ff6ec7');
@@ -78,6 +87,6 @@ NB.Cheerleader = class {
     this.sprite = null;
     this.active = false;
     this.spawnT = Phaser.Math.Between(15000, 25000);
-    if (why === 'banned') this.scene.mod.burst(1100);   // he's annoyed he got played
+    if (why === 'banned') this.activeMods().forEach(m => m.burst(1100));   // annoyed they got played
   }
 };

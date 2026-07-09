@@ -10,36 +10,47 @@ NB.FARM_STORE = NB.FARM_STORE || new Set();
 NB.SCORE_KEY = 'neckbeard_karma_best';
 NB.TOP5_KEY = 'neckbeard_karma_top5';
 
-NB.getPersonalBest = function () {
-  try {
-    return parseInt(localStorage.getItem(NB.SCORE_KEY) || '0', 10) || 0;
-  } catch {
-    return 0;
+// A score entry is { karma, reason } — the run's karma plus the ban reason that
+// ended it (shown in the title's Points | Ban Reason board). Old saves stored
+// bare numbers; normScore upgrades them on read so history survives.
+function normScore(e) {
+  if (typeof e === 'number' && e > 0) return { karma: Math.floor(e), reason: '' };
+  if (e && typeof e === 'object' && Number.isFinite(e.karma) && e.karma > 0) {
+    return { karma: Math.floor(e.karma), reason: String(e.reason || '') };
   }
-};
+  return null;
+}
 
 NB.getTopScores = function () {
   try {
     const raw = JSON.parse(localStorage.getItem(NB.TOP5_KEY) || '[]');
-    const list = Array.isArray(raw) ? raw.filter(n => Number.isFinite(n) && n > 0) : [];
-    // seed from the old single personal best so upgrades keep history
-    const pb = NB.getPersonalBest();
-    if (pb > 0 && !list.includes(pb)) list.push(pb);
-    return list.sort((a, b) => b - a).slice(0, 5);
+    const list = (Array.isArray(raw) ? raw : []).map(normScore).filter(Boolean);
+    return list.sort((a, b) => b.karma - a.karma).slice(0, 5);
   } catch {
     return [];
   }
 };
 
+NB.getPersonalBest = function () {
+  try {
+    const top = NB.getTopScores();
+    const fromTop = top.length ? top[0].karma : 0;
+    const legacy = parseInt(localStorage.getItem(NB.SCORE_KEY) || '0', 10) || 0;
+    return Math.max(fromTop, legacy);
+  } catch {
+    return 0;
+  }
+};
+
 // Returns true when this run set a NEW personal best (rank 1).
-NB.savePersonalBest = function (ms) {
-  const val = Math.floor(ms);
+NB.savePersonalBest = function (karma, reason) {
+  const val = Math.floor(karma);
   if (val <= 0) return false;
   const prev = NB.getPersonalBest();
   const top = NB.getTopScores();
-  top.push(val);
+  top.push({ karma: val, reason: String(reason || '').replace(/^Reason:\s*/i, '').trim() });
   try {
-    localStorage.setItem(NB.TOP5_KEY, JSON.stringify(top.sort((a, b) => b - a).slice(0, 5)));
+    localStorage.setItem(NB.TOP5_KEY, JSON.stringify(top.sort((a, b) => b.karma - a.karma).slice(0, 5)));
     if (val > prev) localStorage.setItem(NB.SCORE_KEY, String(val));
   } catch { /* private mode */ }
   return val > prev;

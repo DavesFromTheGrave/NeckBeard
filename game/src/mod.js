@@ -5,11 +5,20 @@
 window.NB = window.NB || {};
 
 NB.Supermod = class {
-  constructor(scene, page, x, y) {
+  // opts: variant ('mod' | 'mod2'), scale, speedMult (locomotion), lungeMult,
+  // texture. Defaults reproduce the original superM0D exactly.
+  constructor(scene, page, x, y, opts = {}) {
     this.scene = scene;
     this.page = page;
-    this.sprite = scene.add.sprite(x, y, 'walk-1')
-      .setScale(NB.TUNE.SPRITE_SCALE).setDepth(10);
+    this.variant = opts.variant || 'mod';
+    this.baseScale = opts.scale ?? NB.TUNE.SPRITE_SCALE;
+    this.speedMult = opts.speedMult || 1;
+    this.lungeMult = opts.lungeMult || 1;
+    // heat ramps from THIS mod's entrance, not run start — a late tag-in
+    // (redditM0D) starts calm instead of inheriting 60s+ of accumulated rage
+    this.heatBase = { ms: scene.survivalMs || 0, karma: scene.karma || 0 };
+    this.sprite = scene.add.sprite(x, y, opts.texture || 'walk-1')
+      .setScale(this.baseScale).setDepth(10);
     this.state = 'LURK';
     this.stateT = 0;
     this.heat = 0;
@@ -35,12 +44,24 @@ NB.Supermod = class {
     this.distraction = null;   // set by the Cheerleader NPC while she's on screen
     this.telegraphRing = scene.add.circle(x, y, 46)
       .setStrokeStyle(3, 0xe0452a).setVisible(false).setDepth(9);
-    this.sprite.play('anim-walk');
+    this.anim('walk');
   }
 
   anim(kind) {
     const rev = this.revenant;
-    const map = {
+    // redditM0D has his own sheet (BAN mallet mustache set); he never goes
+    // revenant in this build, so no zombie branch for him.
+    const map = this.variant === 'mod2' ? {
+      walk: 'anim2-walk',
+      hunt: 'anim2-run',
+      telegraph: 'anim2-crouch',
+      lunge: 'anim2-leap',
+      climb: 'anim2-climb',
+      stumble: 'anim2-stumble',
+      victory: 'anim2-victory',
+      throw: 'anim2-throw',
+      smash: 'anim2-sledge',
+    } : {
       walk: rev ? 'anim-zwalk' : 'anim-walk',
       hunt: rev ? 'anim-zwalk' : (this.heat >= 2 ? 'anim-charge' : 'anim-run'),
       telegraph: rev ? 'anim-ztelegraph' : 'anim-crouch',
@@ -73,6 +94,7 @@ NB.Supermod = class {
       }
       case 'LUNGE': {
         this.anim('lunge'); NB.sfx.lunge();
+        this.lungeMinDist = Infinity;   // closest approach this lunge → close-call meme
         this.scene.hitStop(60);
         this.scene.cameras.main.shake(140, 0.006);
         this.scene.cameras.main.zoomTo(1, 160, 'Sine.easeOut');
@@ -104,24 +126,24 @@ NB.Supermod = class {
 
   // Cartoon-impact squash/stretch — held pose eased back to baseline scale.
   squash(sx, sy, holdMs) {
-    const s = this.sprite, T = NB.TUNE;
+    const s = this.sprite, B = this.baseScale;
     if (this._squashTween) this._squashTween.stop();
-    s.setScale(T.SPRITE_SCALE * sx, T.SPRITE_SCALE * sy);
+    s.setScale(B * sx, B * sy);
     this._squashTween = this.scene.tweens.add({
-      targets: s, scaleX: T.SPRITE_SCALE, scaleY: T.SPRITE_SCALE,
+      targets: s, scaleX: B, scaleY: B,
       duration: holdMs, ease: 'Back.easeOut',
     });
   }
 
   resetSquash(duration) {
-    const s = this.sprite, T = NB.TUNE;
+    const s = this.sprite, B = this.baseScale;
     if (this._squashTween) { this._squashTween.stop(); this._squashTween = null; }
     if (duration > 0) {
       this._squashTween = this.scene.tweens.add({
-        targets: s, scaleX: T.SPRITE_SCALE, scaleY: T.SPRITE_SCALE, duration, ease: 'Sine.easeOut',
+        targets: s, scaleX: B, scaleY: B, duration, ease: 'Sine.easeOut',
       });
     } else {
-      s.setScale(T.SPRITE_SCALE, T.SPRITE_SCALE);
+      s.setScale(B, B);
     }
   }
 
@@ -193,9 +215,10 @@ NB.Supermod = class {
 
     // heat ramps on time AND on greed — the more karma you've farmed, the
     // angrier (faster) he gets. Aggressive runs are high-score AND high-danger.
+    // Measured from this mod's own entrance (heatBase), so a late tag-in ramps fresh.
     this.heat = Math.min(T.HEAT_MAX,
-      Math.floor(this.scene.survivalMs / 1000 / T.HEAT_RAMP_S)
-      + Math.floor((this.scene.karma || 0) / T.KARMA_PER_HEAT));
+      Math.floor(Math.max(0, this.scene.survivalMs - this.heatBase.ms) / 1000 / T.HEAT_RAMP_S)
+      + Math.floor(Math.max(0, (this.scene.karma || 0) - this.heatBase.karma) / T.KARMA_PER_HEAT));
 
     // terrain: incidental slow while atop a card (the discrete vault is its own state)
     const el = this.page.onFurniture(s.x, s.y + s.displayHeight * 0.3);
@@ -212,6 +235,7 @@ NB.Supermod = class {
       s.setAngle(0);
     }
     let mult = onCard ? T.CLIMB_MULT : 1;
+    mult *= this.speedMult;                      // per-variant (redditM0D runs 2.5x)
     if (this.speedBurstT > 0) mult *= 1.35;
     if (this.slowT > 0) mult *= this.slowMult;   // meme slow (Harambe, Yakety Sax…)
     if (this.revenant) mult *= 1.32;
@@ -316,8 +340,9 @@ NB.Supermod = class {
         break;
       }
       case 'LUNGE': {
-        s.x += this.lungeVec.x * T.LUNGE_SPEED * dt / 1000;
-        s.y += this.lungeVec.y * T.LUNGE_SPEED * dt / 1000;
+        s.x += this.lungeVec.x * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
+        s.y += this.lungeVec.y * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
+        this.lungeMinDist = Math.min(this.lungeMinDist, realDist);   // for close-call detection
         // decoy pop: lunging into the fake cursor kills the decoy, not you
         if (this.decoy && Math.hypot(this.decoy.x - s.x, this.decoy.y - s.y) < T.CATCH_RADIUS) {
           this.decoy.gfx.forEach(g => g.destroy());
@@ -344,6 +369,8 @@ NB.Supermod = class {
             const crashEl = this.page.onFurniture(s.x, s.y + s.displayHeight * 0.3);
             if (crashEl) this.scene.wreck.hit(crashEl, T.WRECK_LUNGE);
           }
+          // whiffed BUT came within ~1.7 catch-radii = a genuine close call
+          if (this.lungeMinDist < T.CATCH_RADIUS * 1.7) NB.playMoment(this.scene, 'closeCall');
           this.setState('STUMBLE');
         }
         break;
@@ -371,11 +398,11 @@ NB.Supermod = class {
       case 'RISE': {
         const k = Math.min(1, this.stateT / 1200);
         const ease = 1 - Math.pow(1 - k, 3);
-        s.setScale(0.05 + (T.SPRITE_SCALE * 1.06 - 0.05) * ease);
+        s.setScale(0.05 + (this.baseScale * 1.06 - 0.05) * ease);
         s.setAlpha(0.4 + 0.6 * ease);
         if (this.riseFrom) s.y = this.riseFrom.y + (this.riseFrom.toY - this.riseFrom.y) * ease;
         if (k >= 1) {
-          s.setTint(0xbbffbb);
+          if (this.revenant) s.setTint(0xbbffbb);   // grave-green is the zombie's, not the tag-in's
           this.setState('HUNT');
         }
         break;

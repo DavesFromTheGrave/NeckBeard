@@ -62,6 +62,81 @@ NB.keyFloodFill = function (scene, key, tol = 80) {
   scene.textures.addCanvas(key, c);
 };
 
+// Death-screen "official verdict." The verdict word is a coin-flip; the reason
+// is a fortune cookie pulled from a big curated pool of fake mod ban-reasons.
+// (We tried quoting REAL thread comments here — they just read as random and
+// weren't funny. Hand-written power-trip nonsense lands far better, and "what
+// reason did IT give YOU?" is the compare-notes share hook.) The bag is
+// session-shuffled so no two bans repeat until the whole pool's been spent, and
+// it lives on NB — not the scene — so it survives scene.restart() (each death
+// restarts the scene); a fresh page load reshuffles for a new session.
+NB.BAN_VERDICTS = ['[ REMOVED ]', '[ BANNED ]'];
+NB.BAN_REASONS = [
+  'Reason: none provided.',
+  'Reason: no reason. that\'s the point.',
+  'Reason: rule 3. (you know what you did)',
+  'Reason: rule 7. (we just made it up)',
+  'Reason: violated rule ∞.',
+  'Reason: low-effort.',
+  'Reason: high-effort. (showing off)',
+  'Reason: reported by 1 user. (it was a mod)',
+  'Reason: reported by 0 users.',
+  'Reason: spam. (it was one comment)',
+  'Reason: brigading. (you have no friends)',
+  'Reason: vote manipulation.',
+  'Reason: karma farming. (ironic)',
+  'Reason: ban evasion. (we don\'t know either)',
+  'Reason: didn\'t read the sidebar.',
+  'Reason: read the sidebar too closely.',
+  'Reason: not tagged NSFW.',
+  'Reason: wrong opinion.',
+  'Reason: right opinion, wrong tone.',
+  'Reason: asked to speak to the manager.',
+  'Reason: you seemed happy.',
+  'Reason: mods are having a day.',
+  'Reason: we just don\'t like you.',
+  'Reason: your flair was ugly.',
+  'Reason: posted cringe.',
+  'Reason: touched grass without a permit.',
+  'Reason: account too new.',
+  'Reason: account too old.',
+  'Reason: happy cake day. (no exceptions)',
+  'Reason: it was giving downvote.',
+  'Reason: appeal denied before you filed it.',
+  'Reason: because we can.',
+  'Reason: this is not the place for that.',
+  'Reason: this is exactly the place for that.',
+  'Reason: username too long.',
+  'Reason: made a mod laugh.',
+  'Reason: 3-day ban. (permanent)',
+  'Reason: you upvoted the wrong guy.',
+  'Reason: suspicious lack of typos.',
+  'Reason: we needed the practice.',
+  'Reason: emotional damage.',
+  'Reason: original content. we hate that.',
+  'Reason: replied \'this.\' unforgivable.',
+  'Reason: power-trip quota.',
+  'Reason: you\'re the 100th visitor. banned.',
+  'Reason: mercy. (this is mercy)',
+  'Reason: we flipped a coin. you lost twice.',
+  'Reason: the report button was lonely.',
+  'Reason: mod was hungry.',
+  'Reason: seemed like a redditor.',
+];
+NB.nextBanReason = function () {
+  if (!NB._banBag || !NB._banBag.length) {
+    // Phaser.Utils.Array.Shuffle mutates in place — shuffle a COPY, not the pool.
+    NB._banBag = Phaser.Utils.Array.Shuffle(NB.BAN_REASONS.slice());
+  }
+  return NB._banBag.pop();
+};
+// The mod also slaps a MEME on your removal notice — a random "L" stamp above
+// the text reason. Ids map to game/assets/memes/img/<id>.png (preloaded as
+// meme-<id>, same convention as the powerup memes). A missing file just skips
+// the stamp — the text reason still shows.
+NB.DEATH_MEMES = ['crying-face', 'forever-alone', 'grumpy-cat', 'yao-ming', 'jackie-chan',
+  'lol', 'one-punch-man', 'trollface', 'this-is-fine', 'rageface', 'y-u-no'];
+
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
 
@@ -92,7 +167,12 @@ class GameScene extends Phaser.Scene {
       if (i <= 5) this.load.image(`sledge-${i}`, `assets/sledge/mod-sledge-${i}.png`);
       if (i <= 5) this.load.image(`zattack-${i}`, `assets/zattack/zom-attack-${i}.png`);
       if (i <= 6) this.load.image(`carry-${i}`, `assets/carry/mod-carry-${i}.png`);
+      // redditM0D — the post-ceremony tag-in (the navy-shirt replacement mod)
+      this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
+      this.load.image(`mod2-run-${i}`, `assets/mod2/mod2-run-${i}.png`);
     }
+    this.load.image('mod2-idle', 'assets/mod2/mod2-idle.png');
+    this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
     this.load.image('elevator', 'assets/balder/elevator.png');
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
@@ -105,6 +185,15 @@ class GameScene extends Phaser.Scene {
     // Revenant Systems crest — replaces the snoo face inside the header/avatar
     // badge (same orange bubble, real brand art in place of the alien face).
     this.load.image('revenant-skull', 'assets/brand/revenant-skull.png');
+    // meme art + audio: powerup/collectible/trap pickups (MEME_ART/MEME_AUDIO)
+    // plus the death-screen stamps (DEATH_MEMES). Union so overlapping ids load
+    // once; a missing file degrades to the color badge / synth fallback.
+    const memeImgIds = new Set([...(NB.MEME_ART || []), ...NB.DEATH_MEMES]);
+    for (const id of memeImgIds) this.load.image(`meme-${id}`, `assets/memes/img/${id}.png`);
+    // audio: powerup meme voices (MEME_AUDIO) + moment/event clips (moments.js)
+    const memeAudIds = new Set([...(NB.MEME_AUDIO || []), ...NB.momentAudioIds()]);
+    for (const id of memeAudIds) this.load.audio(`memeaudio-${id}`, `assets/memes/audio/${id}.mp3`);
+    this.load.audio('game-bed', 'assets/music/game-bed.mp3');   // corpse-party chase bed
   }
 
   create() {
@@ -122,10 +211,27 @@ class GameScene extends Phaser.Scene {
     try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
     // Revenant crest ships on an opaque white bg too — flood it transparent.
     try { NB.keyFloodFill(this, 'revenant-skull'); } catch (e) { console.warn('crest key:', e); }
+    // Character frames are Dave's detailed high-res art now — smooth-filter them
+    // so they DOWNSCALE crisply. The global pixelArt=NEAREST would alias detailed
+    // art on downscale (shimmer/jaggies); UI + other art keep nearest.
+    const LINEAR = Phaser.Textures.FilterMode.LINEAR;
+    for (const p of ['walk', 'run', 'charge', 'leap', 'pose', 'zwalk', 'sledge', 'zattack', 'carry',
+                     'mod2-walk', 'mod2-run']) {
+      for (let i = 1; i <= 6; i++) {
+        if (this.textures.exists(`${p}-${i}`)) this.textures.get(`${p}-${i}`).setFilter(LINEAR);
+      }
+    }
+    for (const k of ['mod2-idle', 'mod2-stand']) {
+      if (this.textures.exists(k)) this.textures.get(k).setFilter(LINEAR);
+    }
+    NB.warmCutscene();   // pull the ceremony video into cache long before it's needed
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
+    this._karmaMilestone = 0;      // last 1k-karma threshold crossed (meme trigger)
+    NB._eventSound = null;         // clear any stale meme-voice ref from a prior run
     this.caught = false;
     this.ceremonyRunning = false;
+    this.pickerOpen = false;       // mobile sub-drawer open → hunt frozen
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
     this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
@@ -157,6 +263,22 @@ class GameScene extends Phaser.Scene {
       frames: [1, 2, 3, 4, 5].map(i => ({ key: `sledge-${i}` })), frameRate: 8, repeat: 0 });
     this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'zattack-3' }], frameRate: 1 });
     this.anims.create({ key: 'anim-zlunge', frames: [{ key: 'zattack-4' }, { key: 'zattack-5' }], frameRate: 10, repeat: 0 });
+    // redditM0D — Dave's transparent sheets: idle + stand + 6-frame walk/run.
+    // No weapon poses (he's the corporate replacement): telegraph & stumble
+    // hold the deadpan stand (the squash coil sells the wind-up), the lunge
+    // and vault reuse run frames, victory is him just STANDING over you.
+    anim('anim2-walk', 'mod2-walk', 6, 8);
+    anim('anim2-run', 'mod2-run', 6, 14);
+    this.anims.create({ key: 'anim2-crouch', frames: [{ key: 'mod2-stand' }], frameRate: 1 });
+    this.anims.create({ key: 'anim2-leap',
+      frames: [{ key: 'mod2-run-3' }, { key: 'mod2-run-6' }], frameRate: 10, repeat: 0 });
+    this.anims.create({ key: 'anim2-climb',
+      frames: [{ key: 'mod2-run-2' }, { key: 'mod2-run-5' }], frameRate: 9, repeat: 0 });
+    this.anims.create({ key: 'anim2-stumble', frames: [{ key: 'mod2-stand' }], frameRate: 1 });
+    this.anims.create({ key: 'anim2-victory', frames: [{ key: 'mod2-idle' }], frameRate: 1 });
+    this.anims.create({ key: 'anim2-throw',
+      frames: [{ key: 'mod2-stand' }, { key: 'mod2-idle' }], frameRate: 5, repeat: 0 });
+    this.anims.create({ key: 'anim2-sledge', frames: [{ key: 'mod2-stand' }], frameRate: 1 });
 
     this.currentSub = 'all';
     this.traveling = false;
@@ -191,11 +313,14 @@ class GameScene extends Phaser.Scene {
     img.setInteractive();
     img.once('pointerdown', () => this.runEntrance(img, hint, baseScale));
     this.doorUI = { img, hint };
+    NB.playMoment(this, 'intro');   // ambient meme on the "click the door" screen
   }
 
   runEntrance(img, hint, baseScale) {
     if (this._entering) return;
     this._entering = true;
+    NB.startBed(this);                  // click the door → the chase bed kicks in
+    NB.playMoment(this, 'doorOpen');    // ...and the mod bursts out to a meme
     this.tweens.killTweensOf(img);
     hint.destroy();
     const flash = () => {
@@ -311,6 +436,8 @@ class GameScene extends Phaser.Scene {
       // he waits behind the door — hidden + frozen until you open it
       this.mod.sprite.setVisible(false);
       this.mod.telegraphRing.setVisible(false);
+      this.mod2 = null;             // redditM0D joins post-ceremony (spawnMod2)
+      this.mods = [this.mod];       // every active hunter — effects/updates iterate this
       this.entranceActive = true;
       this.hud = this.add.text(W - 22, H - 14, '★ 0', {
         fontFamily: 'Courier New', fontSize: '22px', fontStyle: 'bold', color: '#ff4500',
@@ -334,7 +461,7 @@ class GameScene extends Phaser.Scene {
       this.ready = true;
       window.__gs = this;
     } else {
-      this.mod.page = this.page;
+      for (const m of this.mods) m.page = this.page;
       if (this.pickups) this.pickups.page = this.page;
       if (this.projectiles) {
         this.projectiles.comments = data.comments;
@@ -358,7 +485,10 @@ class GameScene extends Phaser.Scene {
 
   bindTravelClicks() {
     this.input.on('pointerdown', (p) => {
-      if (!this.ready || this.caught || this.ceremonyRunning || this.traveling || this.entranceActive) return;
+      if (!this.ready || this.caught || this.ceremonyRunning || this.traveling || this.entranceActive || this.pickerOpen) return;
+      // mobile hamburger → open the sub drawer (checked before any travel zone)
+      const mb = this.page.menuBtn;
+      if (mb && mb.contains(p.x, p.y)) { this.openSubMenu(); return; }
       const cam = this.cameras.main;
       const wx = p.x, wy = p.y + cam.scrollY;
       for (const z of this.page.clickZones || []) {
@@ -371,46 +501,118 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // Mobile side drawer — the hamburger menu, our stand-in for the desktop left
+  // nav (which mobile widths don't render). Opens like Reddit's own slide-out:
+  // a left panel over a scrim. Opening FREEZES the hunt (fairness — you can't be
+  // caught behind a menu you can't see past); tapping a community hops there,
+  // which grants the usual travel head-start (the "escape"). Tap the scrim to
+  // dismiss. Mobile-only — page.menuBtn is null on desktop.
+  openSubMenu() {
+    if (this.pickerOpen || !this.page.menuBtn || this.traveling || this.caught || this.ceremonyRunning) return;
+    this.pickerOpen = true;
+    const W = this.scale.width, H = this.scale.height, R = NB.REDDIT;
+    const c = (h) => Phaser.Display.Color.HexStringToColor(h).color;
+    const panelW = Math.min(300, Math.round(W * 0.82));
+    const objs = [];   // panel contents (these slide in); the scrim stays put
+    const add = (o) => { objs.push(o); return o; };
+
+    const scrim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.5)
+      .setDepth(37).setScrollFactor(0).setInteractive().setAlpha(0);
+    scrim.on('pointerdown', () => this.closeSubMenu());
+    this.tweens.add({ targets: scrim, alpha: 1, duration: 200 });
+
+    // panel (swallows taps so they don't fall through to the scrim) + right edge
+    add(this.add.rectangle(0, 0, panelW, H, c(R.canvas), 1).setOrigin(0, 0)
+      .setDepth(38).setScrollFactor(0).setInteractive());
+    add(this.add.rectangle(panelW - 1, 0, 1, H, c(R.border), 1).setOrigin(0, 0).setDepth(38).setScrollFactor(0));
+    add(this.add.text(20, 20, 'COMMUNITIES', {
+      fontFamily: R.font, fontSize: '12px', fontStyle: 'bold', color: R.textWeak,
+    }).setDepth(39).setScrollFactor(0));
+
+    // navigable subs: fixed entries + recent + this page's top communities
+    const items = [
+      { sub: 'all', label: 'Home', icon: '🏠' },
+      { sub: 'popular', label: 'Popular', icon: '📈' },
+      { sub: 'news', label: 'News', icon: '📰' },
+    ];
+    for (const s of (NB.RECENT_SUBS || []).slice(0, 4)) items.push({ sub: s, label: `r/${s}` });
+    for (const cm of ((this.arenaData && this.arenaData.popular) || []).slice(0, 6)) {
+      items.push({ sub: (cm.name || '').replace(/^r\//, ''), label: cm.name });
+    }
+    const seen = new Set();
+    const list = items.filter(it => it.sub && !seen.has(it.sub) && seen.add(it.sub));
+
+    let ry = 48;
+    for (const it of list) {
+      if (ry > H - 30) break;
+      const s = it.sub, l = it.label;
+      const hot = add(this.add.rectangle(0, ry, panelW, 36, c(R.navActive), 0.0001).setOrigin(0, 0)
+        .setDepth(38.5).setScrollFactor(0).setInteractive());
+      hot.on('pointerdown', () => { this.closeSubMenu(); this.travelToSub(s, l); });
+      if (it.icon) add(this.add.text(16, ry + 9, it.icon, { fontFamily: R.font, fontSize: '15px' }).setDepth(39).setScrollFactor(0));
+      else add(this.add.circle(24, ry + 18, 9, c(NB.subColor(s))).setDepth(39).setScrollFactor(0));
+      add(this.add.text(44, ry + 9, l, { fontFamily: R.font, fontSize: '15px', color: R.text }).setDepth(39).setScrollFactor(0));
+      ry += 38;
+    }
+
+    // slide the panel + rows in from the left; the scrim stays full-screen
+    objs.forEach(o => { o.x -= panelW; });
+    this.tweens.add({ targets: objs, x: `+=${panelW}`, duration: 200, ease: 'Cubic.easeOut' });
+    this.subMenu = { objs, scrim };
+  }
+
+  closeSubMenu() {
+    if (!this.subMenu) return;
+    const sm = this.subMenu;
+    this.subMenu = null;
+    this.pickerOpen = false;
+    const all = [...sm.objs, sm.scrim];
+    this.tweens.add({ targets: all, alpha: 0, duration: 130,
+      onComplete: () => all.forEach(o => { try { o.destroy(); } catch {} }) });
+  }
+
   travelToSub(sub, label, onArrive) {
     if (this.traveling) return;
     const clean = (sub || 'all').replace(/^r\//i, '');
     if (clean === this.currentSub) { if (onArrive) onArrive(); return; }
     this.traveling = true;
+    NB.playMoment(this, 'travel');   // hopping subs → a travel meme
     this.showLoading(label || `r/${clean}`);
     NB.fetchArena(clean).then(data => {
-      const modSnap = {
-        x: this.mod.sprite.x, y: this.mod.sprite.y,
-        state: this.mod.state, revenant: this.mod.revenant,
-        heat: this.mod.heat,
-      };
+      const snaps = this.mods.map(m => ({
+        m, x: m.sprite.x, y: m.sprite.y, revenant: m.revenant, heat: m.heat,
+      }));
       // RECENT nav section mirrors real browsing history
       if (clean !== 'all' && clean !== 'popular') {
         NB.RECENT_SUBS = [clean, ...(NB.RECENT_SUBS || []).filter(s => s !== clean)].slice(0, 4);
       }
       this.buildWorld(data, { rebuild: true, toast: `now browsing ${data.name}` });
-      this.mod.sprite.setPosition(modSnap.x, modSnap.y);
-      this.mod.revenant = modSnap.revenant;
-      this.mod.heat = modSnap.heat;
-      if (modSnap.revenant) this.mod.sprite.setTint(0xbbffbb);
       // The chase RE-ACQUIRES on the new page: drop any frozen lunge/telegraph
-      // so he can't land a mid-air attack the instant the load lifts, AND
-      // shove him back to a minimum gap — switching pages is meant to buy a
-      // head start, not dump you back onto the exact spot he had you pinned.
-      // He then has to close the distance and telegraph (500ms) before a catch.
+      // so nobody can land a mid-air attack the instant the load lifts, AND
+      // shove every hunter back to a minimum gap — switching pages is meant to
+      // buy a head start, not dump you back onto the exact spot they had you
+      // pinned. Each then has to close in and telegraph (500ms) before a catch.
       const MIN_GAP = 440;
-      const mx = this.mod.sprite.x - this.playerPos.x;
-      const my = this.mod.sprite.y - this.playerPos.y;
-      const gap = Math.hypot(mx, my);
-      if (gap < MIN_GAP) {
-        const a = gap > 0.5 ? Math.atan2(my, mx) : Math.random() * Math.PI * 2;
-        this.mod.sprite.x = Phaser.Math.Clamp(
-          this.playerPos.x + Math.cos(a) * MIN_GAP, 30, this.scale.width - 30);
-        this.mod.sprite.y = Phaser.Math.Clamp(
-          this.playerPos.y + Math.sin(a) * MIN_GAP, this.page.headerH + 40, this.page.WORLD_H - 30);
+      for (const sn of snaps) {
+        const m = sn.m;
+        m.sprite.setPosition(sn.x, sn.y);
+        m.revenant = sn.revenant;
+        m.heat = sn.heat;
+        if (sn.revenant) m.sprite.setTint(0xbbffbb);
+        const mx = m.sprite.x - this.playerPos.x;
+        const my = m.sprite.y - this.playerPos.y;
+        const gap = Math.hypot(mx, my);
+        if (gap < MIN_GAP) {
+          const a = gap > 0.5 ? Math.atan2(my, mx) : Math.random() * Math.PI * 2;
+          m.sprite.x = Phaser.Math.Clamp(
+            this.playerPos.x + Math.cos(a) * MIN_GAP, 30, this.scale.width - 30);
+          m.sprite.y = Phaser.Math.Clamp(
+            this.playerPos.y + Math.sin(a) * MIN_GAP, this.page.headerH + 40, this.page.WORLD_H - 30);
+        }
+        m.stunT = 0;
+        m.telegraphRing.setVisible(false);
+        if (!m.frozen) m.setState('HUNT');   // a frozen superM0D stays "upstairs"
       }
-      this.mod.stunT = 0;
-      this.mod.telegraphRing.setVisible(false);
-      this.mod.setState('HUNT');
       this.hideLoading().then(() => {
         this.traveling = false;
         if (onArrive) onArrive();
@@ -471,19 +673,29 @@ class GameScene extends Phaser.Scene {
         this.balderUsed = true;
         this.survivalMs = Math.max(this.survivalMs, 61000);
         NB.playBalderCeremony(this, () => {
-          this.time.delayedCall(2000, () => { if (!this.caught) NB.spawnRevenant(this); });
+          if (this.caught) return;
+          NB.spawnMod2(this);
+          this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
+            if (!this.caught) NB.spawnRevenant(this);
+          });
         });
       } else if (k === 'r' && !this.ceremonyRunning && !this.caught) {
         NB.spawnRevenant(this);
+      } else if (k === 'm' && !this.ceremonyRunning && !this.caught) {
+        NB.spawnMod2(this);
       } else if (k === 't') {
         this.survivalMs += 30000;
       } else if (k === 'd' && !this.caught) {
         this.mod.setState('CAUGHT_YOU');
         this.onCaught();
       } else if (k === 's' && this.ceremonyRunning) {
+        if (NB._cutsceneWrap) { NB._cutsceneWrap.skip(); return; }
+        // emergency unstick (fallback cinematic hung): revert to a live hunt
         this.ceremonyRunning = false;
         this.mod.frozen = false;
+        this.mod.sprite.setVisible(true).setScale(this.mod.baseScale).setAngle(0).setAlpha(1);
         this.mod.sprite.anims.resume();
+        this.mod.setState('HUNT');
         this.cameras.main.zoomTo(1, 200);
       }
     });
@@ -512,7 +724,7 @@ class GameScene extends Phaser.Scene {
     NB.sfx.commentHit();
     this.cameras.main.shake(160, 0.007);
     if (!this.pickups.absorb()) {
-      this.mod.burst(1400);            // pressure, never a catch
+      this.mods.forEach(m => m.burst(1400));   // pressure, never a catch
       this.floatText(x, y - 20, 'ratio\'d', '#e0452a');
       const v = this.add.rectangle(this.scale.width / 2, this.scale.height / 2,
         this.scale.width, this.scale.height, 0xe0452a, 0.16).setDepth(35).setScrollFactor(0);
@@ -540,11 +752,16 @@ class GameScene extends Phaser.Scene {
 
   onCaught() {
     if (this.caught || this.ceremonyRunning) return;
-    // the promotion review: survive past the threshold and the catch is intercepted
+    NB.playMoment(this, 'caught');   // the grab — an impact meme
+    // the promotion review: survive past the threshold and the catch is
+    // intercepted. superM0D is called upstairs, redditM0D tags in HOT, and
+    // REVENANT_DELAY_MS later the old mod claws back out — then it's BOTH.
     if (!this.balderUsed && this.balderEligible) {
       this.balderUsed = true;
       NB.playBalderCeremony(this, () => {
-        this.time.delayedCall(Phaser.Math.Between(4000, 8000), () => {
+        if (this.caught) return;
+        NB.spawnMod2(this);
+        this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
           if (!this.caught) NB.spawnRevenant(this);
         });
       });
@@ -552,34 +769,62 @@ class GameScene extends Phaser.Scene {
     }
     this.caught = true;
     NB.sfx.caught();
+    NB.stopBed();                              // game over — kill the chase bed
+    NB.postDeath(this.userName, this.karma);   // record it for the "who died here" swarm
     const W = this.scale.width, H = this.scale.height;
     this.cameras.main.shake(220, 0.012);
     this.time.delayedCall(400, () => {
       const layer = [];
+      // pulled once per death (onCaught is guarded, runs once per removal)
+      const verdict = Phaser.Utils.Array.GetRandom(NB.BAN_VERDICTS);
+      const reason = NB.nextBanReason();
+      NB.playMoment(this, 'banned');   // the [ REMOVED ] screen — a death meme
       layer.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85).setDepth(40).setScrollFactor(0));
-      this.add.text(W / 2, H / 2 - 64, '[ REMOVED ]', {
+
+      // the mod stamps a random meme on the removal notice (the visual half of
+      // the "reason"). Aspect-preserved, width-capped, on a little white card so
+      // transparent and opaque memes both read as a "posted image". memeH = 0
+      // when no art loaded, so the text layout just closes up.
+      const cy = H / 2 - 8;
+      let memeH = 0;
+      const memeId = Phaser.Utils.Array.GetRandom(NB.DEATH_MEMES);
+      if (this.textures.exists(`meme-${memeId}`)) {
+        const src = this.textures.get(`meme-${memeId}`).getSourceImage();
+        const scale = Math.min(Phaser.Math.Clamp(Math.round(H * 0.2), 96, 168) / src.height, (W * 0.8) / src.width);
+        const dw = src.width * scale, dh = src.height * scale;
+        memeH = dh;
+        this.add.rectangle(W / 2, cy, dw + 22, dh + 22, 0xf6f8f9, 1)
+          .setDepth(41).setScrollFactor(0).setStrokeStyle(3, 0xff4d4d);
+        this.add.image(W / 2, cy, `meme-${memeId}`).setDisplaySize(dw, dh)
+          .setDepth(41.5).setScrollFactor(0);
+      }
+      this.add.text(W / 2, cy - memeH / 2 - 42, verdict, {
         fontFamily: 'Courier New', fontSize: '46px', fontStyle: 'bold', color: '#ff4d4d',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 - 16, `${this.userName} · Reason: none provided.`, {
+      this.add.text(W / 2, cy + memeH / 2 + 22, `${this.userName} · ${reason}`, {
         fontFamily: 'Courier New', fontSize: '16px', color: '#cccccc',
+        align: 'center', wordWrap: { width: W - 48 },
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      const newBest = NB.savePersonalBest(this.karma);
+      const newBest = NB.savePersonalBest(this.karma, reason);
       const pb = NB.getPersonalBest();
       const runLine = `${NB.fmtKarma(this.karma)} karma farmed`;
       const bestLine = newBest ? 'NEW HIGH SCORE' : `best: ${NB.fmtKarma(pb)}`;
-      this.add.text(W / 2, H / 2 + 22, runLine, {
+      this.add.text(W / 2, cy + memeH / 2 + 52, runLine, {
         fontFamily: 'Courier New', fontSize: '15px', color: '#888888',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      this.add.text(W / 2, H / 2 + 48, bestLine, {
+      this.add.text(W / 2, cy + memeH / 2 + 78, bestLine, {
         fontFamily: 'Courier New', fontSize: newBest ? '17px' : '14px',
         fontStyle: newBest ? 'bold' : 'normal', color: newBest ? '#ff4500' : '#666666',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
-      // o7 salute swarm — DEVVIT-SWAP: real player deaths via redis + realtime
-      const names = ['u/ghost_of_karma', 'u/former_lurker', 'u/deleted_2019', 'u/plz_no_ban',
-                     'u/wasnt_even_posting', 'u/mobile_user_42', 'u/f_in_the_chat', this.userName];
+      // o7 salute swarm — real player deaths (redis) blended with flavor names.
+      // Flavor shows immediately; real recent-death names swap in when the fetch
+      // resolves (a new sub / offline just keeps the flavor names).
+      let swarmNames = ['u/ghost_of_karma', 'u/former_lurker', 'u/deleted_2019', 'u/plz_no_ban',
+                        'u/wasnt_even_posting', 'u/mobile_user_42', 'u/f_in_the_chat', this.userName];
+      NB.fetchRecentDeaths().then(real => { if (real && real.length) swarmNames = [...real, this.userName]; });
       this.time.addEvent({ repeat: 18, delay: 350, callback: () => {
         const t = this.add.text(Phaser.Math.Between(40, W - 60), Phaser.Math.Between(60, H - 60),
-          `${Phaser.Utils.Array.GetRandom(names)}  o7`, {
+          `${Phaser.Utils.Array.GetRandom(swarmNames)}  o7`, {
             fontFamily: 'Courier New', fontSize: `${Phaser.Math.Between(12, 17)}px`, color: '#8fd18f',
           }).setDepth(42).setAlpha(0).setScrollFactor(0);
         this.tweens.add({ targets: t, alpha: 0.9, duration: 260, yoyo: true, hold: 900,
@@ -670,7 +915,8 @@ class GameScene extends Phaser.Scene {
     this.markFarmed(el);
     this.clearFarmSeq(el);
     const damaged = this.wreck && this.wreck.stage(el) >= 1;
-    const modClose = Math.hypot(this.mod.sprite.x - p.x, this.mod.sprite.y - p.y) < 175;
+    const modClose = this.mods.some(m => !m.frozen &&
+      Math.hypot(m.sprite.x - p.x, m.sprite.y - p.y) < 175);
     const clutch = damaged || modClose;
     const gained = Math.round(el.karma * (clutch ? 2 : 1));
     this.karma += gained;
@@ -718,15 +964,18 @@ class GameScene extends Phaser.Scene {
   updateHudExtras() {
     const W = this.scale.width, H = this.scale.height;
 
-    // heat: HEAT_MAX segments, green (calm) -> red (frenzied)
+    // heat: HEAT_MAX segments, green (calm) -> red (frenzied).
+    // With two hunters live, the bar reads the angriest ACTIVE one (a frozen
+    // superM0D waiting on his resurrection carries stale heat — ignore it).
     const g = this.heatBarG;
     g.clear();
+    const heat = Math.max(0, ...this.mods.filter(m => !m.frozen).map(m => m.heat));
     const n = NB.TUNE.HEAT_MAX, segW = 14, segH = 8, gap = 3;
     const totalW = n * segW + (n - 1) * gap;
     let x = W - 22 - totalW;
     const y = H - 46;
     for (let i = 0; i < n; i++) {
-      const filled = i < this.mod.heat;
+      const filled = i < heat;
       const t = n > 1 ? i / (n - 1) : 0;
       const r = Math.round(70 + (230 - 70) * t), gr = Math.round(200 + (60 - 200) * t), b = Math.round(120 + (50 - 120) * t);
       g.fillStyle(filled ? (r << 16 | gr << 8 | b) : 0x333333, filled ? 0.95 : 0.35);
@@ -777,7 +1026,7 @@ class GameScene extends Phaser.Scene {
     // SIM FREEZE: while a loading interstitial is up (boot OR sub-travel) the
     // mod must not hunt or catch — the page underneath is mid-rebuild and it
     // isn't fair to die to something you can't see. Ceremony freezes too.
-    const frozen = this.ceremonyRunning || !!this.loadingUI || this.entranceActive;
+    const frozen = this.ceremonyRunning || !!this.loadingUI || this.entranceActive || this.pickerOpen;
 
     if (!frozen) {
       this.survivalMs += dt;
@@ -802,7 +1051,7 @@ class GameScene extends Phaser.Scene {
 
     if (!frozen) {
       this.farmCheck(dt);              // hold-to-steal karma off posts
-      this.mod.update(dt, this.playerPos);
+      for (const m of this.mods) m.update(dt, this.playerPos);
       this.pickups.update(dt, this.playerPos);
       this.projectiles.update(dt, this.playerPos);
       this.npc.update(dt);
@@ -811,6 +1060,8 @@ class GameScene extends Phaser.Scene {
       this.hud.setText(`★ ${NB.fmtKarma(this.karma)}${revTag}`);
       if (this.mod.revenant) this.hud.setColor('#3fae54');
       this.updateHudExtras();
+      const mk = Math.floor(this.karma / 1000);   // every 1k karma → a hype meme
+      if (mk > this._karmaMilestone) { this._karmaMilestone = mk; NB.playMoment(this, 'karma1k'); }
     }
   }
 }
@@ -823,7 +1074,9 @@ NB.fontsReady.then(() => {
   // requestAnimationFrame to zero — forcetimer=1 drives the loop off
   // setTimeout instead so automated verification can actually observe play.
   const forceTimer = new URLSearchParams(location.search).has('forcetimer');
-  new Phaser.Game({
+  // Debug/test handle on the running game (mirrors window.__gs on the active
+  // GameScene) — lets the headless harness reach any scene, e.g. the title.
+  window.__game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: NB.REDDIT.canvas, // matches the player's own Reddit theme

@@ -104,9 +104,40 @@ async function handleImg(req, res) {
   }
 }
 
+// "Who died here" — in-memory stand-in for the Devvit redis sorted set (local
+// dev has no subreddit context, so it's one global list). Unique by name,
+// newest last, capped like the real thing.
+const deaths = [];
+function recordDeath(name) {
+  const n = (name || 'u/lurker').toString().slice(0, 40);
+  const i = deaths.findIndex(d => d.name === n);
+  if (i >= 0) deaths.splice(i, 1);
+  deaths.push({ name: n, t: Date.now() });
+  if (deaths.length > 50) deaths.splice(0, deaths.length - 50);
+}
+function readBody(req) {
+  return new Promise((resolve) => {
+    let d = '';
+    req.on('data', c => { d += c; if (d.length > 1e5) { d = ''; req.destroy(); } });
+    req.on('end', () => { try { resolve(JSON.parse(d || '{}')); } catch { resolve({}); } });
+    req.on('error', () => resolve({}));
+  });
+}
+async function handleDeath(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+  const body = await readBody(req);
+  recordDeath(body.name);
+  sendJson(res, 200, { ok: true });
+}
+function handleDeathsRecent(req, res) {
+  sendJson(res, 200, { names: deaths.slice(-24).reverse().map(d => d.name) });
+}
+
 const handler = (req, res) => {
   if (req.url.startsWith('/api/arena')) return handleArena(req, res);
   if (req.url.startsWith('/api/img')) return handleImg(req, res);
+  if (req.url.startsWith('/api/deaths/recent')) return handleDeathsRecent(req, res);
+  if (req.url.startsWith('/api/death')) return handleDeath(req, res);
   serveStatic(req, res);
 };
 

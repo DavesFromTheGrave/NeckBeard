@@ -12,6 +12,26 @@ NB.fetchArena = function (sub) {
 // Back-compat alias used by main.js boot
 NB.fetchSubreddit = function (sub) { return NB.fetchArena(sub); };
 
+// "Who died here" — record this death and read back recent ones for the o7
+// swarm. Both best-effort: a failure just falls back to flavor names, never
+// blocks the death screen. Server keys deaths per-subreddit (Devvit) / global
+// (local dev stub).
+NB.postDeath = function (name, karma) {
+  try {
+    fetch('/api/death', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, karma: Math.round(karma || 0) }),
+    }).catch(() => {});
+  } catch { /* best-effort */ }
+};
+NB.fetchRecentDeaths = function () {
+  return fetch('/api/deaths/recent')
+    .then(r => (r.ok ? r.json() : { names: [] }))
+    .then(d => (Array.isArray(d.names) ? d.names : []))
+    .catch(() => []);
+};
+
 // "Cursed" subreddits — typing one into the header search spawns a bonus
 // pickup on arrival, on top of the normal travel-there behavior.
 NB.CURSED_SUBS = {

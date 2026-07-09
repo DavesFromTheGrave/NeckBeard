@@ -1,39 +1,148 @@
-// The Balder ceremony — the promotion review. ~10 seconds, code-cinematic.
-// Triggered by a catch after surviving past the threshold. Once per run.
-// Beats approved 2026-07-04: freeze → crack → gold elevator → Balder →
-// Supermod sucked underground → exit → "management has been notified."
+// The Balder ceremony — the promotion review, now the full video cutscene
+// (revenant-cutscene.mp4: Balder rises → superM0D dragged under → Balder
+// departs in the gold elevator → redditM0D tags in). First trigger per session
+// plays the video (tap to skip); repeats take the 600ms fast path. The old
+// code-cinematic survives as the fallback if the video can't play.
+// After the ceremony superM0D is GONE — frozen + hidden — until spawnRevenant
+// rises him as the zombie, REVENANT_DELAY_MS into redditM0D's solo hunt.
 window.NB = window.NB || {};
 
 NB.playBalderCeremony = function (scene, done) {
+  const seen = !!sessionStorage.getItem('nb_balder_seen');
+  scene.ceremonyRunning = true;
+  scene.mod.freezeHard();
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    scene.ceremonyRunning = false;
+    // He doesn't come back from this meeting. Frozen (no update, no catch
+    // check) + hidden until spawnRevenant resurrects him.
+    scene.mod.freezeHard();
+    scene.mod.sprite.setVisible(false);
+    sessionStorage.setItem('nb_balder_seen', '1');
+    scene.cameras.main.zoomTo(1, 200);
+    done();
+  };
+
+  if (seen) {
+    // fast path: the compressed suck — he's yanked under and the hunt moves on
+    NB.sfx.gulp();
+    scene.cameras.main.shake(240, 0.005);
+    scene.tweens.add({ targets: scene.mod.sprite, y: scene.mod.sprite.y + 50,
+      angle: 200, scale: 0.05, duration: 500, ease: 'Quad.easeIn' });
+    scene.time.delayedCall(600, finish);
+    return;
+  }
+  NB.playCutsceneVideo(scene, 'assets/video/revenant-cutscene.mp4', finish,
+    () => NB.codeCeremony(scene, finish));
+};
+
+// Fullscreen DOM <video> takeover. The mp4 ships silent — meme clips fire at
+// the beats instead (Dave: "just pick relevant memes"), and the chase bed
+// keeps looping underneath (it ducks under each clip automatically).
+NB.playCutsceneVideo = function (scene, src, onDone, onFail) {
+  // beat map for revenant-cutscene.mp4 (25.5s):
+  //   ~4.2s  Balder rises behind him      ~8.6s  superM0D dragged under
+  //   ~19.4s the gold doors close         ~22s   redditM0D steps out of the dark
+  const beats = [
+    { t: 4.2, id: 'one-does-not-simply' },
+    { t: 8.6, id: 'no-god-no' },
+    { t: 19.4, id: 'to-be-continued' },
+    { t: 22.0, moment: 'redditmod' },
+  ];
+  const stopClip = () => {
+    try { if (NB._eventSound && NB._eventSound.isPlaying) NB._eventSound.stop(); } catch {}
+  };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'nb-cutscene';
+  wrap.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;';
+  const v = document.createElement('video');
+  v.src = src;
+  v.muted = true;                 // no audio track by design
+  v.playsInline = true;
+  v.setAttribute('playsinline', '');
+  v.preload = 'auto';
+  v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;';
+  const hint = document.createElement('div');
+  hint.textContent = 'tap to skip ▸▸';
+  hint.style.cssText = 'position:absolute;bottom:16px;right:20px;color:#777;' +
+    "font-family:'Arcade Normal','Courier New',monospace;font-size:12px;";
+  wrap.appendChild(v);
+  wrap.appendChild(hint);
+
+  let ended = false;
+  let watchdog = null;
+  const cleanup = (ok) => {
+    if (ended) return;
+    ended = true;
+    if (watchdog) clearTimeout(watchdog);
+    stopClip();                   // a skipped cutscene shouldn't bleed audio into play
+    NB._cutsceneWrap = null;
+    try { v.pause(); } catch {}
+    try { wrap.remove(); } catch {}
+    ok ? onDone() : onFail();
+  };
+  v.addEventListener('timeupdate', () => {
+    for (const b of beats) {
+      if (!b.fired && v.currentTime >= b.t) {
+        b.fired = true;
+        stopClip();               // scripted beats take priority over a lingering clip
+        if (b.moment) NB.playMoment(scene, b.moment);
+        else NB.playMemeSfx(scene, b.id, 0.85);
+      }
+    }
+  });
+  v.addEventListener('ended', () => cleanup(true));
+  v.addEventListener('error', () => cleanup(false));
+  wrap.addEventListener('pointerdown', (e) => { e.stopPropagation(); cleanup(true); });
+  // if 'ended' never fires (webview quirk / stalled buffer) don't hold the game hostage
+  watchdog = setTimeout(() => cleanup(true), 40000);
+  NB._cutsceneWrap = { skip: () => cleanup(true) };
+
+  document.body.appendChild(wrap);
+  const p = v.play();
+  if (p && p.catch) p.catch(() => cleanup(false));
+};
+
+// Warm the video into the browser cache at boot so the ceremony doesn't
+// stutter on first play (it triggers 60s+ into a run — plenty of lead time).
+NB.warmCutscene = function () {
+  if (NB._cutsceneWarm) return;
+  try {
+    const v = document.createElement('video');
+    v.preload = 'auto';
+    v.muted = true;
+    v.src = 'assets/video/revenant-cutscene.mp4';
+    v.load();
+    NB._cutsceneWarm = v;
+  } catch {}
+};
+
+// The original code-cinematic — now the fallback when the video can't play.
+// Beats approved 2026-07-04: freeze → crack → gold elevator → Balder →
+// Supermod sucked underground → exit → "management has been notified."
+NB.codeCeremony = function (scene, finish) {
   const cam = scene.cameras.main;
   const mod = scene.mod.sprite;
   const W = scene.scale.width;
   const groundY = Math.min(mod.y + 60, scene.page.WORLD_H - 40);
   const elevX = Phaser.Math.Clamp(mod.x < W / 2 ? mod.x + 190 : mod.x - 190, 90, W - 90);
-  const seen = !!sessionStorage.getItem('nb_balder_seen');
-  let finished = false;
-  const skip = () => {
-    if (finished) return;
-    finished = true;
-    scene.ceremonyRunning = false;
-    scene.mod.frozen = false;
-    scene.mod.sprite.anims.resume();
-    cam.zoomTo(1, 200);
-    sessionStorage.setItem('nb_balder_seen', '1');
-    done();
+  const objs = [];   // everything the cinematic spawns, so a tap-skip wipes it all
+  let over = false;
+  const end = () => {
+    if (over) return;
+    over = true;
+    objs.forEach(o => { try { o.destroy(); } catch {} });
+    finish();
   };
-
-  scene.ceremonyRunning = true;
-  scene.mod.freezeHard();
-  if (seen) {
-    scene.time.delayedCall(120, skip);
-    return;
-  }
-  scene.input.once('pointerdown', () => { if (scene.ceremonyRunning) skip(); });
+  scene.input.once('pointerdown', () => { if (scene.ceremonyRunning) end(); });
 
   // 1 — freeze + lens (0.8s)
   const shade = scene.add.rectangle(cam.scrollX + W / 2, cam.scrollY + scene.scale.height / 2,
     W, scene.scale.height, 0x1a1428, 0).setDepth(12);
+  objs.push(shade);
   scene.tweens.add({ targets: shade, fillAlpha: 0.28, duration: 700 });
   cam.zoomTo(1.12, 800, 'Sine.easeInOut');
 
@@ -41,12 +150,12 @@ NB.playBalderCeremony = function (scene, done) {
 
   // ~7s total (Dave spec). Timings tuned for jam pacing.
   // 2 — the crack (at 0.5s)
-  let crackG;
   t(500, () => {
-    if (finished) return;
+    if (over) return;
     NB.sfx.crack();
     cam.shake(420, 0.006);
-    crackG = scene.add.graphics().setDepth(13);
+    const crackG = scene.add.graphics().setDepth(13);
+    objs.push(crackG);
     crackG.lineStyle(4, 0x0d0b08, 1);
     let cx = elevX - 60, cy = groundY + 8;
     crackG.beginPath(); crackG.moveTo(cx, cy);
@@ -62,11 +171,11 @@ NB.playBalderCeremony = function (scene, done) {
   });
 
   // 3 — the elevator rises (at 1.2s)
-  let elev, balder;
   t(1200, () => {
-    if (finished) return;
+    if (over) return;
     NB.sfx.ding();
-    elev = scene.page.makeElevator(elevX, groundY + 120);
+    const elev = scene.page.makeElevator(elevX, groundY + 120);
+    objs.push(...elev);
     for (const o of elev) {
       scene.tweens.add({ targets: o, y: o.y - 120, duration: 1300, ease: 'Sine.easeOut' });
     }
@@ -74,25 +183,34 @@ NB.playBalderCeremony = function (scene, done) {
 
   // 4 — Balder RISES up out of the elevator into the doorway (at 2.8s)
   t(2800, () => {
-    if (finished) return;
-    balder = scene.add.sprite(elevX, groundY + 130, 'balder').setDepth(18).setAlpha(0);
+    if (over) return;
+    const balder = scene.add.sprite(elevX, groundY + 130, 'balder').setDepth(18).setAlpha(0);
+    objs.push(balder);
     balder.setScale(210 / balder.height);   // real art -> doorway-sized
     scene.tweens.add({ targets: balder, y: groundY - 6, alpha: 1, duration: 1000, ease: 'Sine.easeOut' });
     // cigar smoke off the head
     scene.time.addEvent({ repeat: 5, delay: 300, callback: () => {
+      if (over) return;
       const puff = scene.add.circle(balder.x + 14, balder.y - balder.displayHeight * 0.42,
         Phaser.Math.Between(3, 5), 0xbbbbbb, 0.5).setDepth(19);
       scene.tweens.add({ targets: puff, y: puff.y - 24, alpha: 0, scale: 2, duration: 900,
         onComplete: () => puff.destroy() });
     }});
+    // 6 — exit: sinks back down into the elevator (at 5.4s overall)
+    t(2600, () => {
+      if (over) return;
+      scene.tweens.add({ targets: balder, y: groundY + 130, alpha: 0, duration: 900,
+        ease: 'Sine.easeIn' });
+    });
   });
 
   // 5 — the suck (at 4.2s)
   t(4200, () => {
-    if (finished) return;
+    if (over) return;
     NB.sfx.gulp();
     cam.shake(300, 0.004);
     const under = scene.add.graphics().setDepth(13);
+    objs.push(under);
     under.lineStyle(4, 0x0d0b08, 1);
     under.beginPath(); under.moveTo(mod.x - 34, mod.y + 40);
     under.lineTo(mod.x, mod.y + 46); under.lineTo(mod.x + 34, mod.y + 40);
@@ -101,48 +219,68 @@ NB.playBalderCeremony = function (scene, done) {
     scene.tweens.add({
       targets: mod, y: mod.y + 70, angle: 200, scale: 0.05, duration: 1100,
       ease: 'Quad.easeIn',
-      onComplete: () => { mod.setVisible(false); under.destroy(); },
+      onComplete: () => mod.setVisible(false),
     });
   });
 
-  // 6 — exit (at 5.4s)
-  t(5400, () => {
-    if (finished) return;
-    if (balder) {
-      // sinks back down into the elevator
-      scene.tweens.add({ targets: balder, y: groundY + 130, alpha: 0, duration: 900,
-        ease: 'Sine.easeIn', onComplete: () => balder.destroy() });
-    }
-    t(1100, () => {
-      NB.sfx.ding();
-      for (const o of (elev || [])) {
-        scene.tweens.add({ targets: o, y: o.y + 120, duration: 1300, ease: 'Sine.easeIn',
-          onComplete: () => o.destroy() });
-      }
-      if (crackG) scene.tweens.add({ targets: crackG, alpha: 0, duration: 900,
-        onComplete: () => crackG.destroy() });
-    });
+  // 6b — elevator descends (at 6.5s)
+  t(6500, () => {
+    if (over) return;
+    NB.sfx.ding();
   });
 
-  // 7 — color back, the line, resume (at 7.0s)
+  // 7 — color back, the line, then the tag-in takes over (at 7.0s)
   t(7000, () => {
-    if (finished) return;
-    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 500,
-      onComplete: () => shade.destroy() });
+    if (over) return;
+    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 500 });
     cam.zoomTo(1, 500, 'Sine.easeInOut');
     const note = scene.add.text(W / 2, 92, 'management has been notified.', {
       fontFamily: 'Courier New', fontSize: '16px', color: '#9a3fd4',
     }).setOrigin(0.5).setDepth(30).setScrollFactor(0).setAlpha(0);
-    scene.tweens.add({ targets: note, alpha: 1, duration: 400, yoyo: true, hold: 1400,
-      onComplete: () => note.destroy() });
-    sessionStorage.setItem('nb_balder_seen', '1');
-    skip();
+    objs.push(note);
+    scene.tweens.add({ targets: note, alpha: 1, duration: 400, yoyo: true, hold: 1400 });
+    t(1200, end);
   });
+};
+
+// The tag-in: redditM0D — the replacement mod, junior and FAST. Enters right
+// after the ceremony; superM0D rises again REVENANT_DELAY_MS later and then
+// they BOTH hunt. Fairness is unchanged: his catch check still lives only
+// inside his own LUNGE window behind a full telegraph.
+NB.spawnMod2 = function (scene) {
+  if (scene.mod2) return;
+  NB.playMoment(scene, 'redditmod');
+  const cam = scene.cameras.main;
+  cam.shake(420, 0.006);
+  const W = scene.scale.width, T = NB.TUNE;
+  // enter at a fair distance — never materialize on top of the cursor
+  let x, y, tries = 0;
+  do {
+    x = Phaser.Math.Between(80, W - 80);
+    y = Phaser.Math.Clamp(
+      cam.scrollY + Phaser.Math.Between(Math.round(scene.scale.height * 0.25),
+        Math.round(scene.scale.height * 0.6)),
+      100, scene.page.WORLD_H - 60);
+  } while (Math.hypot(x - scene.playerPos.x, y - scene.playerPos.y) < 400 && ++tries < 12);
+  const m2 = new NB.Supermod(scene, scene.page, x, y + 60, {
+    variant: 'mod2',
+    scale: T.SPRITE_SCALE * T.MOD2_SCALE_MULT,
+    speedMult: T.MOD2_SPEED_MULT,
+    lungeMult: T.MOD2_LUNGE_MULT,
+    texture: 'mod2-idle',
+  });
+  m2.sprite.setScale(0.05).setAlpha(0.4);
+  m2.riseFrom = { y: y + 60, toY: y };
+  m2.setState('RISE');
+  scene.mod2 = m2;
+  scene.mods.push(m2);
+  scene.floatText(x, y - 70, 'redditM0D has entered the chat', '#ff4500');
 };
 
 // After the ceremony: the comeback. He crawls out of the ground as REVENANT.
 NB.spawnRevenant = function (scene) {
   NB.sfx.revenant();
+  NB.playMoment(scene, 'revenant');   // "HE CAME BACK WRONG" → a zombie meme
   const cam = scene.cameras.main;
   cam.shake(600, 0.008);
   const mod = scene.mod;

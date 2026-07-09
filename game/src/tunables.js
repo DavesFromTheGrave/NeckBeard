@@ -47,7 +47,11 @@ NB.TUNE = {
   FARM_TARGET_MS: 950,      // ms you have to reach each target before it expires (was 620 — too tight)
   FARM_TARGET_RADIUS: 20,   // px — how close the cursor must get to register a hit
 
-  SPRITE_SCALE: 2.3,       // ~2x bigger per Dave (was 1.15)
+  // Character frames are high-res now (512px tall source, from Dave's full-res
+  // originals) instead of the old 96px lowres. This scale keeps the SAME
+  // on-screen size as before (96px*2.3 = 220px; now 512*0.431 ≈ 220px) — just
+  // sourced crisp so the mod isn't an upscaled blur. Desktop override below.
+  SPRITE_SCALE: 0.431,
 
   // wreckage — persistent, compounding page destruction
   // damage floats accrue per element; each whole point = one visual stage (max 3)
@@ -65,11 +69,22 @@ NB.TUNE = {
   // Fairness: never a catch. He's committed for SMASH_MS = your window.
   SMASH_CD_MS: 9000,
   SMASH_RANGE_MIN: 170,    // only bothers wrecking furniture when you're not in reach
-  SMASH_MS: 640,
+  SMASH_MS: 1400,          // the sledge swing (~625ms) then HOLDS the embedded-hammer pose so the
+                           // strike actually registers on screen (was 640 — pose flashed and was gone)
   SMASH_IMPACT_MS: 360,    // wind-up before the hammer lands
 
   // Balder promotion review — survive past this, then a catch triggers ceremony (once/run)
   BALDER_SURVIVAL_MS: 60000,
+
+  // The tag-team endgame. After the ceremony superM0D is gone (called upstairs)
+  // and redditM0D takes the hunt SOLO at a hard speed multiplier (Dave's spec:
+  // "at LEAST 2x-3x faster"). REVENANT_DELAY_MS later the old mod claws back
+  // out of the ground and BOTH hunt. Telegraph timings are untouched — the
+  // fairness window is identical, there's just less room to breathe.
+  MOD2_SPEED_MULT: 2.5,      // redditM0D locomotion vs superM0D (lurk/hunt/charge)
+  MOD2_LUNGE_MULT: 1.25,     // quicker lunge too — but still telegraphed first
+  MOD2_SCALE_MULT: 0.94,     // slightly smaller body: the junior mod, reads faster
+  REVENANT_DELAY_MS: 30000,  // how long redditM0D hunts alone before superM0D rises
 };
 
 // A mouse pointer is a precise point; a fingertip is a ~40-50px contact patch
@@ -77,3 +92,15 @@ NB.TUNE = {
 // mouse are frustratingly small to hit (and half-hidden) under a real thumb.
 NB.IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
 if (NB.IS_TOUCH) NB.TUNE.FARM_TARGET_RADIUS = Math.round(NB.TUNE.FARM_TARGET_RADIUS * 1.7);
+
+// Wide desktop screens give the cursor too much room — the mod reads small and
+// easy to outrun. Scale him up so he fills the page and feels threatening, and
+// grow his reach WITH him (catch radius/lunge range track the bigger body, so
+// he's scarier without being cheap — the catch is still lunge-only). Keeps the
+// authentic Reddit layout; only the mod changes. Starting values — playtest-tuned.
+NB.IS_DESKTOP = !NB.IS_TOUCH && window.innerWidth > 900;
+if (NB.IS_DESKTOP) {
+  NB.TUNE.SPRITE_SCALE = 0.6;   // 512*0.6 ≈ 307px on-screen (was 96px*3.2) — bigger presence on wide screens
+  NB.TUNE.CATCH_RADIUS = 80;
+  NB.TUNE.LUNGE_RANGE = 230;
+}

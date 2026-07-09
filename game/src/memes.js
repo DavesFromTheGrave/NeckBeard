@@ -8,8 +8,21 @@
 window.NB = window.NB || {};
 
 // Ids whose real assets have been captured & dropped in. Empty = all placeholder.
-NB.MEME_ART = [];
-NB.MEME_AUDIO = [];
+// (yakety-sax is audio-only by design — it rides the color badge.)
+// NOTE: no techno-viking, ever — the man in that video sued over its use and
+// WON (personality rights). Do not re-add him. — Dave, 2026-07-09
+NB.MEME_ART = [
+  'banhammer', 'shoop-da-whoop', 'trogdor', 'leeroy-jenkins', 'rickroll', 'nyan-cat', 'longcat',
+  'keyboard-cat', 'one-ring', 'success-kid', 'this-is-fine', 'doge', 'good-guy-greg', 'me-gusta',
+  'yao-ming', 'y-u-no', 'over-9000', 'harambe', 'badger-badger', 'banana-phone', 'all-your-base',
+  'gnome', 'pepe', 'forever-alone', 'ermahgerd', 'philosoraptor', 'dat-boi', 'cheezburger',
+  'ultimate-showdown', 'one-does-not-simply', 'scumbag-steve', 'trollface', 'bad-luck-brian',
+];
+NB.MEME_AUDIO = [
+  'shoop-da-whoop', 'trogdor', 'rickroll', 'nyan-cat', 'keyboard-cat', 'over-9000', 'this-is-fine',
+  'ultimate-showdown', 'one-does-not-simply', 'dat-boi', 'gnome', 'banana-phone', 'yakety-sax',
+  'all-your-base', 'badger-badger',
+];
 
 // fx → color, so the pickup badge tells you what it does at a glance.
 NB.MEME_FX_COLOR = {
@@ -37,7 +50,6 @@ NB.MEMES = {
   'me-gusta':       { name: 'Me Gusta', cat: 'powerup', tier: 'common', fx: 'heatwipe', say: 'me gusta' },
   'yao-ming':       { name: 'Yao Ming Face', cat: 'powerup', tier: 'uncommon', fx: 'knockback', say: 'bitch please' },
   'y-u-no':         { name: 'Y U No', cat: 'powerup', tier: 'common', fx: 'knockback', say: 'Y U NO STOP' },
-  'techno-viking':  { name: 'Techno Viking', cat: 'powerup', tier: 'legendary', fx: 'knockback', say: 'dance-off. he loses.' },
   'over-9000':      { name: 'Over 9000', cat: 'powerup', tier: 'rare', fx: 'knockback', say: "IT'S OVER 9000!!", big: true },
   'harambe':        { name: 'Harambe', cat: 'powerup', tier: 'rare', fx: 'slow', say: 'respect. he slows.' },
   'badger-badger':  { name: 'Badger Badger Badger', cat: 'powerup', tier: 'common', fx: 'slow', say: 'badger badger badger' },
@@ -92,8 +104,11 @@ NB.drawMemeBadge = function (scene, x, y, id) {
   const m = NB.MEMES[id];
   const objs = [];
   if (NB.MEME_ART.includes(id) && scene.textures.exists(`meme-${id}`)) {
-    objs.push(scene.add.image(x, y, `meme-${id}`).setDepth(9)
-      .setDisplaySize(34, 34));
+    const img = scene.add.image(x, y, `meme-${id}`).setDepth(9);
+    const src = scene.textures.get(`meme-${id}`).getSourceImage();
+    // fit inside a ~40px box, aspect-preserved (memes aren't all square — longcat!)
+    img.setScale(40 / Math.max(src.width || 40, src.height || 40));
+    objs.push(img);
     return objs;
   }
   const color = NB.MEME_FX_COLOR[m.fx] || 0xbbbbbb;

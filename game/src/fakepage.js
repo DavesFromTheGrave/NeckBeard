@@ -492,11 +492,24 @@ NB.buildFakePage = function (scene, W, viewH, data) {
   hdrGfx.lineStyle(1, col(R.border), 1);
   hdrGfx.lineBetween(0, headerH, W, headerH);
 
-  snoo(hdrGfx, isWide ? 40 : 30, headerH / 2, 15, 27);
-  track(scene.add.text(isWide ? 62 : 50, headerH / 2, 'reddit', {
+  // Mobile has no left nav; Reddit puts a hamburger here that opens a side
+  // drawer. Draw it far-left and shift the logo right to make room (matches the
+  // real mobile header). menuBtn is exposed so main.js can bind the drawer.
+  let menuBtn = null;
+  const logoX = isWide ? 40 : 64;
+  if (!isWide) {
+    const hx = 26, hy = headerH / 2;
+    const ham = track(scene.add.graphics().setDepth(27).setScrollFactor(0));
+    ham.lineStyle(2.5, col(R.text), 1);
+    for (const dy of [-6, 0, 6]) ham.lineBetween(hx - 10, hy + dy, hx + 10, hy + dy);
+    menuBtn = new Phaser.Geom.Rectangle(6, 8, 44, headerH - 16);
+  }
+  snoo(hdrGfx, logoX, headerH / 2, 15, 27);
+  track(scene.add.text(logoX + 22, headerH / 2, 'reddit', {
     fontFamily: F, fontSize: '26px', fontStyle: 'bold', color: R.brandWord,
   }).setOrigin(0, 0.5).setDepth(27).setScrollFactor(0));
-  zone(new Phaser.Geom.Rectangle(12, 8, 140, headerH - 16), 'all', 'Home', true);
+  // logo → Home; shifted right on mobile so it clears the hamburger
+  zone(new Phaser.Geom.Rectangle(isWide ? 12 : 52, 8, isWide ? 140 : 110, headerH - 16), 'all', 'Home', true);
 
   // center search: "Find anything" + orange Ask chip (real <input> overlays)
   const searchW = isWide ? Math.min(640, W * 0.36) : W - 200;
@@ -624,6 +637,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
     headerH,
     feed: { x: feedX, y: headerH, w: feedW },
     clickZones,
+    menuBtn,   // mobile hamburger hit-rect (null on desktop — sidebar is shown instead)
     scrollbar: { track: sbTrack, thumb: sbThumb, thumbH },
     searchBar: { x: searchX + 40, y: headerH / 2, w: searchW - 120, h: 26 },
 

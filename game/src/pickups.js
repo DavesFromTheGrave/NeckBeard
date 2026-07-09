@@ -55,38 +55,47 @@ NB.Pickups = class {
   }
 
   apply(it) {
-    const scene = this.scene, mod = scene.mod;
+    const scene = this.scene;
+    // every hunter that's actually on the page eats the effect — a Ban Hammer
+    // that only stunned one of two mods would be a dead powerup in the endgame
+    const mods = (scene.mods || [scene.mod]).filter(m => !m.frozen);
     if (it.id === '__cursed') {
       NB.sfx.pickup();
-      mod.stun(3000); mod.heat = 0;
+      mods.forEach(md => { md.stun(3000); md.heat = 0; });
       scene.floatText(it.x, it.y, 'CURSED POWER', '#2ecc71');
       return;
     }
     const m = NB.MEMES[it.id];
     if (!m) return;
     const good = m.cat !== 'trap';
-    NB.playMemeSound(scene, it.id, () => (good ? NB.sfx.pickup() : NB.sfx.commentHit()));
+    // The meme's own captured voice (gated — voices never pile up). If it can't
+    // fire (busy or no clip): a base blip for feedback + a generic "powerup"
+    // hype meme (good) / the "oof" (trap).
+    if (!NB.playMemeSfx(scene, it.id, 0.85)) {
+      if (good) { NB.sfx.pickup(); NB.playMoment(scene, 'powerup'); }
+      else NB.sfx.commentHit();
+    }
 
     switch (m.fx) {
       case 'stun':
-        mod.stun(m.big ? 2400 : 1600); break;
+        mods.forEach(md => md.stun(m.big ? 2400 : 1600)); break;
       case 'decoy':
-        mod.setDecoy(it.x, it.y, 3200); break;
+        mods.forEach(md => md.setDecoy(it.x, it.y, 3200)); break;
       case 'shield':
         this.shield = true;
         if (this.shieldGfx) this.shieldGfx.destroy();
         this.shieldGfx = scene.add.circle(it.x, it.y, 24).setStrokeStyle(2.5, 0x4a90d9, 0.9).setDepth(19);
         break;
       case 'heatwipe':
-        mod.heat = 0; mod.stun(400); break;
+        mods.forEach(md => { md.heat = 0; md.stun(400); }); break;
       case 'knockback':
-        mod.knockback(m.big ? 360 : 220); break;
+        mods.forEach(md => md.knockback(m.big ? 360 : 220)); break;
       case 'slow':
-        mod.slow(3000, 0.6); break;
+        mods.forEach(md => md.slow(3000, 0.6)); break;
       case 'score':
         scene.survivalMs += (m.score || 1) * 1000; break;
       case 'trap':
-        mod.burst(1600); mod.heat = Math.min(NB.TUNE.HEAT_MAX, mod.heat + 1); break;
+        mods.forEach(md => { md.burst(1600); md.heat = Math.min(NB.TUNE.HEAT_MAX, md.heat + 1); }); break;
     }
 
     const color = m.fx === 'trap' ? '#e0452a'

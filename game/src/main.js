@@ -829,6 +829,7 @@ class GameScene extends Phaser.Scene {
         align: 'center', wordWrap: { width: W - 48 },
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
       const newBest = NB.savePersonalBest(this.karma, reason);
+      NB.postScore(this.userName, this.karma, reason);   // subreddit leaderboard (redis)
       const pb = NB.getPersonalBest();
       const runLine = `${NB.fmtKarma(this.karma)} karma farmed`;
       const bestLine = newBest ? 'NEW HIGH SCORE' : `best: ${NB.fmtKarma(pb)}`;

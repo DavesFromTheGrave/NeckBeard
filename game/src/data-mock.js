@@ -32,6 +32,29 @@ NB.fetchRecentDeaths = function () {
     .catch(() => []);
 };
 
+// Karma leaderboard — best-effort like deaths. On Reddit this is the ONLY
+// persistent high-score store (webview storage is sandboxed away); locally
+// the title board just keeps the device's saves if these fail.
+NB.postScore = function (name, karma, reason) {
+  try {
+    fetch('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        karma: Math.round(karma || 0),
+        reason: (reason || '').toString().replace(/^Reason:\s*/i, '').slice(0, 80),
+      }),
+    }).catch(() => {});
+  } catch { /* best-effort */ }
+};
+NB.fetchLeaderboard = function () {
+  return fetch('/api/leaderboard')
+    .then(r => (r.ok ? r.json() : { scores: [] }))
+    .then(d => (Array.isArray(d.scores) ? d.scores : []))
+    .catch(() => []);
+};
+
 // "Cursed" subreddits — typing one into the header search spawns a bonus
 // pickup on arrival, on top of the normal travel-there behavior.
 NB.CURSED_SUBS = {

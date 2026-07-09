@@ -176,6 +176,53 @@ app.get('/api/deaths/recent', async (c) => {
   }
 });
 
+// Karma leaderboard — best run per player, per subreddit. Sorted set holds
+// name -> best karma; a hash holds the ban reason that ended that best run.
+// Only a HIGHER karma replaces an entry. Trimmed to the top SCORES_MAX.
+// (Webviews can't persist localStorage on Reddit — this IS the high-score
+// system there; the local board is just the offline fallback.)
+const SCORES_MAX = 50;
+const scoresKey = () => `scores:${context.subredditName || 'unknown'}`;
+const reasonsKey = () => `scorereasons:${context.subredditName || 'unknown'}`;
+
+app.post('/api/score', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    let name = (body.name || 'u/lurker').toString().slice(0, 40);
+    if (!/^u\//i.test(name)) name = `u/${name.replace(/^\/?u\//i, '')}`;
+    const karma = Math.max(0, Math.floor(Number(body.karma) || 0));
+    const reason = (body.reason || '').toString().slice(0, 80);
+    if (karma <= 0) return c.json({ ok: false, error: 'no karma' }, 400);
+    const key = scoresKey();
+    const prev = await redis.zScore(key, name).catch(() => null);
+    if (prev != null && prev >= karma) return c.json({ ok: true, best: prev });
+    await redis.zAdd(key, { member: name, score: karma });
+    await redis.hSet(reasonsKey(), { [name]: reason });
+    await redis.zRemRangeByRank(key, 0, -(SCORES_MAX + 1));   // keep the top SCORES_MAX
+    return c.json({ ok: true, best: karma });
+  } catch (e) {
+    return c.json({ ok: false, error: e.message }, 500);
+  }
+});
+
+app.get('/api/leaderboard', async (c) => {
+  try {
+    const rows = await redis.zRange(scoresKey(), 0, 9, { by: 'rank', reverse: true });
+    const names = rows.map(r => r.member);
+    let reasons = [];
+    if (names.length) reasons = await redis.hMGet(reasonsKey(), names).catch(() => []);
+    return c.json({
+      scores: rows.map((r, i) => ({
+        name: r.member,
+        karma: Math.floor(r.score),
+        reason: (reasons && reasons[i]) || '',
+      })),
+    });
+  } catch (e) {
+    return c.json({ scores: [], error: e.message });
+  }
+});
+
 app.get('/health', (c) => c.json({ ok: true, sub: context.subredditName }));
 
 serve({ fetch: app.fetch, createServer, port: getServerPort() });

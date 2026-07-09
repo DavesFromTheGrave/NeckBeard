@@ -69,15 +69,24 @@ class TitleScene extends Phaser.Scene {
     const aw = art.width * s, ah = art.height * s;
     const ax = W / 2 - aw / 2, ay = H / 2 - ah / 2;
 
-    // top-5 survival times, handwritten onto the HIGH SCORE lines
-    const scores = NB.getTopScores();
-    SCORE_LINES.forEach((ln, i) => {
-      if (!scores[i]) return;
-      this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtKarma(scores[i].karma), {
-        fontFamily: NB.FONT_ACCENT || 'Courier New',
-        fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
-        color: '#ffffff',
-      }).setOrigin(0.5, 1).setDepth(2);
+    // top-5 karma, handwritten onto the HIGH SCORE lines. Device saves draw
+    // instantly; the subreddit's redis leaderboard swaps in when it lands.
+    const lineTexts = [];
+    const drawScores = (list) => {
+      lineTexts.forEach(t => t.destroy());
+      lineTexts.length = 0;
+      SCORE_LINES.forEach((ln, i) => {
+        if (!list[i]) return;
+        lineTexts.push(this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtKarma(list[i].karma), {
+          fontFamily: NB.FONT_ACCENT || 'Courier New',
+          fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
+          color: '#ffffff',
+        }).setOrigin(0.5, 1).setDepth(2));
+      });
+    };
+    drawScores(NB.getTopScores());
+    NB.fetchLeaderboard().then(remote => {
+      if (remote.length && this.scene.isActive()) drawScores(remote);
     });
 
     // start cue — anchored INSIDE the art, over superMOD's tie and vest
@@ -144,24 +153,38 @@ class TitleScene extends Phaser.Scene {
     g.lineStyle(1.5, redLine, 0.7);
     g.lineBetween(pad + 8, headY + 15, pad + pw - 8, headY + 15);          // header underline
     g.lineBetween(divX, headY + 15, divX, hsY + hsH - 10);                 // column divider
-    const scores = NB.getTopScores();
     const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / 5;
     const psz = Phaser.Math.Clamp(Math.round(W * 0.05), 14, 24);
     const rsz = Phaser.Math.Clamp(Math.round(W * 0.038), 11, 18);
-    for (let i = 0; i < 5; i++) {
-      const ry = bodyTop + rowH * (i + 0.5), sc = scores[i];
-      this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
-        fontFamily: data, fontSize: `${psz}px`, color: sc && i === 0 ? CREAM_HI : CREAM,
-      }).setOrigin(0.5).setDepth(3);
-      if (sc) {
-        const rt = this.add.text(colR, ry, sc.reason || 'none provided', {
-          fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
-          align: 'center', wordWrap: { width: pw * 0.5 },
-        }).setOrigin(0.5).setDepth(3);
-        if (rt.height > rowH - 6) rt.setScale((rowH - 6) / rt.height);
-      }
-      if (i < 4) { g.lineStyle(1, redLine, 0.22); g.lineBetween(pad + 8, bodyTop + rowH * (i + 1), pad + pw - 8, bodyTop + rowH * (i + 1)); }
+    for (let i = 1; i < 5; i++) {   // static row separators
+      g.lineStyle(1, redLine, 0.22);
+      g.lineBetween(pad + 8, bodyTop + rowH * i, pad + pw - 8, bodyTop + rowH * i);
     }
+    // Device top-5 draws instantly; the subreddit's redis leaderboard swaps in
+    // when the fetch lands (offline / local dev keeps the device board).
+    let rowObjs = [];
+    const drawRows = (list) => {
+      rowObjs.forEach(o => o.destroy());
+      rowObjs = [];
+      for (let i = 0; i < 5; i++) {
+        const ry = bodyTop + rowH * (i + 0.5), sc = list[i];
+        rowObjs.push(this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
+          fontFamily: data, fontSize: `${psz}px`, color: sc && i === 0 ? CREAM_HI : CREAM,
+        }).setOrigin(0.5).setDepth(3));
+        if (sc) {
+          const rt = this.add.text(colR, ry, sc.reason || sc.name || 'none provided', {
+            fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
+            align: 'center', wordWrap: { width: pw * 0.5 },
+          }).setOrigin(0.5).setDepth(3);
+          if (rt.height > rowH - 6) rt.setScale((rowH - 6) / rt.height);
+          rowObjs.push(rt);
+        }
+      }
+    };
+    drawRows(NB.getTopScores());
+    NB.fetchLeaderboard().then(remote => {
+      if (remote.length && this.scene.isActive()) drawRows(remote);
+    });
 
     // ---- HOW TO PLAY ----
     const htY = hsY + hsH + Math.round(H * 0.018);

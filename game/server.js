@@ -133,11 +133,36 @@ function handleDeathsRecent(req, res) {
   sendJson(res, 200, { names: deaths.slice(-24).reverse().map(d => d.name) });
 }
 
+// Karma leaderboard — in-memory stand-in for the Devvit redis version.
+// Best run per name; only a higher karma replaces an entry.
+const scores = new Map();   // name -> { karma, reason }
+async function handleScore(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+  const body = await readBody(req);
+  let name = (body.name || 'u/lurker').toString().slice(0, 40);
+  if (!/^u\//i.test(name)) name = `u/${name.replace(/^\/?u\//i, '')}`;
+  const karma = Math.max(0, Math.floor(Number(body.karma) || 0));
+  const reason = (body.reason || '').toString().slice(0, 80);
+  if (karma <= 0) return sendJson(res, 400, { ok: false, error: 'no karma' });
+  const prev = scores.get(name);
+  if (!prev || karma > prev.karma) scores.set(name, { karma, reason });
+  sendJson(res, 200, { ok: true, best: Math.max(karma, prev ? prev.karma : 0) });
+}
+function handleLeaderboard(req, res) {
+  const rows = [...scores.entries()]
+    .map(([name, v]) => ({ name, karma: v.karma, reason: v.reason }))
+    .sort((a, b) => b.karma - a.karma)
+    .slice(0, 10);
+  sendJson(res, 200, { scores: rows });
+}
+
 const handler = (req, res) => {
   if (req.url.startsWith('/api/arena')) return handleArena(req, res);
   if (req.url.startsWith('/api/img')) return handleImg(req, res);
   if (req.url.startsWith('/api/deaths/recent')) return handleDeathsRecent(req, res);
   if (req.url.startsWith('/api/death')) return handleDeath(req, res);
+  if (req.url.startsWith('/api/score')) return handleScore(req, res);
+  if (req.url.startsWith('/api/leaderboard')) return handleLeaderboard(req, res);
   serveStatic(req, res);
 };
 

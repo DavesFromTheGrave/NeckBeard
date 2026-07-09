@@ -36,6 +36,7 @@ NB.fetchRecentDeaths = function () {
 // persistent high-score store (webview storage is sandboxed away); locally
 // the title board just keeps the device's saves if these fail.
 NB.postScore = function (name, karma, reason) {
+  if (!(karma > 0)) return;   // zero-karma runs don't chart (server 400s them anyway)
   try {
     fetch('/api/score', {
       method: 'POST',

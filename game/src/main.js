@@ -158,19 +158,23 @@ class GameScene extends Phaser.Scene {
       if (this.textures.exists(k)) this.textures.remove(k);
     }
     for (let i = 1; i <= 6; i++) {
-      this.load.image(`walk-${i}`, `assets/walk/mod-walk2-${i}.png`);
-      this.load.image(`run-${i}`, `assets/run/mod-run2-${i}.png`);
-      this.load.image(`charge-${i}`, `assets/charge/mod-charge-${i}.png`);
-      this.load.image(`leap-${i}`, `assets/leap/mod-leap-${i}.png`);
-      this.load.image(`pose-${i}`, `assets/poses/mod-pose2-${i}.png`);
-      this.load.image(`zwalk-${i}`, `assets/zombie/zom-walk-${i}.png`);
-      if (i <= 5) this.load.image(`sledge-${i}`, `assets/sledge/mod-sledge-${i}.png`);
-      if (i <= 5) this.load.image(`zattack-${i}`, `assets/zattack/zom-attack-${i}.png`);
-      if (i <= 6) this.load.image(`carry-${i}`, `assets/carry/mod-carry-${i}.png`);
+      // superM0D — Dave's mustache + BAN-mallet cast (2026-07-09 redesign).
+      // walk is unarmed; heat pulls the mallet out (charge); zrun is the
+      // red-eyed revenant. Sliced into assets/mod1 from his masters.
+      this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
+      this.load.image(`m1-run-${i}`, `assets/mod1/m1-run-${i}.png`);
+      this.load.image(`m1-charge-${i}`, `assets/mod1/m1-charge-${i}.png`);
+      this.load.image(`m1-zrun-${i}`, `assets/mod1/m1-zrun-${i}.png`);
+      if (i <= 5) this.load.image(`m1-sledge-${i}`, `assets/mod1/m1-sledge-${i}.png`);
+      if (i <= 5) this.load.image(`m1-zact-${i}`, `assets/mod1/m1-zact-${i}.png`);
+      if (i <= 2) this.load.image(`m1-leap-${i}`, `assets/mod1/m1-leap-${i}.png`);
+      if (i <= 2) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
       // redditM0D — the post-ceremony tag-in (the navy-shirt replacement mod)
       this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
       this.load.image(`mod2-run-${i}`, `assets/mod2/mod2-run-${i}.png`);
     }
+    this.load.image('m1-crouch', 'assets/mod1/m1-crouch.png');
+    this.load.image('m1-victory', 'assets/mod1/m1-victory.png');
     this.load.image('mod2-idle', 'assets/mod2/mod2-idle.png');
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
@@ -215,13 +219,13 @@ class GameScene extends Phaser.Scene {
     // so they DOWNSCALE crisply. The global pixelArt=NEAREST would alias detailed
     // art on downscale (shimmer/jaggies); UI + other art keep nearest.
     const LINEAR = Phaser.Textures.FilterMode.LINEAR;
-    for (const p of ['walk', 'run', 'charge', 'leap', 'pose', 'zwalk', 'sledge', 'zattack', 'carry',
-                     'mod2-walk', 'mod2-run']) {
+    for (const p of ['m1-walk', 'm1-run', 'm1-charge', 'm1-zrun', 'm1-sledge', 'm1-zact',
+                     'm1-leap', 'm1-zwalk', 'mod2-walk', 'mod2-run']) {
       for (let i = 1; i <= 6; i++) {
         if (this.textures.exists(`${p}-${i}`)) this.textures.get(`${p}-${i}`).setFilter(LINEAR);
       }
     }
-    for (const k of ['mod2-idle', 'mod2-stand']) {
+    for (const k of ['m1-crouch', 'm1-victory', 'mod2-idle', 'mod2-stand']) {
       if (this.textures.exists(k)) this.textures.get(k).setFilter(LINEAR);
     }
     NB.warmCutscene();   // pull the ceremony video into cache long before it's needed
@@ -246,23 +250,31 @@ class GameScene extends Phaser.Scene {
       key, frames: Array.from({ length: n }, (_, i) => ({ key: `${prefix}-${i + 1}` })),
       frameRate: rate, repeat,
     });
-    anim('anim-walk', 'walk', 6, 8);
-    anim('anim-run', 'run', 6, 14);
-    anim('anim-charge', 'charge', 6, 12);
-    anim('anim-leap', 'leap', 6, 14, 0);
-    anim('anim-zwalk', 'zwalk', 6, 9);
-    // vault over a post card: run-up (leap 1-2) -> haul-over (leap 3-5)
+    // superM0D (mustache + BAN mallet). Walk is unarmed; the mallet comes out
+    // at heat 2 (charge) — greed literally arms him. Revenant = red-eye zombie.
+    anim('anim-walk', 'm1-walk', 6, 8);
+    anim('anim-run', 'm1-run', 6, 14);
+    anim('anim-charge', 'm1-charge', 6, 12);
+    this.anims.create({ key: 'anim-leap',
+      frames: [{ key: 'm1-leap-1' }, { key: 'm1-leap-2' }], frameRate: 10, repeat: 0 });
+    anim('anim-zwalk', 'm1-zrun', 6, 9);
     this.anims.create({ key: 'anim-climb',
-      frames: [2, 3, 4, 5].map(i => ({ key: `leap-${i}` })), frameRate: 9, repeat: 0 });
-    this.anims.create({ key: 'anim-crouch', frames: [{ key: 'pose-3' }], frameRate: 1 });
-    this.anims.create({ key: 'anim-stumble', frames: [{ key: 'carry-6' }], frameRate: 1 });
-    this.anims.create({ key: 'anim-victory', frames: [{ key: 'pose-1' }], frameRate: 1 });
-    this.anims.create({ key: 'anim-throw', frames: [{ key: 'sledge-3' }, { key: 'sledge-4' }], frameRate: 5, repeat: 0 });
-    // full sledgehammer swing: wind-up 1-3, impact 4-5 (SMASH state)
+      frames: [{ key: 'm1-crouch' }, { key: 'm1-leap-1' }], frameRate: 9, repeat: 0 });
+    this.anims.create({ key: 'anim-crouch', frames: [{ key: 'm1-crouch' }], frameRate: 1 });
+    this.anims.create({ key: 'anim-stumble', frames: [{ key: 'm1-walk-4' }], frameRate: 1 });
+    this.anims.create({ key: 'anim-victory', frames: [{ key: 'm1-victory' }], frameRate: 1 });
+    this.anims.create({ key: 'anim-throw',
+      frames: [{ key: 'm1-sledge-2' }, { key: 'm1-sledge-3' }], frameRate: 5, repeat: 0 });
+    // full sledgehammer swing: wind-up then impact (SMASH state)
     this.anims.create({ key: 'anim-sledge',
-      frames: [1, 2, 3, 4, 5].map(i => ({ key: `sledge-${i}` })), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'zattack-3' }], frameRate: 1 });
-    this.anims.create({ key: 'anim-zlunge', frames: [{ key: 'zattack-4' }, { key: 'zattack-5' }], frameRate: 10, repeat: 0 });
+      frames: [1, 2, 3, 4, 5].map(i => ({ key: `m1-sledge-${i}` })), frameRate: 8, repeat: 0 });
+    this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'm1-zact-1' }], frameRate: 1 });
+    this.anims.create({ key: 'anim-zlunge',
+      frames: [{ key: 'm1-zact-3' }, { key: 'm1-zact-4' }], frameRate: 10, repeat: 0 });
+    // revenant-only recovery/victory — keeps the zombie GREEN through whiffs
+    // and the catch (no living-skin flicker mid-resurrection)
+    this.anims.create({ key: 'anim-zstumble', frames: [{ key: 'm1-zwalk-1' }], frameRate: 1 });
+    this.anims.create({ key: 'anim-zvictory', frames: [{ key: 'm1-zact-3' }], frameRate: 1 });
     // redditM0D — Dave's transparent sheets: idle + stand + 6-frame walk/run.
     // No weapon poses (he's the corporate replacement): telegraph & stumble
     // hold the deadpan stand (the squash coil sells the wind-up), the lunge

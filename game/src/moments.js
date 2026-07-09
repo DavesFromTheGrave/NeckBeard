@@ -74,6 +74,10 @@ NB.startBed = function (scene) {
   } catch {}
 };
 NB.stopBed = function () {
+  // kill any in-flight duck tween FIRST — a tween touching a destroyed sound
+  // hits Phaser's nulled volumeNode ("reading 'gain'") every frame
+  try { if (NB._duckTween) { NB._duckTween.stop(); } } catch {}
+  NB._duckTween = null;
   try { if (NB._bed) { NB._bed.stop(); NB._bed.destroy(); } } catch {}
   NB._bed = null;
 };
@@ -81,6 +85,9 @@ NB.duckBed = function (scene) {
   if (!NB._bed || !NB._bed.isPlaying) return;
   try {
     NB._bed.setVolume(0.12);
-    if (scene && scene.tweens) scene.tweens.add({ targets: NB._bed, volume: 0.4, duration: 800, delay: 200 });
+    if (scene && scene.tweens) {
+      try { if (NB._duckTween) NB._duckTween.stop(); } catch {}
+      NB._duckTween = scene.tweens.add({ targets: NB._bed, volume: 0.4, duration: 800, delay: 200 });
+    }
   } catch {}
 };

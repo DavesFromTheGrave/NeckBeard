@@ -17,7 +17,7 @@ NB.Supermod = class {
     // heat ramps from THIS mod's entrance, not run start — a late tag-in
     // (redditM0D) starts calm instead of inheriting 60s+ of accumulated rage
     this.heatBase = { ms: scene.survivalMs || 0, karma: scene.karma || 0 };
-    this.sprite = scene.add.sprite(x, y, opts.texture || 'walk-1')
+    this.sprite = scene.add.sprite(x, y, opts.texture || 'm1-walk-1')
       .setScale(this.baseScale).setDepth(10);
     this.state = 'LURK';
     this.stateT = 0;
@@ -67,8 +67,8 @@ NB.Supermod = class {
       telegraph: rev ? 'anim-ztelegraph' : 'anim-crouch',
       lunge: rev ? 'anim-zlunge' : 'anim-leap',
       climb: rev ? 'anim-zwalk' : 'anim-climb',
-      stumble: 'anim-stumble',
-      victory: 'anim-victory',
+      stumble: rev ? 'anim-zstumble' : 'anim-stumble',
+      victory: rev ? 'anim-zvictory' : 'anim-victory',
       throw: 'anim-throw',
       smash: rev ? 'anim-zlunge' : 'anim-sledge',
     };

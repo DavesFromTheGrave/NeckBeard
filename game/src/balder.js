@@ -8,7 +8,7 @@
 window.NB = window.NB || {};
 
 NB.playBalderCeremony = function (scene, done) {
-  const seen = !!sessionStorage.getItem('nb_balder_seen');
+  const seen = !!NB.flagGet('nb_balder_seen');   // storage-safe (webview sandbox)
   scene.ceremonyRunning = true;
   scene.mod.freezeHard();
   let finished = false;
@@ -20,7 +20,7 @@ NB.playBalderCeremony = function (scene, done) {
     // check) + hidden until spawnRevenant resurrects him.
     scene.mod.freezeHard();
     scene.mod.sprite.setVisible(false);
-    sessionStorage.setItem('nb_balder_seen', '1');
+    NB.flagSet('nb_balder_seen', '1');
     scene.cameras.main.zoomTo(1, 200);
     done();
   };
@@ -34,8 +34,18 @@ NB.playBalderCeremony = function (scene, done) {
     scene.time.delayedCall(600, finish);
     return;
   }
-  NB.playCutsceneVideo(scene, 'assets/video/revenant-cutscene.mp4', finish,
-    () => NB.codeCeremony(scene, finish));
+  // Every stage has a landing pad: video → code-cinematic → straight finish.
+  // A ceremony that throws must NEVER brick the run.
+  const cinematic = () => {
+    try { NB.codeCeremony(scene, finish); }
+    catch (e) { console.warn('code ceremony failed:', e); finish(); }
+  };
+  try {
+    NB.playCutsceneVideo(scene, 'assets/video/revenant-cutscene.mp4', finish, cinematic);
+  } catch (e) {
+    console.warn('cutscene video failed:', e);
+    cinematic();
+  }
 };
 
 // Fullscreen DOM <video> takeover. The mp4 ships silent — meme clips fire at

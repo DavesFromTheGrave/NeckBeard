@@ -772,16 +772,23 @@ class GameScene extends Phaser.Scene {
     // the promotion review: survive past the threshold and the catch is
     // intercepted. superM0D is called upstairs, redditM0D tags in HOT, and
     // REVENANT_DELAY_MS later the old mod claws back out — then it's BOTH.
+    // If the ceremony explodes (a webview API we can't touch, whatever), we
+    // fall THROUGH to a normal death — never a bricked run.
     if (!this.balderUsed && this.balderEligible) {
       this.balderUsed = true;
-      NB.playBalderCeremony(this, () => {
-        if (this.caught) return;
-        NB.spawnMod2(this);
-        this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
-          if (!this.caught) NB.spawnRevenant(this);
+      try {
+        NB.playBalderCeremony(this, () => {
+          if (this.caught) return;
+          NB.spawnMod2(this);
+          this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
+            if (!this.caught) NB.spawnRevenant(this);
+          });
         });
-      });
-      return;
+        return;
+      } catch (e) {
+        console.warn('ceremony failed, proceeding to the ban:', e);
+        this.ceremonyRunning = false;
+      }
     }
     this.caught = true;
     NB.sfx.caught();
@@ -1079,6 +1086,18 @@ class GameScene extends Phaser.Scene {
       this.updateHudExtras();
       const mk = Math.floor(this.karma / 1000);   // every 1k karma → a hype meme
       if (mk > this._karmaMilestone) { this._karmaMilestone = mk; NB.playMoment(this, 'karma1k'); }
+      // SELF-HEAL: a mod parked in CAUGHT_YOU with no death screen and no
+      // ceremony means the catch path died mid-flight (this exact brick
+      // happened on real Reddit when the webview blocked sessionStorage).
+      // Re-run the catch — worst case it resolves to the plain death screen.
+      // (frozen CAUGHT_YOU is the benched superM0D awaiting resurrection — fine)
+      const stuck = this.mods.some(m => m.state === 'CAUGHT_YOU' && !m.frozen);
+      this._stuckT = stuck ? (this._stuckT || 0) + dt : 0;
+      if (this._stuckT > 1500) {
+        this._stuckT = 0;
+        console.warn('CAUGHT_YOU with no outcome — forcing the ban');
+        this.onCaught();
+      }
     }
   }
 }

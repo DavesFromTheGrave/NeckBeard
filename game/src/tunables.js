@@ -87,6 +87,20 @@ NB.TUNE = {
   REVENANT_DELAY_MS: 30000,  // how long redditM0D hunts alone before superM0D rises
 };
 
+// Session flags that survive sandboxed webviews. Reddit's iframe can block
+// sessionStorage OUTRIGHT — merely touching it throws a SecurityError (this
+// bricked the ceremony on real Reddit, 2026-07-09). In-memory fallback keeps
+// the once-per-page-load semantics when storage is walled off.
+NB._memFlags = {};
+NB.flagGet = function (k) {
+  try { return sessionStorage.getItem(k) ?? NB._memFlags[k] ?? null; }
+  catch { return NB._memFlags[k] ?? null; }
+};
+NB.flagSet = function (k, v) {
+  NB._memFlags[k] = String(v);
+  try { sessionStorage.setItem(k, String(v)); } catch {}
+};
+
 // A mouse pointer is a precise point; a fingertip is a ~40-50px contact patch
 // that also sits ON TOP of whatever it's aiming at. Farm targets sized for a
 // mouse are frustratingly small to hit (and half-hidden) under a real thumb.

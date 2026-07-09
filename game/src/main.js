@@ -363,8 +363,41 @@ class GameScene extends Phaser.Scene {
         this.entranceActive = false;
         this._entering = false;
         this.doorUI = null;
+        this.showOnboarding();
       });
     });
+  }
+
+  // First-run onboarding: three lines while superM0D still lurks. Auto-fades —
+  // no tap-to-dismiss, because tapping IS gameplay. Once per device via the
+  // storage-safe flag (Reddit's sandboxed webview degrades to once per page
+  // load, which suits drive-by judges fine).
+  showOnboarding() {
+    if (NB.flagGet('nb_onboarded')) return;
+    NB.flagSet('nb_onboarded', '1');
+    const W = this.scale.width, H = this.scale.height;
+    const boxW = Math.min(W - 24, 560);
+    const cy = H * 0.78;
+    const objs = [];
+    objs.push(this.add.rectangle(W / 2, cy, boxW, 100, 0x000000, 0.65)
+      .setDepth(38).setScrollFactor(0).setStrokeStyle(2, 0xd13b2e, 0.9));
+    const lines = [
+      'FARM posts — hover one, hit the targets, steal its karma',
+      'his WIND-UP is your window. RUN.',
+      'memes are power. traps are traps.',
+    ];
+    lines.forEach((t, i) => {
+      const txt = this.add.text(W / 2, cy - 30 + i * 30, t, {
+        fontFamily: 'Courier New', fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.032), 12, 17)}px`,
+        fontStyle: i === 1 ? 'bold' : 'normal',
+        color: i === 1 ? '#ffe14d' : '#ffffff',
+      }).setOrigin(0.5).setDepth(38.5).setScrollFactor(0);
+      if (txt.width > boxW - 20) txt.setScale((boxW - 20) / txt.width);
+      objs.push(txt);
+    });
+    this.time.delayedCall(4200, () => objs.forEach(o => {
+      if (o.active) this.tweens.add({ targets: o, alpha: 0, duration: 400, onComplete: () => o.destroy() });
+    }));
   }
 
   // Reddit-style loading interstitial: canvas-colored cover + shimmering

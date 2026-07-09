@@ -25,7 +25,7 @@ NB.getTopScores = function () {
   try {
     const raw = JSON.parse(localStorage.getItem(NB.TOP5_KEY) || '[]');
     const list = (Array.isArray(raw) ? raw : []).map(normScore).filter(Boolean);
-    return list.sort((a, b) => b.karma - a.karma).slice(0, 5);
+    return list.sort((a, b) => b.karma - a.karma).slice(0, 10);
   } catch {
     return [];
   }
@@ -50,7 +50,7 @@ NB.savePersonalBest = function (karma, reason) {
   const top = NB.getTopScores();
   top.push({ karma: val, reason: String(reason || '').replace(/^Reason:\s*/i, '').trim() });
   try {
-    localStorage.setItem(NB.TOP5_KEY, JSON.stringify(top.sort((a, b) => b.karma - a.karma).slice(0, 5)));
+    localStorage.setItem(NB.TOP5_KEY, JSON.stringify(top.sort((a, b) => b.karma - a.karma).slice(0, 10)));
     if (val > prev) localStorage.setItem(NB.SCORE_KEY, String(val));
   } catch { /* private mode */ }
   return val > prev;

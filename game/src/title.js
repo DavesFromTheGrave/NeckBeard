@@ -153,20 +153,22 @@ class TitleScene extends Phaser.Scene {
     g.lineStyle(1.5, redLine, 0.7);
     g.lineBetween(pad + 8, headY + 15, pad + pw - 8, headY + 15);          // header underline
     g.lineBetween(divX, headY + 15, divX, hsY + hsH - 10);                 // column divider
-    const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / 5;
-    const psz = Phaser.Math.Clamp(Math.round(W * 0.05), 14, 24);
-    const rsz = Phaser.Math.Clamp(Math.round(W * 0.038), 11, 18);
-    for (let i = 1; i < 5; i++) {   // static row separators
-      g.lineStyle(1, redLine, 0.22);
+    // A REAL communal board (subreddit redis) — ten spots, arcade style.
+    const ROWS = 10;
+    const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / ROWS;
+    const psz = Phaser.Math.Clamp(Math.round(W * 0.04), 12, 18);
+    const rsz = Phaser.Math.Clamp(Math.round(W * 0.03), 9, 13);
+    for (let i = 1; i < ROWS; i++) {   // static row separators
+      g.lineStyle(1, redLine, 0.18);
       g.lineBetween(pad + 8, bodyTop + rowH * i, pad + pw - 8, bodyTop + rowH * i);
     }
-    // Device top-5 draws instantly; the subreddit's redis leaderboard swaps in
+    // Device saves draw instantly; the subreddit's redis leaderboard swaps in
     // when the fetch lands (offline / local dev keeps the device board).
     let rowObjs = [];
     const drawRows = (list) => {
       rowObjs.forEach(o => o.destroy());
       rowObjs = [];
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < ROWS; i++) {
         const ry = bodyTop + rowH * (i + 0.5), sc = list[i];
         rowObjs.push(this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
           fontFamily: data, fontSize: `${psz}px`, color: sc && i === 0 ? CREAM_HI : CREAM,
@@ -176,7 +178,7 @@ class TitleScene extends Phaser.Scene {
             fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
             align: 'center', wordWrap: { width: pw * 0.5 },
           }).setOrigin(0.5).setDepth(3);
-          if (rt.height > rowH - 6) rt.setScale((rowH - 6) / rt.height);
+          if (rt.height > rowH - 4) rt.setScale((rowH - 4) / rt.height);
           rowObjs.push(rt);
         }
       }

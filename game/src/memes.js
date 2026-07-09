@@ -7,8 +7,9 @@
 // see MEME-SOURCING.md. IP flags there are Dave's okay/ban-hammer call.
 window.NB = window.NB || {};
 
-// Ids whose real assets have been captured & dropped in. Empty = all placeholder.
-// (yakety-sax is audio-only by design — it rides the color badge.)
+// Ids whose real assets have been captured & dropped in. EVERY registry entry
+// must have art — Dave's rule: no color-badge "coins" in the game (yakety-sax
+// was the last audio-only one; cut 2026-07-09).
 // NOTE: no techno-viking, ever — the man in that video sued over its use and
 // WON (personality rights). Do not re-add him. — Dave, 2026-07-09
 NB.MEME_ART = [
@@ -20,7 +21,7 @@ NB.MEME_ART = [
 ];
 NB.MEME_AUDIO = [
   'shoop-da-whoop', 'trogdor', 'rickroll', 'nyan-cat', 'keyboard-cat', 'over-9000', 'this-is-fine',
-  'ultimate-showdown', 'one-does-not-simply', 'dat-boi', 'gnome', 'banana-phone', 'yakety-sax',
+  'ultimate-showdown', 'one-does-not-simply', 'dat-boi', 'gnome', 'banana-phone',
   'all-your-base', 'badger-badger',
 ];
 
@@ -53,7 +54,6 @@ NB.MEMES = {
   'over-9000':      { name: 'Over 9000', cat: 'powerup', tier: 'rare', fx: 'knockback', say: "IT'S OVER 9000!!", big: true },
   'harambe':        { name: 'Harambe', cat: 'powerup', tier: 'rare', fx: 'slow', say: 'respect. he slows.' },
   'badger-badger':  { name: 'Badger Badger Badger', cat: 'powerup', tier: 'common', fx: 'slow', say: 'badger badger badger' },
-  'yakety-sax':     { name: 'Yakety Sax', cat: 'powerup', tier: 'uncommon', fx: 'slow', say: '*benny hill chase*' },
   'banana-phone':   { name: 'Banana Phone', cat: 'powerup', tier: 'common', fx: 'slow', say: 'ring ring ring' },
   'all-your-base':  { name: 'All Your Base', cat: 'powerup', tier: 'uncommon', fx: 'slow', say: 'all your base…' },
 

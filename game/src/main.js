@@ -437,9 +437,10 @@ class GameScene extends Phaser.Scene {
       this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
       this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
       // Cursor must ride ABOVE all fixed chrome (header/nav/scrollbar are
-      // depth 24-30) or it vanishes under every clickable surface. Below the
-      // death overlay (40) and loading interstitial (60), which cover it.
-      this.cursorGfx = this.add.graphics().setDepth(35);
+      // depth 24-30) AND the mobile sub-drawer (scrim 37, panel 38, rows 39 —
+      // at 35 it vanished the moment the burger menu opened). Below the death
+      // overlay (40) and loading interstitial (60), which cover it.
+      this.cursorGfx = this.add.graphics().setDepth(39.5);
       this.input.on('pointermove', (p) => {
         this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
       });
@@ -805,9 +806,10 @@ class GameScene extends Phaser.Scene {
       layer.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85).setDepth(40).setScrollFactor(0));
 
       // the mod stamps a random meme on the removal notice (the visual half of
-      // the "reason"). Aspect-preserved, width-capped, on a little white card so
-      // transparent and opaque memes both read as a "posted image". memeH = 0
-      // when no art loaded, so the text layout just closes up.
+      // the "reason"). Aspect-preserved, width-capped, floating transparent
+      // over the blackout — Dave shot transparent masters for exactly this,
+      // no white card behind them. memeH = 0 when no art loaded, so the text
+      // layout just closes up.
       const cy = H / 2 - 8;
       let memeH = 0;
       const memeId = Phaser.Utils.Array.GetRandom(NB.DEATH_MEMES);
@@ -816,8 +818,6 @@ class GameScene extends Phaser.Scene {
         const scale = Math.min(Phaser.Math.Clamp(Math.round(H * 0.2), 96, 168) / src.height, (W * 0.8) / src.width);
         const dw = src.width * scale, dh = src.height * scale;
         memeH = dh;
-        this.add.rectangle(W / 2, cy, dw + 22, dh + 22, 0xf6f8f9, 1)
-          .setDepth(41).setScrollFactor(0).setStrokeStyle(3, 0xff4d4d);
         this.add.image(W / 2, cy, `meme-${memeId}`).setDisplaySize(dw, dh)
           .setDepth(41.5).setScrollFactor(0);
       }

@@ -38,6 +38,10 @@ class TitleScene extends Phaser.Scene {
   create() {
     const W = this.scale.width, H = this.scale.height;
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
+    // The page hides the OS cursor (#game{cursor:none}) so the GAME can draw its
+    // own — but the title had none, so the mouse vanished here. Draw it on the
+    // title too: the cursor must NEVER disappear on any screen.
+    this.titleCursor = this.add.graphics().setDepth(200).setScrollFactor(0);
 
     const go = () => {
       if (this.started) return;
@@ -62,6 +66,20 @@ class TitleScene extends Phaser.Scene {
     this.input.keyboard?.once('keydown', go);
   }
 
+  update() {
+    const g = this.titleCursor;
+    if (!g) return;
+    const p = this.input.activePointer;
+    const x = p.x, y = p.y;
+    g.clear();
+    g.fillStyle(0x000000, 1);
+    g.beginPath();
+    g.moveTo(x, y); g.lineTo(x, y + 17); g.lineTo(x + 4.5, y + 13);
+    g.lineTo(x + 8, y + 20); g.lineTo(x + 11, y + 18.5); g.lineTo(x + 7.5, y + 12);
+    g.lineTo(x + 12.5, y + 12); g.closePath(); g.fillPath();
+    g.lineStyle(1.5, 0xffffff, 1); g.strokePath();
+  }
+
   // Desktop/landscape: functional board (right) + an ANIMATED superMOD pacing
   // on the left, so you see who you're up against. Same features as mobile.
   createLandscape(W, H) {
@@ -73,29 +91,40 @@ class TitleScene extends Phaser.Scene {
     const pool = best >= NB.HERO3_UNLOCK ? [1, 2, 3] : [1, 2];
     const heroKey = `title-hero-${Phaser.Utils.Array.GetRandom(pool)}`;
     if (this.textures.exists(heroKey)) {
-      const hero = this.add.image(W / 2, H / 2, heroKey).setDepth(0);
+      // top-anchored cover-fit: fills the screen, crops feet off the BOTTOM if
+      // anything — never the face (Dave: the old fit cut the image off badly).
+      const hero = this.add.image(W / 2, 0, heroKey).setOrigin(0.5, 0).setDepth(0);
       hero.setScale(Math.max(W / hero.width, H / hero.height)).setAlpha(0.5);
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45).setDepth(0.5);
     } else {
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
     }
 
-    // LEFT — animated superMOD (feet planted on a ground line) + tip + start
+    // LEFT — animated superMOD (feet planted) + directions + start
     const leftW = W * 0.4 - pad;
     const leftCx = pad + leftW / 2;
-    const groundY = H * 0.72;
-    this.drawMod(leftCx, groundY, H * 0.56);
+    this.drawMod(leftCx, H * 0.58, H * 0.46);
 
-    const p1y = H - pad - Math.round(H * 0.06);
+    // directions — the PC side had none
+    this.add.text(leftCx, H * 0.66, 'HOW TO PLAY', {
+      fontFamily: NB.FONT_SOUL || 'Georgia, serif',
+      fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.028), 14, 24)}px`, color: '#d13b2e',
+    }).setOrigin(0.5).setDepth(3).setStroke('#000000', 4);
+    const howto = 'FARM posts for karma — hover a post, hit its targets.\n'
+      + 'superMOD ALWAYS winds up before he lunges. RUN then.\n'
+      + 'grab memes to fight back · skip the trap memes\n'
+      + 'type a busier sub up top for more posts. it never ends.';
+    this.add.text(leftCx, H * 0.71, howto, {
+      fontFamily: u.data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.019), 11, 16)}px`,
+      color: '#f6eeca', align: 'center', lineSpacing: 4, wordWrap: { width: leftW - 8 },
+    }).setOrigin(0.5, 0).setDepth(3).setStroke('#000000', 3);
+
+    const p1y = H - pad - Math.round(H * 0.05);
     const start = this.add.text(leftCx, p1y, 'PLAYER 1 START', {
       fontFamily: u.arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.03), 14, 28)}px`, color: '#ffe14d',
     }).setOrigin(0.5).setDepth(3).setStroke('#000000', 5);
     if (start.width > leftW) start.setScale(leftW / start.width);
     this.time.addEvent({ delay: 530, loop: true, callback: () => start.setVisible(!start.visible) });
-    this.add.text(leftCx, p1y - Math.round(H * 0.06), "dodge superMOD · farm karma · don't get banned", {
-      fontFamily: u.data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.019), 11, 16)}px`,
-      color: '#f6eeca', align: 'center', wordWrap: { width: leftW },
-    }).setOrigin(0.5).setDepth(3).setStroke('#000000', 4);
 
     // RIGHT — the real board
     const bx = W * 0.43, bw = W - bx - pad;

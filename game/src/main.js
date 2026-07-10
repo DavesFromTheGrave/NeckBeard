@@ -306,7 +306,21 @@ class GameScene extends Phaser.Scene {
         return NB.fetchArena('gaming')
           .then(d => { this.buildWorld(d); return this.hideLoading(); });
       })
-      .then(() => this.beginEntrance());
+      .then(() => this.beginEntrance())
+      .catch(e => {
+        // Both the host sub and the 'gaming' fallback failed (e.g. total
+        // network loss) — this.ready never got set inside buildWorld(), so
+        // update() would otherwise no-op forever with the loading screen
+        // frozen on screen and zero feedback. Surface it and let the player
+        // retry instead of hanging silently.
+        window.__buildErr = e.message + ' | ' + (e.stack || '');
+        console.error('BOOT FAIL:', e.message, e.stack);
+        this.hideLoadingNow();
+        this.add.text(this.scale.width / 2, this.scale.height / 2,
+          'Couldn\'t load reddit. Reload to try again.',
+          { fontFamily: 'Courier New', fontSize: '18px', color: '#ff4d4d', align: 'center' })
+          .setOrigin(0.5).setDepth(61).setScrollFactor(0);
+      });
   }
 
   // The door on the freshly-loaded page: click it to let superMOD out and

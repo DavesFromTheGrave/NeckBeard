@@ -57,6 +57,21 @@ async function mapPost(p) {
   };
 }
 
+// Last-resort content for a subreddit with zero eligible posts (e.g. a fresh
+// demo/test sub whose only post IS the game post, which is filtered out
+// below). GameScene.create()'s boot chain (main.js) has no recovery path if
+// /api/arena throws on both the host sub AND the 'gaming' fallback it then
+// tries — that soft-locks the player on the loading screen forever, with no
+// error shown. Ship placeholder content instead of ever throwing here.
+const FALLBACK_POSTS = [
+  { id: 'fallback1', author: 'u/AutoModerator', time: 'just now',
+    title: 'Welcome — this subreddit is quiet right now, so here\'s some filler terrain.',
+    ups: 1, num_comments: 0, has_image: false, image_url: null, image_label: '', image_tall: false },
+  { id: 'fallback2', author: 'u/ghost_of_this_sub', time: '1 hr. ago',
+    title: 'Nothing to see here. Yet.', ups: 0, num_comments: 0,
+    has_image: false, image_url: null, image_label: '', image_tall: false },
+];
+
 async function buildArena(subRaw) {
   const host = context.subredditName;
   const requested = cleanSub(subRaw);
@@ -69,11 +84,11 @@ async function buildArena(subRaw) {
   const raw = await reddit.getHotPosts({ subredditName: sub, limit: 25 }).all();
   // keep the arena clean: no NSFW cards, no stickied mod posts, and not the
   // game's own post
-  const posts = await Promise.all(raw
+  let posts = await Promise.all(raw
     .filter(p => !p.isNsfw?.() && !p.nsfw && !p.stickied && p.id !== context.postId)
     .slice(0, 15)
     .map(mapPost));
-  if (!posts.length) throw new Error(`no posts for r/${sub}`);
+  if (!posts.length) posts = FALLBACK_POSTS.map(p => ({ ...p, subreddit: `r/${sub}` }));
 
   // real comments become his projectiles — pulled from the top few posts
   const comments = [];
@@ -185,6 +200,19 @@ app.post('/internal/menu/post-create', async (c) => {
   }
 });
 
+// Both /api/death and /api/score used to trust a client-supplied `name`
+// straight from the POST body — anyone with devtools could impersonate any
+// Redditor or invent one on this subreddit-visible, communal leaderboard.
+// Derive identity server-side instead, the same way /api/arena already does.
+async function authedName() {
+  try {
+    const u = await reddit.getCurrentUsername();
+    return u ? `u/${u}` : 'u/lurker';
+  } catch {
+    return 'u/lurker';
+  }
+}
+
 // "Who died here" — every catch records the player in a per-subreddit sorted
 // set (score = death time). The death screen reads the most recent back for the
 // o7 swarm. Unique by name (a re-death just bumps the timestamp); trimmed to the
@@ -194,9 +222,7 @@ const deathsKey = () => `deaths:${context.subredditName || 'unknown'}`;
 
 app.post('/api/death', async (c) => {
   try {
-    const body = await c.req.json().catch(() => ({}));
-    let name = (body.name || 'u/lurker').toString().slice(0, 40);
-    if (!/^u\//i.test(name)) name = `u/${name.replace(/^\/?u\//i, '')}`;
+    const name = await authedName();
     const key = deathsKey();
     await redis.zAdd(key, { member: name, score: Date.now() });
     await redis.zRemRangeByRank(key, 0, -(DEATHS_MAX + 1));   // keep newest DEATHS_MAX
@@ -227,8 +253,7 @@ const reasonsKey = () => `scorereasons:${context.subredditName || 'unknown'}`;
 app.post('/api/score', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
-    let name = (body.name || 'u/lurker').toString().slice(0, 40);
-    if (!/^u\//i.test(name)) name = `u/${name.replace(/^\/?u\//i, '')}`;
+    const name = await authedName();
     const karma = Math.max(0, Math.floor(Number(body.karma) || 0));
     const reason = (body.reason || '').toString().slice(0, 80);
     if (karma <= 0) return c.json({ ok: false, error: 'no karma' }, 400);

@@ -1,6 +1,10 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "neckbeard-supermod",
+  "permissions": {
+    "reddit": true,
+    "redis": true
+  },
   "post": {
     "dir": "dist/client",
     "entrypoints": {

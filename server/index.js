@@ -90,17 +90,11 @@ async function buildArena(subRaw) {
     } catch { /* comment fetch is best-effort */ }
   }
 
-  let user = 'u/you';
-  try {
-    const name = await reddit.getCurrentUsername();
-    if (name) user = `u/${name}`;
-  } catch { /* logged-out lurker */ }
-
   return {
     mode: 'sub',
     subreddit: sub,
     name: `r/${sub}`,
-    user,
+    user: 'u/you',   // per-USER identity is injected in the handler — never cached
     posts,
     comments: comments.length ? comments : posts.slice(0, 6).map(p => ({
       author: p.author, body: p.title.slice(0, 120),
@@ -119,15 +113,54 @@ async function buildArena(subRaw) {
 const cache = new Map();
 const CACHE_MS = 90_000;
 
+function fmtMembers(n) {
+  if (!Number.isFinite(n) || n <= 0) return 'joined';
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}m`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
+  return String(n);
+}
+
+// The player's OWN communities — superM0D isn't wrecking reddit, he's
+// wrecking THEIR reddit. Sidebar + burger drawer read arena `popular`, so
+// swapping it here personalizes both with zero client changes. Logged-out
+// lurkers keep the stock list.
+async function myCommunities() {
+  try {
+    const subs = await reddit.getSubscribedSubredditsForCurrentUser({ limit: 12 }).all();
+    const mine = subs
+      .filter(s => s && !s.nsfw && s.name && !/^u_/.test(s.name))   // no profiles, no nsfw
+      .slice(0, 8)
+      .map(s => ({ name: `r/${s.name}`, members: fmtMembers(s.numberOfSubscribers) }));
+    return mine.length ? mine : null;
+  } catch { return null; }
+}
+
 app.get('/api/arena', async (c) => {
   const sub = c.req.query('sub') || 'all';
   const key = `${context.subredditName}|${sub.toLowerCase()}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.t < CACHE_MS) return c.json(hit.data);
+  let data = (hit && Date.now() - hit.t < CACHE_MS) ? hit.data : null;
   try {
-    const data = await buildArena(sub);
-    cache.set(key, { t: Date.now(), data });
-    return c.json(data);
+    if (!data) {
+      data = await buildArena(sub);
+      cache.set(key, { t: Date.now(), data });
+    }
+    // Per-USER fields go on AFTER the shared cache — identity and subs must
+    // never leak between players on a warm instance.
+    const out = { ...data };
+    try {
+      const name = await reddit.getCurrentUsername();
+      if (name) out.user = `u/${name}`;
+    } catch { /* logged-out lurker */ }
+    const mine = await myCommunities();
+    if (mine) {
+      const host = context.subredditName;
+      out.popular = [
+        { name: `r/${host}`, members: 'home turf' },
+        ...mine.filter(m => m.name.toLowerCase() !== `r/${(host || '').toLowerCase()}`),
+      ];
+    }
+    return c.json(out);
   } catch (e) {
     return c.json({ error: e.message, sub }, 502);
   }

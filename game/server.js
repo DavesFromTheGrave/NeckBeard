@@ -53,17 +53,28 @@ async function handleArena(req, res) {
   const sub = parseQuery(req.url).sub || 'all';
   const key = sub.toLowerCase();
   const hit = arenaCache.get(key);
-  if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.data);
+  if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, { ...hit.data, popular: MOCK_JOINED });
 
   try {
     const data = await buildArena(sub);
     arenaCache.set(key, { t: Date.now(), data });
-    sendJson(res, 200, data);
+    sendJson(res, 200, { ...data, popular: MOCK_JOINED });
   } catch (e) {
     console.error('arena error', sub, e.message);
     sendJson(res, 502, { error: e.message, sub });
   }
 }
+
+// Local stand-in for the Devvit "player's own subscriptions" list — prod
+// swaps arena `popular` for getSubscribedSubredditsForCurrentUser().
+const MOCK_JOINED = [
+  { name: 'r/neckbeard_dev', members: 'home turf' },
+  { name: 'r/programming', members: '6.4m' },
+  { name: 'r/synthesizers', members: '412k' },
+  { name: 'r/blacksmithing', members: '1.1m' },
+  { name: 'r/homelab', members: '2.3m' },
+  { name: 'r/cats', members: '4.8m' },
+];
 
 function serveStatic(req, res) {
   const url = req.url.split('?')[0];

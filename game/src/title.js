@@ -30,6 +30,9 @@ class TitleScene extends Phaser.Scene {
     // until Dave drops hero-1/2/3.png into assets/title/.
     this.load.on('loaderror', () => {});   // swallow the not-yet-present hero 404s
     for (let i = 1; i <= 3; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
+    // superMOD walk frames — GameScene preloads the full cast, but Title runs
+    // first, so the desktop title loads its own copy for the animated depiction.
+    for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
   }
 
   create() {
@@ -59,47 +62,137 @@ class TitleScene extends Phaser.Scene {
     this.input.keyboard?.once('keydown', go);
   }
 
+  // Desktop/landscape: functional board (right) + an ANIMATED superMOD pacing
+  // on the left, so you see who you're up against. Same features as mobile.
   createLandscape(W, H) {
-    const art = this.add.image(W / 2, H / 2, 'intro-art').setDepth(1);
-    // contain-fit, capped at native resolution
-    const s = Math.min(W / art.width, H / art.height, 1);
-    art.setScale(s);
+    const u = { arcade: NB.FONT_ARCADE || 'Courier New', data: NB.FONT_ACCENT || 'Georgia, serif' };
+    const pad = Math.round(H * 0.05);
 
-    // the art's on-screen rect (for anchoring text to panels inside it)
-    const aw = art.width * s, ah = art.height * s;
-    const ax = W / 2 - aw / 2, ay = H / 2 - ah / 2;
+    // hero background (same cohesive look as mobile), dimmed for contrast
+    const best = NB.getPersonalBest();
+    const pool = best >= NB.HERO3_UNLOCK ? [1, 2, 3] : [1, 2];
+    const heroKey = `title-hero-${Phaser.Utils.Array.GetRandom(pool)}`;
+    if (this.textures.exists(heroKey)) {
+      const hero = this.add.image(W / 2, H / 2, heroKey).setDepth(0);
+      hero.setScale(Math.max(W / hero.width, H / hero.height)).setAlpha(0.5);
+      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45).setDepth(0.5);
+    } else {
+      this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
+    }
 
-    // top-5 karma, handwritten onto the HIGH SCORE lines. Device saves draw
-    // instantly; the subreddit's redis leaderboard swaps in when it lands.
-    const lineTexts = [];
-    const drawScores = (list) => {
-      lineTexts.forEach(t => t.destroy());
-      lineTexts.length = 0;
-      SCORE_LINES.forEach((ln, i) => {
-        if (!list[i]) return;
-        const nm = (list[i].name || '').replace(/^u\//, '');
-        const label = nm ? `${NB.fmtKarma(list[i].karma)} · ${nm.length > 12 ? nm.slice(0, 11) + '…' : nm}`
-                         : NB.fmtKarma(list[i].karma);
-        const t = this.add.text(ax + ln.x * aw, ay + ln.y * ah, label, {
-          fontFamily: NB.FONT_ACCENT || 'Courier New',
-          fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
-          color: '#ffffff',
-        }).setOrigin(0.5, 1).setDepth(2);
-        if (t.width > aw * 0.26) t.setScale((aw * 0.26) / t.width);
-        lineTexts.push(t);
-      });
+    // LEFT — animated superMOD + tip + blinking yellow start
+    const leftW = W * 0.4 - pad;
+    const leftCx = pad + leftW / 2;
+    this.drawMod(leftCx, H * 0.44, H * 0.6);
+
+    const p1h = Math.round(H * 0.12), p1y = H - pad - p1h;
+    this.drawPanel(pad, p1y, leftW, p1h);
+    const start = this.add.text(pad + leftW / 2, p1y + p1h / 2, 'PLAYER 1 START', {
+      fontFamily: u.arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.028), 14, 26)}px`, color: '#ffe14d',
+    }).setOrigin(0.5).setDepth(3);
+    if (start.width > leftW - 16) start.setScale((leftW - 16) / start.width);
+    this.time.addEvent({ delay: 530, loop: true, callback: () => start.setVisible(!start.visible) });
+    this.add.text(pad + leftW / 2, p1y - Math.round(H * 0.05), "dodge superMOD · farm karma · don't get banned", {
+      fontFamily: u.data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.019), 11, 16)}px`,
+      color: '#f6eeca', align: 'center', wordWrap: { width: leftW },
+    }).setOrigin(0.5).setDepth(3);
+
+    // RIGHT — the real board
+    const bx = W * 0.43, bw = W - bx - pad;
+    this.drawBoard(bx, pad, bw, H - pad * 2);
+  }
+
+  // A dark red-bordered panel over the hero — shared chrome.
+  drawPanel(x, y, w, h) {
+    const g = this.add.graphics().setDepth(2);
+    g.fillStyle(0x000000, 0.62); g.fillRect(x, y, w, h);
+    g.lineStyle(3, 0xd13b2e, 1); g.strokeRect(x, y, w, h);
+    return g;
+  }
+
+  // Animated superMOD: cycles the walk frames in place with a gentle pace + bob.
+  drawMod(cx, cy, targetH) {
+    const has = this.textures.exists('m1-walk-1');
+    const key0 = has ? 'm1-walk-1' : (this.textures.exists('door-mod') ? 'door-mod' : 'intro-art');
+    const s = this.add.sprite(cx, cy, key0).setDepth(1);
+    const srcH = this.textures.get(key0).getSourceImage().height || 512;
+    s.setScale(targetH / srcH);
+    if (has) {
+      let f = 1;
+      this.time.addEvent({ delay: 130, loop: true, callback: () => {
+        f = f % 6 + 1;
+        if (this.textures.exists(`m1-walk-${f}`)) s.setTexture(`m1-walk-${f}`);
+      }});
+      this.tweens.add({ targets: s, x: cx + 20, duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+    this.tweens.add({ targets: s, y: cy - 6, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    return s;
+  }
+
+  // The High Score board, drawn into an arbitrary rect (Points | Player | Ban
+  // Reason, 10 rows, subreddit label). Device saves first; redis swaps in.
+  drawBoard(x, y, w, h) {
+    const soul = NB.FONT_SOUL || 'Georgia, serif';
+    const data = NB.FONT_ACCENT || 'Georgia, serif';
+    const RED = '#d13b2e', CREAM = '#f6eeca', CREAM_HI = '#fff2c0', CREAM_DIM = '#cabf93';
+    const redLine = 0xd13b2e;
+    const cx = x + w / 2;
+    this.drawPanel(x, y, w, h);
+    this.add.text(cx, y + h * 0.055, 'High Score', {
+      fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(w * 0.085), 22, 48)}px`, color: RED,
+    }).setOrigin(0.5).setDepth(3);
+    const subLabel = this.add.text(cx, y + h * 0.115, 'this device', {
+      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(w * 0.032), 10, 15)}px`, color: CREAM_DIM,
+    }).setOrigin(0.5).setDepth(3);
+    const colP = x + w * 0.14, colN = x + w * 0.45, colR = x + w * 0.795;
+    const div1 = x + w * 0.27, div2 = x + w * 0.62;
+    const headY = y + h * 0.175;
+    const hsz = `${Phaser.Math.Clamp(Math.round(w * 0.04), 11, 17)}px`;
+    this.add.text(colP, headY, 'Points', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    this.add.text(colN, headY, 'Player', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    this.add.text(colR, headY, 'Ban Reason', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    const g = this.add.graphics().setDepth(3);
+    g.lineStyle(1.5, redLine, 0.7);
+    g.lineBetween(x + 8, headY + 15, x + w - 8, headY + 15);
+    g.lineBetween(div1, headY + 15, div1, y + h - 10);
+    g.lineBetween(div2, headY + 15, div2, y + h - 10);
+    const ROWS = 10;
+    const bodyTop = headY + 22, rowH = (y + h - 8 - bodyTop) / ROWS;
+    const psz = Phaser.Math.Clamp(Math.round(w * 0.038), 11, 18);
+    const rsz = Phaser.Math.Clamp(Math.round(w * 0.028), 9, 14);
+    for (let i = 1; i < ROWS; i++) {
+      g.lineStyle(1, redLine, 0.18);
+      g.lineBetween(x + 8, bodyTop + rowH * i, x + w - 8, bodyTop + rowH * i);
+    }
+    const fit = (t, mw) => { if (t.width > mw) t.setScale(mw / t.width); return t; };
+    const shortName = (n) => { const sn = (n || '').replace(/^u\//, ''); return sn.length > 14 ? `${sn.slice(0, 13)}…` : sn; };
+    let rowObjs = [];
+    const drawRows = (list) => {
+      rowObjs.forEach(o => o.destroy());
+      rowObjs = [];
+      for (let i = 0; i < ROWS; i++) {
+        const ry = bodyTop + rowH * (i + 0.5), sc = list[i];
+        rowObjs.push(fit(this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
+          fontFamily: data, fontSize: `${psz}px`, color: sc && i === 0 ? CREAM_HI : CREAM,
+        }).setOrigin(0.5).setDepth(3), w * 0.24));
+        if (!sc) continue;
+        rowObjs.push(fit(this.add.text(colN, ry, sc.name ? shortName(sc.name) : 'you', {
+          fontFamily: data, fontSize: `${rsz}px`, color: sc.name ? CREAM : CREAM_DIM,
+        }).setOrigin(0.5).setDepth(3), w * 0.31));
+        const rt = this.add.text(colR, ry, sc.reason || 'none provided', {
+          fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
+          align: 'center', wordWrap: { width: w * 0.33 },
+        }).setOrigin(0.5).setDepth(3);
+        if (rt.height > rowH - 4) rt.setScale((rowH - 4) / rt.height);
+        rowObjs.push(rt);
+      }
     };
-    drawScores(NB.getTopScores());
+    drawRows(NB.getTopScores());
     NB.fetchLeaderboard().then(remote => {
-      if (remote.scores.length && this.scene.isActive()) drawScores(remote.scores);
+      if (!this.scene.isActive()) return;
+      if (remote.scores.length) drawRows(remote.scores);
+      if (remote.sub) subLabel.setText(`r/${remote.sub} — this subreddit's board`);
     });
-
-    // start cue — anchored INSIDE the art, over superMOD's tie and vest
-    const hint = this.add.text(ax + aw * 0.5, ay + ah * 0.875, 'PLAYER 1  PRESS START', {
-      fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: '20px', color: '#ffe14d',
-    }).setOrigin(0.5).setDepth(5).setStroke('#000000', 6);
-    // classic arcade attract-mode blink: hard on/off, not a fade
-    this.time.addEvent({ delay: 530, loop: true, callback: () => hint.setVisible(!hint.visible) });
   }
 
   // Portrait mobile: rotating hero art (behind) + three red-on-black panels —

@@ -98,7 +98,7 @@ NB.AdminCameo = class {
   constructor(scene) {
     this.scene = scene;
     this.sprite = null;
-    this.nextT = Phaser.Math.Between(28000, 55000);   // first walk-by
+    this.nextT = Phaser.Math.Between(75000, 130000);   // first walk-by — rare easter egg
     this.vx = 0;
     this.puffT = 0;
   }
@@ -126,7 +126,7 @@ NB.AdminCameo = class {
     if ((this.vx > 0 && s.x > W + 60) || (this.vx < 0 && s.x < -60)) {
       s.destroy();
       this.sprite = null;
-      this.nextT = Phaser.Math.Between(45000, 90000);
+      this.nextT = Phaser.Math.Between(150000, 260000);
     }
   }
 

@@ -80,22 +80,22 @@ class TitleScene extends Phaser.Scene {
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
     }
 
-    // LEFT — animated superMOD + tip + blinking yellow start
+    // LEFT — animated superMOD (feet planted on a ground line) + tip + start
     const leftW = W * 0.4 - pad;
     const leftCx = pad + leftW / 2;
-    this.drawMod(leftCx, H * 0.44, H * 0.6);
+    const groundY = H * 0.72;
+    this.drawMod(leftCx, groundY, H * 0.56);
 
-    const p1h = Math.round(H * 0.12), p1y = H - pad - p1h;
-    this.drawPanel(pad, p1y, leftW, p1h);
-    const start = this.add.text(pad + leftW / 2, p1y + p1h / 2, 'PLAYER 1 START', {
-      fontFamily: u.arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.028), 14, 26)}px`, color: '#ffe14d',
-    }).setOrigin(0.5).setDepth(3);
-    if (start.width > leftW - 16) start.setScale((leftW - 16) / start.width);
+    const p1y = H - pad - Math.round(H * 0.06);
+    const start = this.add.text(leftCx, p1y, 'PLAYER 1 START', {
+      fontFamily: u.arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.03), 14, 28)}px`, color: '#ffe14d',
+    }).setOrigin(0.5).setDepth(3).setStroke('#000000', 5);
+    if (start.width > leftW) start.setScale(leftW / start.width);
     this.time.addEvent({ delay: 530, loop: true, callback: () => start.setVisible(!start.visible) });
-    this.add.text(pad + leftW / 2, p1y - Math.round(H * 0.05), "dodge superMOD · farm karma · don't get banned", {
+    this.add.text(leftCx, p1y - Math.round(H * 0.06), "dodge superMOD · farm karma · don't get banned", {
       fontFamily: u.data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.019), 11, 16)}px`,
       color: '#f6eeca', align: 'center', wordWrap: { width: leftW },
-    }).setOrigin(0.5).setDepth(3);
+    }).setOrigin(0.5).setDepth(3).setStroke('#000000', 4);
 
     // RIGHT — the real board
     const bx = W * 0.43, bw = W - bx - pad;

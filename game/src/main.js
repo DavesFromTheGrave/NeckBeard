@@ -1094,11 +1094,16 @@ class GameScene extends Phaser.Scene {
       if (!this.balderEligible && !this.balderUsed && this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS) {
         this.balderEligible = true;
       }
-      // edge-push scrolling: finger near top/bottom scrolls the feed (touch-first)
+      // edge-push scrolling: finger near top/bottom scrolls the feed. Touch
+      // needs a much fatter, faster bottom zone — you're dodging with the same
+      // finger you scroll with (mobile kid couldn't outrun superMOD downward).
       const py = this.pointerScreen.y;
-      const zone = H * 0.13;
-      if (py < zone) cam.scrollY -= (1 - py / zone) * 540 * dt / 1000;
-      else if (py > H - zone) cam.scrollY += (1 - (H - py) / zone) * 540 * dt / 1000;
+      const touch = !this.sys.game.device.os.desktop;
+      const zTop = H * 0.13;
+      const zBot = H * (touch ? 0.24 : 0.13);
+      const spd = touch ? 760 : 540;
+      if (py < zTop) cam.scrollY -= (1 - py / zTop) * spd * dt / 1000;
+      else if (py > H - zBot) cam.scrollY += (1 - (H - py) / zBot) * spd * dt / 1000;
       cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, this.page.WORLD_H - H);
     }
 

@@ -168,7 +168,7 @@ class GameScene extends Phaser.Scene {
       if (i <= 5) this.load.image(`m1-sledge-${i}`, `assets/mod1/m1-sledge-${i}.png`);
       if (i <= 5) this.load.image(`m1-zact-${i}`, `assets/mod1/m1-zact-${i}.png`);
       if (i <= 2) this.load.image(`m1-leap-${i}`, `assets/mod1/m1-leap-${i}.png`);
-      if (i <= 2) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
+      this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);   // real green-zombie walk (6, from video)
       // redditM0D — the post-ceremony tag-in (the navy-shirt replacement mod)
       this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
       this.load.image(`mod2-run-${i}`, `assets/mod2/mod2-run-${i}.png`);
@@ -260,7 +260,7 @@ class GameScene extends Phaser.Scene {
     anim('anim-charge', 'm1-charge', 6, 12);
     this.anims.create({ key: 'anim-leap',
       frames: [{ key: 'm1-leap-1' }, { key: 'm1-leap-2' }], frameRate: 10, repeat: 0 });
-    anim('anim-zwalk', 'm1-zrun', 6, 9);
+    anim('anim-zwalk', 'm1-zwalk', 6, 8);   // green zombie w/ BAN, real leg cycle
     this.anims.create({ key: 'anim-climb',
       frames: [{ key: 'm1-crouch' }, { key: 'm1-leap-1' }], frameRate: 9, repeat: 0 });
     this.anims.create({ key: 'anim-crouch', frames: [{ key: 'm1-crouch' }], frameRate: 1 });

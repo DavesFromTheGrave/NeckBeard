@@ -55,14 +55,23 @@ function mapPost(d, forceSub) {
   };
 }
 
+// Try several reddit hosts before giving up — www often serves the bot wall
+// on home/datacenter IPs while api/old still answer. Matters because the
+// pullpush fallback's archive is ~14 months stale ("415 d. ago" posts).
 async function fetchRedditJson(path) {
-  const url = `https://www.reddit.com${path}`;
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
-  const text = await res.text();
-  if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-    throw new Error('reddit bot wall');
+  const hosts = ['https://www.reddit.com', 'https://api.reddit.com', 'https://old.reddit.com'];
+  let lastErr;
+  for (const host of hosts) {
+    try {
+      const res = await fetch(`${host}${path}`, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+      const text = await res.text();
+      if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
+        throw new Error('reddit bot wall');
+      }
+      return JSON.parse(text);
+    } catch (e) { lastErr = e; }
   }
-  return JSON.parse(text);
+  throw lastErr;
 }
 
 async function fetchPullpushSub(sub, limit) {
@@ -73,7 +82,7 @@ async function fetchPullpushSub(sub, limit) {
   const res = await fetch(url, { headers: { 'User-Agent': UA } });
   if (!res.ok) throw new Error(`pullpush ${res.status}`);
   const json = await res.json();
-  return (json.data || []).filter(isSafe).map(p => mapPost({
+  const rows = (json.data || []).filter(isSafe).map(p => mapPost({
     id: p.id,
     subreddit: p.subreddit,
     author: p.author,
@@ -86,6 +95,16 @@ async function fetchPullpushSub(sub, limit) {
     post_hint: p.post_hint,
     domain: p.domain,
   }, sub === 'all' ? null : sub));
+  // The pullpush archive lags ~14 months, so every real age reads "415 d.
+  // ago" and breaks the illusion. Local dev is a stage set — dress the ages
+  // (deterministic per slot). The Devvit build uses live reddit data.
+  return rows.map((p, i) => ({ ...p, time: fakeRecentAge(i), archived: true }));
+}
+
+const FAKE_AGE_MINS = [7, 23, 41, 88, 140, 190, 260, 340, 480, 610, 760, 900, 1100, 1300, 1410];
+function fakeRecentAge(i) {
+  const m = FAKE_AGE_MINS[i % FAKE_AGE_MINS.length];
+  return m < 60 ? `${m} min. ago` : `${Math.floor(m / 60)} hr. ago`;
 }
 
 async function fetchPullpushComments(sub, limit) {
@@ -178,7 +197,7 @@ async function buildArena(subRaw) {
       body: p.title.slice(0, 120),
     })),
     popular: POPULAR,
-    source: 'live',
+    source: posts.some(p => p.archived) ? 'archive' : 'live',
   };
 }
 

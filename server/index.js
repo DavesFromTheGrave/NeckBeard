@@ -245,6 +245,7 @@ app.get('/api/leaderboard', async (c) => {
     let reasons = [];
     if (names.length) reasons = await redis.hMGet(reasonsKey(), names).catch(() => []);
     return c.json({
+      sub: context.subredditName || '',
       scores: rows.map((r, i) => ({
         name: r.member,
         karma: Math.floor(r.score),
@@ -252,7 +253,7 @@ app.get('/api/leaderboard', async (c) => {
       })),
     });
   } catch (e) {
-    return c.json({ scores: [], error: e.message });
+    return c.json({ sub: context.subredditName || '', scores: [], error: e.message });
   }
 });
 

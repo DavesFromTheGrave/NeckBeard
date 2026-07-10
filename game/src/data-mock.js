@@ -51,9 +51,12 @@ NB.postScore = function (name, karma, reason) {
 };
 NB.fetchLeaderboard = function () {
   return fetch('/api/leaderboard')
-    .then(r => (r.ok ? r.json() : { scores: [] }))
-    .then(d => (Array.isArray(d.scores) ? d.scores : []))
-    .catch(() => []);
+    .then(r => (r.ok ? r.json() : {}))
+    .then(d => ({
+      sub: (d && d.sub) || '',
+      scores: (d && Array.isArray(d.scores)) ? d.scores : [],
+    }))
+    .catch(() => ({ sub: '', scores: [] }));
 };
 
 // "Cursed" subreddits — typing one into the header search spawns a bonus

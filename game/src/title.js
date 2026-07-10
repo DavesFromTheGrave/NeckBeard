@@ -77,16 +77,21 @@ class TitleScene extends Phaser.Scene {
       lineTexts.length = 0;
       SCORE_LINES.forEach((ln, i) => {
         if (!list[i]) return;
-        lineTexts.push(this.add.text(ax + ln.x * aw, ay + ln.y * ah, NB.fmtKarma(list[i].karma), {
+        const nm = (list[i].name || '').replace(/^u\//, '');
+        const label = nm ? `${NB.fmtKarma(list[i].karma)} · ${nm.length > 12 ? nm.slice(0, 11) + '…' : nm}`
+                         : NB.fmtKarma(list[i].karma);
+        const t = this.add.text(ax + ln.x * aw, ay + ln.y * ah, label, {
           fontFamily: NB.FONT_ACCENT || 'Courier New',
           fontSize: `${Math.max(14, Math.round(ah * 0.034))}px`,
           color: '#ffffff',
-        }).setOrigin(0.5, 1).setDepth(2));
+        }).setOrigin(0.5, 1).setDepth(2);
+        if (t.width > aw * 0.26) t.setScale((aw * 0.26) / t.width);
+        lineTexts.push(t);
       });
     };
     drawScores(NB.getTopScores());
     NB.fetchLeaderboard().then(remote => {
-      if (remote.length && this.scene.isActive()) drawScores(remote);
+      if (remote.scores.length && this.scene.isActive()) drawScores(remote.scores);
     });
 
     // start cue — anchored INSIDE the art, over superMOD's tie and vest
@@ -130,38 +135,43 @@ class TitleScene extends Phaser.Scene {
     };
     const fit = (t, maxW) => { if (t.width > maxW) t.setScale(maxW / t.width); return t; };
 
-    // ---- PLAYER 1 START (arcade, blinking) ----
+    // ---- HIGH SCORE board (Points | Player | Ban Reason) — TOP panel ----
+    // A REAL communal board (subreddit redis) — ten spots, arcade style.
     const p1h = Math.round(H * 0.075);
-    panel(pad, p1h);
-    const start = fit(this.add.text(cx, pad + p1h / 2, 'PLAYER 1 START', {
-      fontFamily: arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.05), 13, 24)}px`, color: BRIGHT,
-    }).setOrigin(0.5).setDepth(3), pw - 18);
-    this.time.addEvent({ delay: 530, loop: true, callback: () => start.setVisible(!start.visible) });
-
-    // ---- HIGH SCORE board (Points | Ban Reason) ----
-    const hsY = pad + p1h + Math.round(H * 0.018);
-    const hsH = Math.round(H * 0.45);
+    const hsY = pad;
+    const hsH = Math.round(H * 0.47);
     panel(hsY, hsH);
-    this.add.text(cx, hsY + Math.round(H * 0.032), 'High Score', {
-      fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.085), 22, 46)}px`, color: RED,
+    this.add.text(cx, hsY + Math.round(H * 0.028), 'High Score', {
+      fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.08), 20, 42)}px`, color: RED,
     }).setOrigin(0.5).setDepth(3);
-    const colP = pad + pw * 0.26, colR = pad + pw * 0.66, divX = pad + pw * 0.42;
-    const headY = hsY + Math.round(H * 0.078);
-    this.add.text(colP, headY, 'Points', { fontFamily: soul, fontSize: `${Math.round(W * 0.045)}px`, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
-    this.add.text(colR, headY, 'Ban Reason', { fontFamily: soul, fontSize: `${Math.round(W * 0.045)}px`, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    // whose board this is — device saves until the subreddit fetch lands
+    const subLabel = this.add.text(cx, hsY + Math.round(H * 0.058), 'this device', {
+      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.032), 10, 14)}px`, color: CREAM_DIM,
+    }).setOrigin(0.5).setDepth(3);
+    const colP = pad + pw * 0.14, colN = pad + pw * 0.45, colR = pad + pw * 0.795;
+    const div1 = pad + pw * 0.27, div2 = pad + pw * 0.62;
+    const headY = hsY + Math.round(H * 0.09);
+    const hsz = `${Math.round(W * 0.042)}px`;
+    this.add.text(colP, headY, 'Points', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    this.add.text(colN, headY, 'Player', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
+    this.add.text(colR, headY, 'Ban Reason', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
     const g = this.add.graphics().setDepth(3);
     g.lineStyle(1.5, redLine, 0.7);
     g.lineBetween(pad + 8, headY + 15, pad + pw - 8, headY + 15);          // header underline
-    g.lineBetween(divX, headY + 15, divX, hsY + hsH - 10);                 // column divider
-    // A REAL communal board (subreddit redis) — ten spots, arcade style.
+    g.lineBetween(div1, headY + 15, div1, hsY + hsH - 10);                 // column dividers
+    g.lineBetween(div2, headY + 15, div2, hsY + hsH - 10);
     const ROWS = 10;
     const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / ROWS;
-    const psz = Phaser.Math.Clamp(Math.round(W * 0.04), 12, 18);
-    const rsz = Phaser.Math.Clamp(Math.round(W * 0.03), 9, 13);
+    const psz = Phaser.Math.Clamp(Math.round(W * 0.038), 11, 16);
+    const rsz = Phaser.Math.Clamp(Math.round(W * 0.028), 9, 12);
     for (let i = 1; i < ROWS; i++) {   // static row separators
       g.lineStyle(1, redLine, 0.18);
       g.lineBetween(pad + 8, bodyTop + rowH * i, pad + pw - 8, bodyTop + rowH * i);
     }
+    const shortName = (n) => {
+      const s = (n || '').replace(/^u\//, '');
+      return s.length > 14 ? `${s.slice(0, 13)}…` : s;
+    };
     // Device saves draw instantly; the subreddit's redis leaderboard swaps in
     // when the fetch lands (offline / local dev keeps the device board).
     let rowObjs = [];
@@ -170,27 +180,39 @@ class TitleScene extends Phaser.Scene {
       rowObjs = [];
       for (let i = 0; i < ROWS; i++) {
         const ry = bodyTop + rowH * (i + 0.5), sc = list[i];
-        rowObjs.push(this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
+        rowObjs.push(fit(this.add.text(colP, ry, sc ? NB.fmtKarma(sc.karma) : '—', {
           fontFamily: data, fontSize: `${psz}px`, color: sc && i === 0 ? CREAM_HI : CREAM,
-        }).setOrigin(0.5).setDepth(3));
-        if (sc) {
-          const rt = this.add.text(colR, ry, sc.reason || sc.name || 'none provided', {
-            fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
-            align: 'center', wordWrap: { width: pw * 0.5 },
-          }).setOrigin(0.5).setDepth(3);
-          if (rt.height > rowH - 4) rt.setScale((rowH - 4) / rt.height);
-          rowObjs.push(rt);
-        }
+        }).setOrigin(0.5).setDepth(3), pw * 0.24));
+        if (!sc) continue;
+        rowObjs.push(fit(this.add.text(colN, ry, sc.name ? shortName(sc.name) : 'you', {
+          fontFamily: data, fontSize: `${rsz}px`, color: sc.name ? CREAM : CREAM_DIM,
+        }).setOrigin(0.5).setDepth(3), pw * 0.31));
+        const rt = this.add.text(colR, ry, sc.reason || 'none provided', {
+          fontFamily: data, fontSize: `${rsz}px`, color: CREAM,
+          align: 'center', wordWrap: { width: pw * 0.33 },
+        }).setOrigin(0.5).setDepth(3);
+        if (rt.height > rowH - 4) rt.setScale((rowH - 4) / rt.height);
+        rowObjs.push(rt);
       }
     };
     drawRows(NB.getTopScores());
     NB.fetchLeaderboard().then(remote => {
-      if (remote.length && this.scene.isActive()) drawRows(remote);
+      if (!this.scene.isActive()) return;
+      if (remote.scores.length) drawRows(remote.scores);
+      if (remote.sub) subLabel.setText(`r/${remote.sub} — this subreddit's board`);
     });
 
-    // ---- HOW TO PLAY ----
+    // ---- PLAYER 1 START (arcade, blinking YELLOW, bottom of the page) ----
+    const p1Y = H - pad - p1h;
+    panel(p1Y, p1h);
+    const start = fit(this.add.text(cx, p1Y + p1h / 2, 'PLAYER 1 START', {
+      fontFamily: arcade, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.05), 13, 24)}px`, color: '#ffe14d',
+    }).setOrigin(0.5).setDepth(3), pw - 18);
+    this.time.addEvent({ delay: 530, loop: true, callback: () => start.setVisible(!start.visible) });
+
+    // ---- HOW TO PLAY (middle — start panel now owns the bottom edge) ----
     const htY = hsY + hsH + Math.round(H * 0.018);
-    const htH = H - htY - pad;
+    const htH = H - htY - pad - p1h - Math.round(H * 0.018);
     panel(htY, htH);
     this.add.text(cx, htY + Math.round(H * 0.03), 'How to Play', {
       fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.072), 20, 40)}px`, color: RED,

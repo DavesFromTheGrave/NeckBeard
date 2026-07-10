@@ -164,7 +164,7 @@ function handleLeaderboard(req, res) {
     .map(([name, v]) => ({ name, karma: v.karma, reason: v.reason }))
     .sort((a, b) => b.karma - a.karma)
     .slice(0, 10);
-  sendJson(res, 200, { scores: rows });
+  sendJson(res, 200, { sub: 'local_dev', scores: rows });
 }
 
 const handler = (req, res) => {

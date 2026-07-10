@@ -69,11 +69,14 @@ async function handleArena(req, res) {
 // swaps arena `popular` for getSubscribedSubredditsForCurrentUser().
 const MOCK_JOINED = [
   { name: 'r/neckbeard_dev', members: 'home turf' },
-  { name: 'r/programming', members: '6.4m' },
-  { name: 'r/synthesizers', members: '412k' },
-  { name: 'r/blacksmithing', members: '1.1m' },
-  { name: 'r/homelab', members: '2.3m' },
-  { name: 'r/cats', members: '4.8m' },
+  { name: 'r/programming', members: '6.4m' }, { name: 'r/synthesizers', members: '412k' },
+  { name: 'r/blacksmithing', members: '1.1m' }, { name: 'r/homelab', members: '2.3m' },
+  { name: 'r/cats', members: '4.8m' }, { name: 'r/mechanicalkeyboards', members: '1.3m' },
+  { name: 'r/woodworking', members: '3.1m' }, { name: 'r/retrogaming', members: '900k' },
+  { name: 'r/coffee', members: '2.0m' }, { name: 'r/DIY', members: '22m' },
+  { name: 'r/pcmasterrace', members: '11m' }, { name: 'r/gardening', members: '6.7m' },
+  { name: 'r/whisky', members: '480k' }, { name: 'r/vinyl', members: '1.9m' },
+  { name: 'r/hiking', members: '2.4m' },
 ];
 
 function serveStatic(req, res) {

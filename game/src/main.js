@@ -587,7 +587,7 @@ class GameScene extends Phaser.Scene {
       { sub: 'news', label: 'News', icon: '📰' },
     ];
     for (const s of (NB.RECENT_SUBS || []).slice(0, 4)) items.push({ sub: s, label: `r/${s}` });
-    for (const cm of ((this.arenaData && this.arenaData.popular) || []).slice(0, 6)) {
+    for (const cm of ((this.arenaData && this.arenaData.popular) || []).slice(0, 16)) {
       items.push({ sub: (cm.name || '').replace(/^r\//, ''), label: cm.name });
     }
     const seen = new Set();

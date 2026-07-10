@@ -606,7 +606,7 @@ NB.buildFakePage = function (scene, W, viewH, data) {
       }
     }
     if (navSection('COMMUNITIES')) {
-      const comms = (data.popular || []).slice(0, 6);
+      const comms = (data.popular || []).slice(0, 12);
       for (const c of comms) {
         const s = c.name.replace(/^r\//, '');
         if (ny > viewH - 34) break;

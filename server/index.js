@@ -126,10 +126,16 @@ function fmtMembers(n) {
 // lurkers keep the stock list.
 async function myCommunities() {
   try {
-    const subs = await reddit.getSubscribedSubredditsForCurrentUser({ limit: 12 }).all();
-    const mine = subs
-      .filter(s => s && !s.nsfw && s.name && !/^u_/.test(s.name))   // no profiles, no nsfw
-      .slice(0, 8)
+    // Fetch a big pool and SHUFFLE — power users follow hundreds of subs, so a
+    // fixed top-N is a samey slice. A shuffled sample makes different corners
+    // of THEIR reddit show up each load (it's all theirs to get wrecked).
+    const subs = await reddit.getSubscribedSubredditsForCurrentUser({ limit: 200 }).all();
+    const pool = subs.filter(s => s && !s.nsfw && s.name && !/^u_/.test(s.name));
+    for (let i = pool.length - 1; i > 0; i--) {           // Fisher-Yates
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const mine = pool.slice(0, 16)
       .map(s => ({ name: `r/${s.name}`, members: fmtMembers(s.numberOfSubscribers) }));
     return mine.length ? mine : null;
   } catch { return null; }

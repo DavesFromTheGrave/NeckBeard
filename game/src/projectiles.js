@@ -11,7 +11,13 @@ NB.Projectiles = class {
 
   throwAt(fromX, fromY, target) {
     const c = Phaser.Utils.Array.GetRandom(this.comments);
-    const txt = `${c.author}: ${c.body}`;
+    let txt = `${c.author}: ${c.body}`;
+    // the letter-hunt whisper: sometimes the comment he throws at you IS the
+    // tip (Dave: "added to the posts that are thrown (sometimes)"). Stops
+    // once the hunt is finished. DRAFT wording — Dave's to swap.
+    if (!NB.lettersDone() && Math.random() < 0.12) {
+      txt = 'u/[deleted]: r/cursed. type it. before he sees this.';
+    }
     const w = Math.min(240, 40 + txt.length * 6.2), h = 34;
     const card = this.scene.add.rectangle(fromX, fromY, w, h, 0xffffff, 1)
       .setStrokeStyle(1.5, 0x878a8c).setDepth(14);

@@ -43,11 +43,16 @@ NB.Balder = class {
   // tp-* frames are the whole EFFECT (body + burst + smoke, ~600 tall with the
   // body reading ~55% of it). Scale so his body stays body-sized and the burst
   // blooms beyond it; body sheets snap back to bodyScale after.
-  playBurst(key) {
+  // `ms` squeezes the 12-frame burst into its warning window (blink beats are
+  // a half second TOTAL now); omit it for the unhurried entrance burst.
+  playBurst(key, ms) {
     const target = 512 * this.bodyScale * 1.7;
-    this.sprite.setScale(target / 600).play(key);
+    const s = this.sprite.setScale(target / 600);
+    s.play(key);
+    s.anims.timeScale = ms ? NB.TUNE.BOSS_TP_NATURAL_MS / ms : 1;
   }
   bodyAnim(key, frame) {
+    this.sprite.anims.timeScale = 1;
     this.sprite.setScale(this.bodyScale);
     if (key) {
       if (this._animKey !== key) { this._animKey = key; this.sprite.play(key); }
@@ -93,7 +98,7 @@ NB.Balder = class {
       case 'VANISH': {
         // charge-up = the "he's coming" tell. Committed: no movement, no catch.
         this._animKey = null;
-        this.playBurst('anim-tele-vanish');
+        this.playBurst('anim-tele-vanish', T.BOSS_TP_VANISH_MS);
         NB.sfx.telegraph && NB.sfx.telegraph();
         this.scene.cameras.main.shake(120, 0.004);
         break;
@@ -107,13 +112,13 @@ NB.Balder = class {
         // never on top: the burst + ring is your warning, not your death.
         spr.setPosition(this.landing.x, this.landing.y).setVisible(true);
         this._animKey = null;
-        this.playBurst('anim-tele-arrive');
+        this.playBurst('anim-tele-arrive', T.BOSS_TP_ARRIVE_MS);
         NB.sfx.lunge && NB.sfx.lunge();
         this.scene.cameras.main.shake(200, 0.006);
         this.ring.setPosition(this.landing.x, this.landing.y)
           .setVisible(true).setScale(1.7).setAlpha(0.35);
         this.scene.tweens.add({ targets: this.ring, scale: 0.8, alpha: 1,
-          duration: T.BOSS_TP_ANIM_MS });
+          duration: T.BOSS_TP_ARRIVE_MS });
         break;
       }
       case 'STRIKE': {
@@ -142,7 +147,7 @@ NB.Balder = class {
       case 'ENTRANCE': {
         // theater, not threat — no catch exists here. Burst lands, then the
         // mods go under while he watches, then the hunt begins.
-        if (!this._vacuumed && this.stateT >= T.BOSS_TP_ANIM_MS) {
+        if (!this._vacuumed && this.stateT >= T.BOSS_TP_NATURAL_MS) {
           this._vacuumed = true;
           this.bodyAnim(null, 'bh-walk-1');
           this.vacuumMods();
@@ -168,7 +173,7 @@ NB.Balder = class {
         break;
       }
       case 'VANISH': {
-        if (this.stateT >= T.BOSS_TP_ANIM_MS) this.setState('GAP');
+        if (this.stateT >= T.BOSS_TP_VANISH_MS) this.setState('GAP');
         break;
       }
       case 'GAP': {
@@ -187,7 +192,7 @@ NB.Balder = class {
         break;
       }
       case 'MATERIALIZE': {
-        if (this.stateT >= T.BOSS_TP_ANIM_MS) {
+        if (this.stateT >= T.BOSS_TP_ARRIVE_MS) {
           // burst done → the grab. face whichever side you're on.
           this.bodyAnim(`anim-${dx < 0 ? 'bz' : 'bh'}-run`);
           this.setState('STRIKE');

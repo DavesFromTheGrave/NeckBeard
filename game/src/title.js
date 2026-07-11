@@ -132,7 +132,9 @@ class TitleScene extends Phaser.Scene {
     const howto = 'FARM posts for karma — hover a post, hit its targets.\n'
       + 'superMOD ALWAYS winds up before he lunges. RUN then.\n'
       + 'grab memes to fight back · skip the trap memes\n'
-      + 'type a busier sub up top for more posts. it never ends.';
+      + 'type a busier sub up top for more posts. it never ends.\n'
+      // the letter-hunt entry tip (DRAFT wording — Dave's to swap)
+      + 'they whisper about r/cursed. type it and see.';
     this.add.text(leftCx, H * 0.71, howto, {
       fontFamily: u.data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.019), 11, 16)}px`,
       color: '#f6eeca', align: 'center', lineSpacing: 4, wordWrap: { width: leftW - 8 },
@@ -362,6 +364,8 @@ class TitleScene extends Phaser.Scene {
       'Raid posts for KARMA — hover a post and hit the 3 targets to steal its points, before superMOD wrecks it and it\'s gone forever.\n\n' +
       'Grab MEMES for power: stun him, shield yourself, drop a decoy. Skip the trap memes.\n\n' +
       'He always winds up before he lunges — that wind-up is your window to bolt.\n\n' +
+      // the letter-hunt entry tip (DRAFT wording — Dave's to swap)
+      'They whisper about r/cursed. Type it and see.\n\n' +
       'It\'s simple. Just stay away from superMOD.';
     const htTxt = this.add.text(cx, htY + Math.round(H * 0.078), howto, {
       fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.044), 13, 21)}px`, color: CREAM,

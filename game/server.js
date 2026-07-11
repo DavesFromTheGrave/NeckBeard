@@ -61,8 +61,52 @@ async function handleArena(req, res) {
     sendJson(res, 200, { ...data, popular: MOCK_JOINED });
   } catch (e) {
     console.error('arena error', sub, e.message);
-    sendJson(res, 502, { error: e.message, sub });
+    // pullpush flakes in waves (429/502) and used to hard-brick local dev at
+    // boot. Serve the stale cache if one exists, else the canned offline
+    // arena — the stage set must never go dark. (Real Reddit uses Reddit's
+    // own API server-side, never this path.)
+    if (hit) return sendJson(res, 200, { ...hit.data, popular: MOCK_JOINED });
+    sendJson(res, 200, { ...cannedArena(sub), popular: MOCK_JOINED });
   }
+}
+
+// Deterministic offline arena — the local-dev life raft when pullpush is
+// down. Neutral filler titles (stage-set dressing, same idea as MOCK_JOINED).
+const CANNED_TITLES = [
+  ['What is a skill everyone should learn before 30?', 48210, 5120],
+  ['My cat learned to open the fridge and now nothing is safe', 31800, 2210],
+  ['TIL honey never spoils if stored sealed', 27400, 1430],
+  ['This intersection has been under construction for 11 years', 19850, 3980],
+  ['I built a mechanical keyboard out of an old typewriter', 15200, 890],
+  ['What screams "I peaked in high school"?', 41200, 7600],
+  ['The way this bridge fog rolled in this morning', 8900, 240],
+  ['My grandfather\'s toolbox, untouched since 1988', 23100, 1120],
+  ['Update: the HOA lost. We kept the flamingos.', 52400, 4310],
+  ['Physics teacher demonstrates conservation of momentum, regrets it', 17300, 950],
+  ['A wild fox follows my mail carrier every day', 26800, 1500],
+  ['What is the most useless fact you know?', 33500, 9100],
+];
+function cannedArena(subRaw) {
+  const sub = (subRaw || 'all').toLowerCase().replace(/^r\//, '');
+  const isHome = sub === 'all' || sub === 'home' || sub === '';
+  const listing = isHome ? 'all' : sub;
+  const posts = CANNED_TITLES.map(([title, ups, com], i) => ({
+    id: `canned-${listing}-${i}`,
+    subreddit: listing,
+    author: `u/local_${i}`,
+    time: `${((i * 37) % 55) + 4} min. ago`,
+    title, ups, num_comments: com,
+    has_image: false, image_url: null, image_label: 'image', image_tall: false,
+  }));
+  return {
+    mode: isHome ? 'home' : 'sub',
+    subreddit: listing,
+    name: isHome ? 'reddit' : `r/${listing}`,
+    user: 'u/you',
+    posts,
+    comments: posts.slice(0, 8).map(p => ({ author: p.author, body: p.title.slice(0, 120) })),
+    source: 'canned',
+  };
 }
 
 // Local stand-in for the Devvit "player's own subscriptions" list — prod
@@ -122,11 +166,16 @@ async function handleImg(req, res) {
 // dev has no subreddit context, so it's one global list). Unique by name,
 // newest last, capped like the real thing.
 const deaths = [];
-function recordDeath(name) {
+function recordDeath(name, karma, post) {
   const n = (name || 'u/lurker').toString().slice(0, 40);
   const i = deaths.findIndex(d => d.name === n);
   if (i >= 0) deaths.splice(i, 1);
-  deaths.push({ name: n, t: Date.now() });
+  deaths.push({
+    name: n,
+    karma: Math.max(0, Math.floor(Number(karma) || 0)),
+    post: post ? String(post).slice(0, 120) : null,   // → the red "died here" pointer
+    t: Date.now(),
+  });
   if (deaths.length > 50) deaths.splice(0, deaths.length - 50);
 }
 function readBody(req) {
@@ -140,11 +189,15 @@ function readBody(req) {
 async function handleDeath(req, res) {
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
   const body = await readBody(req);
-  recordDeath(body.name);
+  recordDeath(body.name, body.karma, body.post);
   sendJson(res, 200, { ok: true });
 }
 function handleDeathsRecent(req, res) {
-  sendJson(res, 200, { names: deaths.slice(-24).reverse().map(d => d.name) });
+  const recent = deaths.slice(-24).reverse();
+  sendJson(res, 200, {
+    names: recent.map(d => d.name),
+    deaths: recent.map(d => ({ name: d.name, karma: d.karma || 0, post: d.post || null })),
+  });
 }
 
 // Karma leaderboard — in-memory stand-in for the Devvit redis version.

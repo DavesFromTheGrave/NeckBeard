@@ -99,22 +99,47 @@ NB.TUNE = {
   CATCHUP_FULL: 2400,        // px where it maxes out
   CATCHUP_MAX: 3.4,          // locomotion multiplier at max (lurk/hunt only, never lunge)
 
+  // ── MEMES: rarer + stronger (Dave 2026-07-11) ────────────────────────
+  // They used to rain every 5-9s and tickle. Now one drop matters when it
+  // lands, and every grab builds the run's COLLECTION (the HUD strip stacks
+  // ×counts; challenges will read the bag later).
+  MEME_FIRST_MS: 6000,         // first badge of the run
+  MEME_SPAWN_MIN_MS: 14000,    // then one every 14-22s (was 5-9s)
+  MEME_SPAWN_MAX_MS: 22000,
+  MEME_MAX_ONSCREEN: 2,        // was 3
+  MEME_STUN_MS: 3000,          // was 1600 — you should NOTICE a stun
+  MEME_STUN_BIG_MS: 4500,      // was 2400
+  MEME_DECOY_MS: 6000,         // was 3200
+  MEME_SLOW_MS: 5000,          // was 3000
+  MEME_SLOW_FACTOR: 0.45,      // was 0.6 (lower = slower mod)
+  MEME_KNOCKBACK: 380,         // was 220
+  MEME_KNOCKBACK_BIG: 560,     // was 360
+  MEME_HEATWIPE_STUN_MS: 1200, // was 400
+
   // ── BALDER, the endgame boss ─────────────────────────────────────────
-  // Trigger: karma gate + BOTH mods hunting (redditM0D in AND revenant risen).
-  // (The ARG doll unlock will AND onto this later — gate stays.)
+  // THE GATE (Dave 2026-07-11: "Balder's gate IS THE LETTERS"): all SIX
+  // letters of B-A-L-D-E-R found across the cursed subreddits (letters.js)
+  // + karma ≥ BOSS_KARMA_GATE + BOSS_DUO_MS survived with BOTH mods hunting.
   // His ONLY kill is the teleport-strike, double-telegraphed: the vanish
   // charge-up says "he's coming", the arrival burst + ring says "he's HERE",
   // and only THEN does a short strike window open. Walking/running between
   // blinks is pure pressure — Balder never catches outside the strike window.
   // BALDER is the ending. Once he manifests the run is already over; the only
   // question is the karma number on the stone. Nobody survives.
-  BOSS_KARMA_GATE: 50000,
+  BOSS_KARMA_GATE: 250000,   // was 50k — one hot post paid 34k, Dave repriced
+  BOSS_DUO_MS: 30000,        // ms survived with redditM0D + revenant BOTH live
   BOSS_ENTRANCE_MS: 3200,    // arrival burst → both mods dragged to hell → the hunt
   BOSS_ESCALATE_MS: 75000,   // blink cooldown ramps START→MIN over this, then stays MIN
   BOSS_TP_CD_START: 8000,    // ms between blinks when the fight starts
   BOSS_TP_CD_MIN: 4200,      // blink cooldown floor as the fight escalates
-  BOSS_TP_GAP_MS: 340,       // dead air — he is NOWHERE (the dread beat)
-  BOSS_TP_ANIM_MS: 560,      // vanish/arrive burst play time (12f @ 22fps)
+  // Blink warning compressed to HALF A SECOND total (Dave 2026-07-11: "You
+  // get a half second warning. It's at 1.5 seconds? Make it a half second.")
+  // vanish + gap + arrive = 500ms, then the strike. Bursts play sped-up to
+  // fit their window; the entrance burst keeps the natural anim length.
+  BOSS_TP_VANISH_MS: 180,    // charge-up burst — "he's coming"
+  BOSS_TP_GAP_MS: 120,       // dead air — he is NOWHERE (the dread beat)
+  BOSS_TP_ARRIVE_MS: 200,    // arrival burst + ring at the landing spot
+  BOSS_TP_NATURAL_MS: 560,   // unhurried burst length (12f @ 22fps) — entrance only
   BOSS_STRIKE_MS: 420,       // catch window right after the arrival burst
   BOSS_RECOVER_MS: 1500,     // whiffed strike = he stands there — your window
   BOSS_LAND_RING: 175,       // he lands this far from the cursor, never on top
@@ -135,6 +160,20 @@ NB.flagGet = function (k) {
 NB.flagSet = function (k, v) {
   NB._memFlags[k] = String(v);
   try { sessionStorage.setItem(k, String(v)); } catch {}
+};
+
+// Cross-RUN persistence (the letter hunt survives runs and days). Same
+// walled-webview rules as above but localStorage-backed; where Reddit blocks
+// storage entirely it degrades to per-page-load memory — the hunt still
+// works, it just forgets between visits there.
+NB._memPersist = {};
+NB.persistGet = function (k) {
+  try { return localStorage.getItem(k) ?? NB._memPersist[k] ?? null; }
+  catch { return NB._memPersist[k] ?? null; }
+};
+NB.persistSet = function (k, v) {
+  NB._memPersist[k] = String(v);
+  try { localStorage.setItem(k, String(v)); } catch {}
 };
 
 // A mouse pointer is a precise point; a fingertip is a ~40-50px contact patch

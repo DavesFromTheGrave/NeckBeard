@@ -253,9 +253,12 @@ class GameScene extends Phaser.Scene {
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
     this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
-    this.boss = null;              // BALDER (boss.js) — spawns at the karma gate w/ both mods out
+    this.boss = null;              // BALDER (boss.js) — the gate lives in update()
     this.bossDone = false;         // one boss visit per run — and it only ends one way
     this.bossKill = false;         // caught by BALDER himself → [ ERASED ]
+    this.duoMs = 0;                // ms survived with BOTH hunters live (gate half)
+    this.memeBag = {};             // run collection: meme id → count (HUD stacks ×n)
+    this._bagOrder = [];           // first-grab order for the collection strip
     // Each run starts on a PRISTINE page. Wreckage + farmed-posts persist
     // WITHIN a run (across sub-travel) but reset on a new round — otherwise the
     // door opens onto a page still shattered/looted from your last life.
@@ -537,6 +540,13 @@ class GameScene extends Phaser.Scene {
       this.shieldPill = this.add.text(W - 22, H - 78, '🛡 SHIELD READY', {
         fontFamily: 'Courier New', fontSize: '13px', fontStyle: 'bold', color: '#7ab8f5',
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0).setVisible(false);
+      // THE LETTERS tracker — hidden until the first letter is found (no
+      // spoiler on fresh devices); the hunt persists across runs, so this
+      // restores immediately for a player mid-chain.
+      this.lettersHud = this.add.text(W - 22, H - 96, '', {
+        fontFamily: 'Courier New', fontSize: '14px', fontStyle: 'bold', color: '#c0392b',
+      }).setOrigin(1, 1).setDepth(30).setScrollFactor(0).setVisible(false);
+      this.updateLetterHUD();
       this.bindDebugKeys();
       this.bindTravelClicks();
       this.bindSubredditSearch();
@@ -563,7 +573,103 @@ class GameScene extends Phaser.Scene {
     if (!this.admin) this.admin = new NB.AdminCameo(this);
     this.userName = data.user;
 
+    // page changed: an un-grabbed letter dies with it, and the "died here"
+    // red pointers re-draw against THIS page's posts
+    NB.clearLetter(this);
+    this.drawDeathMarkers();
+
     if (opts.toast) this.floatText(W / 2, H * 0.22, opts.toast, '#0079d3');
+  }
+
+  // ── Collection strip: every meme grabbed this run, STACKED ×counts
+  // (Dave 2026-07-11: "make sure they stack in the UI"). Top-right under the
+  // header; real badge art when loaded, lettered chip when not.
+  updateMemeBagHUD() {
+    if (this._bagObjs) this._bagObjs.forEach(o => { try { o.destroy(); } catch {} });
+    this._bagObjs = [];
+    for (const id of Object.keys(this.memeBag)) {
+      if (!this._bagOrder.includes(id)) this._bagOrder.push(id);
+    }
+    const W = this.scale.width;
+    const cell = 30, size = 24;
+    const cap = W < 768 ? 8 : 14;
+    const ids = this._bagOrder.slice(0, cap);
+    const y = (this.page ? this.page.headerH : 64) + 18;
+    let x = W - 16 - ids.length * cell;
+    for (const id of ids) {
+      const n = this.memeBag[id] || 0;
+      if (this.textures.exists(`meme-${id}`)) {
+        const src = this.textures.get(`meme-${id}`).getSourceImage();
+        this._bagObjs.push(this.add.image(x + cell / 2, y, `meme-${id}`)
+          .setScale(size / Math.max(src.width, src.height)).setDepth(30).setScrollFactor(0));
+      } else {
+        this._bagObjs.push(this.add.rectangle(x + cell / 2, y, size, size,
+          Phaser.Display.Color.HexStringToColor(NB.subColor(id)).color, 0.9)
+          .setDepth(30).setScrollFactor(0));
+        this._bagObjs.push(this.add.text(x + cell / 2, y, id[0].toUpperCase(), {
+          fontFamily: 'Courier New', fontSize: '13px', fontStyle: 'bold', color: '#ffffff',
+        }).setOrigin(0.5).setDepth(31).setScrollFactor(0));
+      }
+      if (n > 1) {
+        this._bagObjs.push(this.add.text(x + cell - 3, y + size / 2 + 2, `×${n}`, {
+          fontFamily: 'Courier New', fontSize: '11px', fontStyle: 'bold',
+          color: '#ffb648', backgroundColor: '#000000',
+        }).setOrigin(1, 1).setDepth(32).setScrollFactor(0));
+      }
+      x += cell;
+    }
+    if (this._bagOrder.length > cap) {
+      this._bagObjs.push(this.add.text(W - 16, y - size / 2 - 4, `+${this._bagOrder.length - cap} more`, {
+        fontFamily: 'Courier New', fontSize: '10px', color: '#8ba2ad',
+      }).setOrigin(1, 1).setDepth(30).setScrollFactor(0));
+    }
+  }
+
+  updateLetterHUD() {
+    if (!this.lettersHud) return;
+    const st = NB.lettersState();
+    this.lettersHud.setText(NB.LETTER_CHAIN.map((e, i) => (st[i] ? e.letter : '·')).join(' '));
+    this.lettersHud.setVisible(st.some(Boolean));
+  }
+
+  // "Died here" — faded red cursor pointers on the exact posts other players
+  // were caught at (Dave: a red pointer, NOT bloodstains). Anchored by post
+  // key so layout shifts don't lie; deaths on posts not in this fetch simply
+  // don't draw. Stand near one and the name whispers once.
+  drawDeathMarkers() {
+    (this._deathMarkers || []).forEach(m => { try { m.g.destroy(); } catch {} });
+    this._deathMarkers = [];
+    NB.fetchDeathMarkers().then(list => {
+      if (!list.length || !this.page) return;
+      for (const d of list) {
+        if (!d || !d.post) continue;
+        const el = this.page.elements.find(e => e.kind === 'post' && e.key === d.post);
+        if (!el) continue;
+        const nm = d.name || 'u/lurker';
+        let h = 0;
+        for (let i = 0; i < nm.length; i++) h = (h * 31 + nm.charCodeAt(i)) >>> 0;
+        const x = el.rect.x + 34 + (h % Math.max(1, Math.round(el.rect.width) - 78));
+        const y = el.rect.y + el.rect.height - 28;
+        const g = this.add.graphics().setDepth(9);
+        g.fillStyle(0x99201a, 0.55);
+        g.beginPath();
+        g.moveTo(x, y); g.lineTo(x, y + 17); g.lineTo(x + 4.5, y + 13);
+        g.lineTo(x + 8, y + 20); g.lineTo(x + 11, y + 18.5); g.lineTo(x + 7.5, y + 12);
+        g.lineTo(x + 12.5, y + 12); g.closePath(); g.fillPath();
+        g.lineStyle(1.2, 0x5c0f0b, 0.5); g.strokePath();
+        this._deathMarkers.push({ x, y, g, name: nm, karma: d.karma || 0, whispered: false });
+      }
+    }).catch(() => {});
+  }
+
+  checkDeathWhispers() {
+    for (const m of this._deathMarkers || []) {
+      if (m.whispered) continue;
+      if (Math.hypot(this.playerPos.x - m.x, this.playerPos.y - m.y) < 38) {
+        m.whispered = true;
+        this.floatText(m.x + 6, m.y - 14, `${m.name} died here · ${NB.fmtKarma(m.karma)}`, '#c0392b');
+      }
+    }
   }
 
   bindTravelClicks() {
@@ -752,11 +858,23 @@ class GameScene extends Phaser.Scene {
       if (this.caught || !this.pickups) return;
       this.pickups.spawnCursed(this.playerPos.x, this.playerPos.y - 50);
       this.floatText(this.scale.width / 2, this.scale.height * 0.22, cursedMsg, '#2ecc71');
+      // the letter hunt: cursed subs in the chain drop their letter (once);
+      // revisits re-whisper the clue so a lost player can find the trail
+      const li = NB.LETTER_CHAIN.findIndex(e => e.sub === clean.toLowerCase());
+      if (li >= 0) {
+        if (!NB.lettersState()[li]) NB.spawnLetter(this, NB.LETTER_CHAIN[li]);
+        else this.floatText(this.scale.width / 2, this.cameras.main.scrollY + 120,
+          NB.LETTER_CHAIN[li].clue, '#9a3fd4');
+      }
     } : null);
   }
 
   bindDebugKeys() {
-    // Alt+Shift — Huion owns Ctrl+Alt. Stripped in production Devvit build.
+    // Alt+Shift — Huion owns Ctrl+Alt. LOCALHOST ONLY: the old comment claimed
+    // the build strips these — it never did, and they shipped live to real
+    // Reddit through v0.0.25 (anyone could force-spawn BALDER or instakill).
+    // Dave 2026-07-11: hard-gate them to the dev server instead.
+    if (!/^(localhost|127\.)/.test(location.hostname)) return;
     if (!this.input.keyboard) return;
     this.input.keyboard.on('keydown', (ev) => {
       if (!ev.altKey || !ev.shiftKey || !this.ready) return;
@@ -875,7 +993,17 @@ class GameScene extends Phaser.Scene {
     this.caught = true;
     NB.sfx.caught();
     NB.stopBed();                              // game over — kill the chase bed
-    NB.postDeath(this.userName, this.karma);   // record it for the "who died here" swarm
+    // record it — the name feeds the o7 swarm, the POST feeds the red-pointer
+    // "died here" markers other players see on that exact card
+    let deathPost = null, bestD = 1e9;
+    for (const el of (this.page && this.page.elements) || []) {
+      if (el.kind !== 'post') continue;
+      const ddx = (el.rect.x + el.rect.width / 2) - this.playerPos.x;
+      const ddy = (el.rect.y + el.rect.height / 2) - this.playerPos.y;
+      const dd = Math.hypot(ddx, ddy);
+      if (dd < bestD) { bestD = dd; deathPost = el.key; }
+    }
+    NB.postDeath(this.userName, this.karma, deathPost);
     const W = this.scale.width, H = this.scale.height;
     this.cameras.main.shake(220, 0.012);
     this.time.delayedCall(400, () => {
@@ -1182,8 +1310,9 @@ class GameScene extends Phaser.Scene {
       this.hud.setText(`★ ${NB.fmtKarma(this.karma)}${revTag}`);
       if (this.mod.revenant) this.hud.setColor('#3fae54');
       this.updateHudExtras();
-      const mk = Math.floor(this.karma / 1000);   // every 1k karma → a hype meme
-      if (mk > this._karmaMilestone) { this._karmaMilestone = mk; NB.playMoment(this, 'karma1k'); }
+      // (karma-milestone hype clips REMOVED 2026-07-11 — posts pay their real
+      // Reddit score now, so every farm crossed a 1k line and the deck never
+      // shut up. Dave: memes should be rare enough to notice.)
       // SELF-HEAL: a mod parked in CAUGHT_YOU with no death screen and no
       // ceremony means the catch path died mid-flight (this exact brick
       // happened on real Reddit when the webview blocked sessionStorage).
@@ -1196,10 +1325,18 @@ class GameScene extends Phaser.Scene {
         console.warn('CAUGHT_YOU with no outcome — forcing the ban');
         this.onCaught();
       }
-      // BALDER — the ending. Karma gate + BOTH mods hunting (redditM0D in,
-      // revenant risen). He vacuums the mods, hunts alone, never leaves.
-      if (!this.boss && !this.bossDone && this.mod2 && this.mod.revenant
-          && this.karma >= NB.TUNE.BOSS_KARMA_GATE) {
+      // duo clock — time survived with BOTH hunters live at once
+      if (this.mod2 && !this.mod2.frozen && this.mod.revenant && !this.mod.frozen) {
+        this.duoMs += dt;
+      }
+      NB.updateLetterPickup(this, this.playerPos);
+      this.checkDeathWhispers();
+      // BALDER — the ending. THE GATE (Dave 2026-07-11: "Balder's gate IS THE
+      // LETTERS. +250k karma + 30 seconds survived with the duo"): all six
+      // letters found + karma ≥ gate + BOSS_DUO_MS on the duo clock.
+      if (!this.boss && !this.bossDone && NB.lettersDone()
+          && this.karma >= NB.TUNE.BOSS_KARMA_GATE
+          && this.duoMs >= NB.TUNE.BOSS_DUO_MS) {
         NB.spawnBalder(this);
       }
       if (this.boss) this.boss.update(dt, this.playerPos);

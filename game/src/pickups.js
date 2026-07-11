@@ -9,16 +9,16 @@ NB.Pickups = class {
     this.scene = scene;
     this.page = page;
     this.items = [];
-    this.spawnT = 4000;
+    this.spawnT = NB.TUNE.MEME_FIRST_MS;
     this.shield = false;
     this.shieldGfx = null;
   }
 
   update(dt, player) {
     this.spawnT -= dt;
-    if (this.spawnT <= 0 && this.items.length < 3) {
+    if (this.spawnT <= 0 && this.items.length < NB.TUNE.MEME_MAX_ONSCREEN) {
       this.spawn();
-      this.spawnT = Phaser.Math.Between(5000, 9000);
+      this.spawnT = Phaser.Math.Between(NB.TUNE.MEME_SPAWN_MIN_MS, NB.TUNE.MEME_SPAWN_MAX_MS);
     }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
@@ -67,7 +67,14 @@ NB.Pickups = class {
     }
     const m = NB.MEMES[it.id];
     if (!m) return;
+    const T = NB.TUNE;
     const good = m.cat !== 'trap';
+    // Every non-trap grab feeds the run's COLLECTION (the stacking HUD strip;
+    // daily challenges will read this bag later).
+    if (good) {
+      scene.memeBag[it.id] = (scene.memeBag[it.id] || 0) + 1;
+      if (scene.updateMemeBagHUD) scene.updateMemeBagHUD();
+    }
     // The meme's own captured voice (gated — voices never pile up). If it can't
     // fire (busy or no clip): a base blip for feedback + a generic "powerup"
     // hype meme (good) / the "oof" (trap).
@@ -78,31 +85,30 @@ NB.Pickups = class {
 
     switch (m.fx) {
       case 'stun':
-        mods.forEach(md => md.stun(m.big ? 2400 : 1600)); break;
+        mods.forEach(md => md.stun(m.big ? T.MEME_STUN_BIG_MS : T.MEME_STUN_MS)); break;
       case 'decoy':
-        mods.forEach(md => md.setDecoy(it.x, it.y, 3200)); break;
+        mods.forEach(md => md.setDecoy(it.x, it.y, T.MEME_DECOY_MS)); break;
       case 'shield':
         this.shield = true;
         if (this.shieldGfx) this.shieldGfx.destroy();
         this.shieldGfx = scene.add.circle(it.x, it.y, 24).setStrokeStyle(2.5, 0x4a90d9, 0.9).setDepth(19);
         break;
       case 'heatwipe':
-        mods.forEach(md => { md.heat = 0; md.stun(400); }); break;
+        mods.forEach(md => { md.heat = 0; md.stun(T.MEME_HEATWIPE_STUN_MS); }); break;
       case 'knockback':
-        mods.forEach(md => md.knockback(m.big ? 360 : 220)); break;
+        mods.forEach(md => md.knockback(m.big ? T.MEME_KNOCKBACK_BIG : T.MEME_KNOCKBACK)); break;
       case 'slow':
-        mods.forEach(md => md.slow(3000, 0.6)); break;
+        mods.forEach(md => md.slow(T.MEME_SLOW_MS, T.MEME_SLOW_FACTOR)); break;
       case 'score':
-        scene.survivalMs += (m.score || 1) * 1000; break;
+        break;   // collectibles ARE the collection now (was +1-3s survival — worthless post-karma-scoring)
       case 'trap':
-        mods.forEach(md => { md.burst(1600); md.heat = Math.min(NB.TUNE.HEAT_MAX, md.heat + 1); }); break;
+        mods.forEach(md => { md.burst(1600); md.heat = Math.min(T.HEAT_MAX, md.heat + 1); }); break;
     }
 
     const color = m.fx === 'trap' ? '#e0452a'
       : m.fx === 'score' ? '#f1c40f'
       : '#ffffff';
     scene.floatText(it.x, it.y - 18, m.say || m.name, color);
-    if (m.fx === 'score') scene.floatText(it.x, it.y + 6, `+${m.score || 1}s`, '#f1c40f');
   }
 
   // returns true if the shield ate the hit

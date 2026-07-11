@@ -16,12 +16,12 @@ NB.fetchSubreddit = function (sub) { return NB.fetchArena(sub); };
 // swarm. Both best-effort: a failure just falls back to flavor names, never
 // blocks the death screen. Server keys deaths per-subreddit (Devvit) / global
 // (local dev stub).
-NB.postDeath = function (name, karma) {
+NB.postDeath = function (name, karma, post) {
   try {
     fetch('/api/death', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, karma: Math.round(karma || 0) }),
+      body: JSON.stringify({ name, karma: Math.round(karma || 0), post: post || null }),
     }).catch(() => {});
   } catch { /* best-effort */ }
 };
@@ -29,6 +29,15 @@ NB.fetchRecentDeaths = function () {
   return fetch('/api/deaths/recent')
     .then(r => (r.ok ? r.json() : { names: [] }))
     .then(d => (Array.isArray(d.names) ? d.names : []))
+    .catch(() => []);
+};
+// Full death records (name + karma + which post they died on) — feeds the
+// red-pointer "died here" markers drawn on the posts themselves. Older
+// server entries have no post and are simply skipped by the renderer.
+NB.fetchDeathMarkers = function () {
+  return fetch('/api/deaths/recent')
+    .then(r => (r.ok ? r.json() : { deaths: [] }))
+    .then(d => (Array.isArray(d.deaths) ? d.deaths : []))
     .catch(() => []);
 };
 
@@ -62,6 +71,7 @@ NB.fetchLeaderboard = function () {
 // "Cursed" subreddits — typing one into the header search spawns a bonus
 // pickup on arrival, on top of the normal travel-there behavior.
 NB.CURSED_SUBS = {
+  cursed: 'THE CURSE FAVORS YOU',            // the letter-chain entry (letters.js)
   cursedcomments: 'CURSED COMMENTS FOUND HIM OUT',
   cursedimages: 'A CURSED IMAGE BLINDS HIM',
   oddlyterrifying: 'SOMETHING ODDLY TERRIFYING STIRS',

@@ -82,7 +82,7 @@ writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 </style></head><body>
 <div class="card">
   <h1>superM0D</h1>
-  <p>Survive inside the feed. The mod never stops chasing your finger.</p>
+  <p>MA! Someone's touching my subreddit!</p>
   <button id="play-button">expand to play</button>
 </div>
 <script src="splash-client.js"></script>

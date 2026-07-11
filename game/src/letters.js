@@ -3,11 +3,16 @@
 // survived with the duo." All six letters + the karma gate + the duo timer
 // arm the ending (trigger lives in main.js update; numbers in tunables).
 //
-// The hunt: r/cursed is the tipped entry (a line in How to Play, and
-// sometimes a thrown comment whispers it). Each letter's pickup floats the
-// clue to the NEXT sub in the chain. Letters persist across runs on the
-// device (NB.persistGet/Set — degrades to per-page-load where Reddit walls
-// storage off).
+// CHAIN FLAVOR (Dave's ruling, 2026-07-11 pm): VIBE-cursed subs, not
+// name-cursed — if they were all r/cursed-something, players could spam the
+// famous family and skip the trail entirely. r/cursed stays as the tipped
+// front door; everything after must be DECIPHERED from riddle clues that
+// never name the next sub. Nobody meets Balder before their ~6th run, and
+// that's the design ("I don't think that's a problem").
+//
+// PERSISTENCE: redis is the truth (per player, /api/letters — Reddit's
+// webview walls off localStorage, and the multi-run hunt dies without a
+// server memory). Device storage is a warm cache + offline fallback.
 //
 // ⚠ CLUE TEXT AND SUB ORDER = DRAFT. Dave owns the words — swap freely, the
 // wiring doesn't care. Subs must exist in NB.CURSED_SUBS (data-mock.js) so
@@ -15,22 +20,72 @@
 window.NB = window.NB || {};
 
 NB.LETTER_CHAIN = [
-  { sub: 'cursed',          letter: 'B', clue: 'the comments are worse. (r/cursedcomments)' },
-  { sub: 'cursedcomments',  letter: 'A', clue: 'you should SEE what they post. (r/cursedimages)' },
-  { sub: 'cursedimages',    letter: 'L', clue: 'reading it does damage. (r/ihadastroke)' },
-  { sub: 'ihadastroke',     letter: 'D', clue: 'something stirs where it should not. (r/oddlyterrifying)' },
-  { sub: 'oddlyterrifying', letter: 'E', clue: 'the last one is pure poison. (r/shitposting)' },
-  { sub: 'shitposting',     letter: 'R', clue: 'the name is complete. he knows you know.' },
+  // each clue is a riddle pointing at the NEXT sub (never by name)
+  { sub: 'cursed',          letter: 'B', clue: 'not scary. just... off. oddly so.' },
+  { sub: 'oddlyterrifying', letter: 'A', clue: 'no. no. no. no. ...yes.' },
+  { sub: 'nonononoyes',     letter: 'L', clue: 'teh lettres stpo wokring hree.' },
+  { sub: 'ihadastroke',     letter: 'D', clue: 'even the pixels are dying.' },
+  { sub: 'softwaregore',    letter: 'E', clue: 'where effort goes to die.' },
+  { sub: 'shitposting',     letter: 'R', clue: 'the name is complete. he knows.' },
 ];
 
+// ── state: in-session cache, seeded from device storage, trued-up by the
+// server sync below. All reads go through lettersRaw so the gate check in
+// the update loop stays synchronous.
+NB._letters = null;
+NB.lettersRaw = function () {
+  return NB._letters != null ? NB._letters : (NB.persistGet('nb_letters') || '');
+};
 NB.lettersState = function () {
-  const raw = NB.persistGet('nb_letters') || '';
+  const raw = NB.lettersRaw();
   return NB.LETTER_CHAIN.map(e => raw.includes(e.letter));
 };
 NB.lettersDone = function () { return NB.lettersState().every(Boolean); };
+
 NB.collectLetter = function (letter) {
-  const raw = NB.persistGet('nb_letters') || '';
-  if (!raw.includes(letter)) NB.persistSet('nb_letters', raw + letter);
+  const raw = NB.lettersRaw();
+  if (raw.includes(letter)) return;
+  NB._letters = raw + letter;
+  NB.persistSet('nb_letters', NB._letters);
+  // server is the real memory — best-effort, never blocks the game
+  try {
+    fetch('/api/letters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ letter }),
+    }).catch(() => {});
+  } catch { /* offline is fine — device cache carries it */ }
+};
+
+// Boot sync: merge server truth with whatever the device remembers, adopt
+// the union, and backfill the server with anything it was missing. Fire and
+// forget — the HUD refreshes when it lands.
+NB.syncLetters = function (scene) {
+  try {
+    fetch('/api/letters')
+      .then(r => (r.ok ? r.json() : { letters: '' }))
+      .then(d => {
+        const server = (d && typeof d.letters === 'string') ? d.letters : '';
+        const local = NB.persistGet('nb_letters') || '';
+        const merged = [...new Set((server + local).split(''))]
+          .filter(ch => 'BALDER'.includes(ch)).join('');
+        NB._letters = merged;
+        NB.persistSet('nb_letters', merged);
+        for (const ch of merged) {
+          if (!server.includes(ch)) {
+            try {
+              fetch('/api/letters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ letter: ch }),
+              }).catch(() => {});
+            } catch { /* best-effort */ }
+          }
+        }
+        if (scene && scene.updateLetterHUD) scene.updateLetterHUD();
+      })
+      .catch(() => {});
+  } catch { /* offline: device cache is the fallback truth */ }
 };
 
 // Drop the letter pickup on a cursed page (called on arrival, after the
@@ -55,8 +110,8 @@ NB.clearLetter = function (scene) {
   scene._letterPickup = null;
 };
 
-// Touch = collect. Persists, floats the count + the clue to the next sub,
-// refreshes the HUD tracker. Called from the main update loop.
+// Touch = collect. Persists (device + server), floats the count + the riddle
+// to the next sub, refreshes the HUD tracker. Called from the update loop.
 NB.updateLetterPickup = function (scene, player) {
   const L = scene._letterPickup;
   if (!L) return;

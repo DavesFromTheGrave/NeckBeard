@@ -237,6 +237,37 @@ app.get('/api/deaths/recent', async (c) => {
   }
 });
 
+// THE LETTERS — per-player hunt progress (B-A-L-D-E-R). Reddit's webview
+// walls off localStorage, and the whole multi-run hunt (nobody meets Balder
+// before ~run six — the retention design) dies if letters forget between
+// sessions. Redis is the truth; the device cache is just warm startup.
+const lettersKey = () => `letters:${context.userId || 'anon'}`;
+
+app.get('/api/letters', async (c) => {
+  try {
+    if (!context.userId) return c.json({ letters: '' });
+    return c.json({ letters: (await redis.get(lettersKey())) || '' });
+  } catch (e) {
+    return c.json({ letters: '', error: e.message });
+  }
+});
+
+app.post('/api/letters', async (c) => {
+  try {
+    if (!context.userId) return c.json({ ok: false, error: 'no user' }, 400);
+    const body = await c.req.json().catch(() => ({}));
+    const ch = (body.letter || '').toString().slice(0, 1).toUpperCase();
+    if (!'BALDER'.includes(ch) || !ch) return c.json({ ok: false, error: 'bad letter' }, 400);
+    const key = lettersKey();
+    const cur = (await redis.get(key)) || '';
+    const next = cur.includes(ch) ? cur : cur + ch;
+    await redis.set(key, next);
+    return c.json({ ok: true, letters: next });
+  } catch (e) {
+    return c.json({ ok: false, error: e.message }, 500);
+  }
+});
+
 // Karma leaderboard — best run per player, per subreddit. Sorted set holds
 // name -> best karma; a hash holds the ban reason that ended that best run.
 // Only a HIGHER karma replaces an entry. Trimmed to the top SCORES_MAX.

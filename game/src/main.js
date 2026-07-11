@@ -539,6 +539,7 @@ class GameScene extends Phaser.Scene {
         fontFamily: 'Courier New', fontSize: '14px', fontStyle: 'bold', color: '#c0392b',
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0).setVisible(false);
       this.updateLetterHUD();
+      NB.syncLetters(this);   // redis truth → merge device cache → refresh HUD
       this.bindDebugKeys();
       this.bindTravelClicks();
       this.bindSubredditSearch();

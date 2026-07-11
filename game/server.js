@@ -223,11 +223,27 @@ function handleLeaderboard(req, res) {
   sendJson(res, 200, { sub: 'local_dev', scores: rows });
 }
 
+// THE LETTERS — in-memory stand-in for the per-user redis hunt progress.
+// Local dev has one implicit player; survives until the server restarts,
+// which is exactly enough to test the cross-page-load sync.
+let localLetters = '';
+async function handleLetters(req, res) {
+  if (req.method === 'POST') {
+    const body = await readBody(req);
+    const ch = (body.letter || '').toString().slice(0, 1).toUpperCase();
+    if (!'BALDER'.includes(ch) || !ch) return sendJson(res, 400, { ok: false, error: 'bad letter' });
+    if (!localLetters.includes(ch)) localLetters += ch;
+    return sendJson(res, 200, { ok: true, letters: localLetters });
+  }
+  sendJson(res, 200, { letters: localLetters });
+}
+
 const handler = (req, res) => {
   if (req.url.startsWith('/api/arena')) return handleArena(req, res);
   if (req.url.startsWith('/api/img')) return handleImg(req, res);
   if (req.url.startsWith('/api/deaths/recent')) return handleDeathsRecent(req, res);
   if (req.url.startsWith('/api/death')) return handleDeath(req, res);
+  if (req.url.startsWith('/api/letters')) return handleLetters(req, res);
   if (req.url.startsWith('/api/score')) return handleScore(req, res);
   if (req.url.startsWith('/api/leaderboard')) return handleLeaderboard(req, res);
   serveStatic(req, res);

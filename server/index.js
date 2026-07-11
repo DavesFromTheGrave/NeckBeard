@@ -176,7 +176,9 @@ app.get('/api/arena', async (c) => {
 app.post('/internal/menu/post-create', async (c) => {
   try {
     const post = await reddit.submitCustomPost({
-      title: 'NECKBEARD — survive the feed. he never stops.',
+      // slogan slot: Dave's line pending (proposal on the table: "MA!
+      // Someone's touching my subreddit!") — bare name until he blesses one
+      title: 'superM0D',
       textFallback: { text: 'This post is a game. Open it on new Reddit or the app to play.' },
     });
     return c.json({ navigateTo: post.url });

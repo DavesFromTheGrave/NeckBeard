@@ -1,4 +1,4 @@
-// Neckbeard (hackathon build) — boot scene.
+// superM0D (hackathon build; formerly NECKBEARD) — boot scene.
 // Touch-first: the pointer/finger IS the hunted cursor.
 // World is a scrollable feed; camera follows via edge-push + wheel.
 window.NB = window.NB || {};

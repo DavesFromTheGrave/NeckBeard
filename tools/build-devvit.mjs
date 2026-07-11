@@ -68,7 +68,7 @@ for (const f of splashResult.outputFiles) writeIfChanged(f.path, Buffer.from(f.c
 writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Neckbeard</title>
+<title>superM0D</title>
 <style>
   *{box-sizing:border-box}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#1a1a1b 0%,#2d1b2e 55%,#1a1a1b 100%);color:#fff;font-family:Courier New,monospace}
@@ -81,7 +81,7 @@ writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
   #play-button:active{background:#d93900}
 </style></head><body>
 <div class="card">
-  <h1>NECKBEARD</h1>
+  <h1>superM0D</h1>
   <p>Survive inside the feed. The mod never stops chasing your finger.</p>
   <button id="play-button">expand to play</button>
 </div>

@@ -180,6 +180,14 @@ class GameScene extends Phaser.Scene {
     for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
     for (let i = 1; i <= 12; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — 13-frame purple vanish (keyed transparent)
+    // Balder boss cycles — face IS direction: bh (human) drawn facing RIGHT,
+    // bz (zombie/skull) drawn facing LEFT. Sheets ship pre-faced; never flipX.
+    for (let i = 1; i <= 8; i++) {
+      this.load.image(`bh-walk-${i}`, `assets/balder-boss/bh-walk-${i}.png`);
+      this.load.image(`bh-run-${i}`, `assets/balder-boss/bh-run-${i}.png`);
+      this.load.image(`bz-walk-${i}`, `assets/balder-boss/bz-walk-${i}.png`);
+      this.load.image(`bz-run-${i}`, `assets/balder-boss/bz-run-${i}.png`);
+    }
     this.load.image('elevator', 'assets/balder/elevator.png');
     this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
@@ -245,6 +253,9 @@ class GameScene extends Phaser.Scene {
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
     this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
+    this.boss = null;              // BALDER (boss.js) — spawns at the karma gate w/ both mods out
+    this.bossDone = false;         // one boss visit per run — and it only ends one way
+    this.bossKill = false;         // caught by BALDER himself → [ ERASED ]
     // Each run starts on a PRISTINE page. Wreckage + farmed-posts persist
     // WITHIN a run (across sub-travel) but reset on a new round — otherwise the
     // door opens onto a page still shattered/looted from your last life.
@@ -310,6 +321,11 @@ class GameScene extends Phaser.Scene {
     const tpFrames = Array.from({ length: 12 }, (_, k) => ({ key: `tp-${k + 1}` }));
     this.anims.create({ key: 'anim-tele-vanish', frames: tpFrames, frameRate: 22, repeat: 0 });
     this.anims.create({ key: 'anim-tele-arrive', frames: tpFrames.slice().reverse(), frameRate: 22, repeat: 0 });
+    // Balder boss locomotion — human right / zombie left (see boss.js)
+    for (const pre of ['bh', 'bz']) {
+      anim(`anim-${pre}-walk`, `${pre}-walk`, 8, 9);
+      anim(`anim-${pre}-run`, `${pre}-run`, 8, 14);
+    }
 
     this.currentSub = 'all';
     this.traveling = false;
@@ -761,6 +777,9 @@ class GameScene extends Phaser.Scene {
         NB.spawnMod2(this);
       } else if (k === 'y' && !this.ceremonyRunning && !this.caught) {
         NB.demoTeleport(this);
+      } else if (k === 'x' && !this.ceremonyRunning && !this.caught) {
+        this.bossDone = false;          // debug: force the BALDER fight, gates be damned
+        NB.spawnBalder(this);
       } else if (k === 't') {
         this.survivalMs += 30000;
       } else if (k === 'd' && !this.caught) {
@@ -836,7 +855,8 @@ class GameScene extends Phaser.Scene {
     // REVENANT_DELAY_MS later the old mod claws back out — then it's BOTH.
     // If the ceremony explodes (a webview API we can't touch, whatever), we
     // fall THROUGH to a normal death — never a bricked run.
-    if (!this.balderUsed && this.balderEligible) {
+    // (never intercepts a BALDER kill — management doesn't save you from management)
+    if (!this.balderUsed && this.balderEligible && !this.bossKill) {
       this.balderUsed = true;
       try {
         NB.playBalderCeremony(this, () => {
@@ -861,8 +881,8 @@ class GameScene extends Phaser.Scene {
     this.time.delayedCall(400, () => {
       const layer = [];
       // pulled once per death (onCaught is guarded, runs once per removal)
-      const verdict = Phaser.Utils.Array.GetRandom(NB.BAN_VERDICTS);
-      const reason = NB.nextBanReason();
+      const verdict = this.bossKill ? '[ ERASED ]' : Phaser.Utils.Array.GetRandom(NB.BAN_VERDICTS);
+      const reason = this.bossKill ? 'Reason: BALDER handled it personally.' : NB.nextBanReason();
       NB.playMoment(this, 'banned');   // the [ REMOVED ] screen — a death meme
       layer.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85).setDepth(40).setScrollFactor(0));
 
@@ -1170,6 +1190,13 @@ class GameScene extends Phaser.Scene {
         console.warn('CAUGHT_YOU with no outcome — forcing the ban');
         this.onCaught();
       }
+      // BALDER — the ending. Karma gate + BOTH mods hunting (redditM0D in,
+      // revenant risen). He vacuums the mods, hunts alone, never leaves.
+      if (!this.boss && !this.bossDone && this.mod2 && this.mod.revenant
+          && this.karma >= NB.TUNE.BOSS_KARMA_GATE) {
+        NB.spawnBalder(this);
+      }
+      if (this.boss) this.boss.update(dt, this.playerPos);
     }
   }
 }

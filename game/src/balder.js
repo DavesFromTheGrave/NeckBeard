@@ -335,6 +335,7 @@ NB.spawnMod2 = function (scene) {
 
 // After the ceremony: the comeback. He crawls out of the ground as REVENANT.
 NB.spawnRevenant = function (scene) {
+  if (scene.boss || scene.bossDone) return;  // BALDER took him — hell keeps its mods
   NB.sfx.revenant();
   NB.playMoment(scene, 'revenant');   // "HE CAME BACK WRONG" → a zombie meme
   const cam = scene.cameras.main;

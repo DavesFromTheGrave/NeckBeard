@@ -98,6 +98,29 @@ NB.TUNE = {
   CATCHUP_START: 750,        // px of real distance where catchup starts
   CATCHUP_FULL: 2400,        // px where it maxes out
   CATCHUP_MAX: 3.4,          // locomotion multiplier at max (lurk/hunt only, never lunge)
+
+  // ── BALDER, the endgame boss ─────────────────────────────────────────
+  // Trigger: karma gate + BOTH mods hunting (redditM0D in AND revenant risen).
+  // (The ARG doll unlock will AND onto this later — gate stays.)
+  // His ONLY kill is the teleport-strike, double-telegraphed: the vanish
+  // charge-up says "he's coming", the arrival burst + ring says "he's HERE",
+  // and only THEN does a short strike window open. Walking/running between
+  // blinks is pure pressure — Balder never catches outside the strike window.
+  // BALDER is the ending. Once he manifests the run is already over; the only
+  // question is the karma number on the stone. Nobody survives.
+  BOSS_KARMA_GATE: 50000,
+  BOSS_ENTRANCE_MS: 3200,    // arrival burst → both mods dragged to hell → the hunt
+  BOSS_ESCALATE_MS: 75000,   // blink cooldown ramps START→MIN over this, then stays MIN
+  BOSS_TP_CD_START: 8000,    // ms between blinks when the fight starts
+  BOSS_TP_CD_MIN: 4200,      // blink cooldown floor as the fight escalates
+  BOSS_TP_GAP_MS: 340,       // dead air — he is NOWHERE (the dread beat)
+  BOSS_TP_ANIM_MS: 560,      // vanish/arrive burst play time (12f @ 22fps)
+  BOSS_STRIKE_MS: 420,       // catch window right after the arrival burst
+  BOSS_RECOVER_MS: 1500,     // whiffed strike = he stands there — your window
+  BOSS_LAND_RING: 175,       // he lands this far from the cursor, never on top
+  BOSS_WALK_SPEED: 150,      // stalk speed (pressure between blinks)
+  BOSS_RUN_SPEED: 330,       // when you're far he runs (face = direction)
+  BOSS_SCALE_MULT: 1.25,     // bigger than the mods — he should loom
 };
 
 // Session flags that survive sandboxed webviews. Reddit's iframe can block

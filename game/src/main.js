@@ -540,6 +540,7 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0).setVisible(false);
       this.updateLetterHUD();
       NB.syncLetters(this);   // redis truth → merge device cache → refresh HUD
+      this.makeMuteButton(W, H);
       this.bindDebugKeys();
       this.bindTravelClicks();
       this.bindSubredditSearch();
@@ -625,6 +626,25 @@ class GameScene extends Phaser.Scene {
     this.lettersHud.setVisible(st.some(Boolean));
   }
 
+  // Speaker toggle — kills meme voices + bed music only (the letter hunt is a
+  // 6-7 run grind; Dave's kid wanted an off switch that survives the grind).
+  // Bottom-left so it never collides with the karma star / letters HUD on the
+  // right. Its bounds are checked in bindTravelClicks so a tap here can't also
+  // trigger a sub-hop.
+  makeMuteButton(W, H) {
+    const label = () => (NB.audioMuted ? '🔇' : '🔊');
+    this.muteBtn = this.add.text(18, H - 16, label(), {
+      fontFamily: 'Courier New', fontSize: '22px',
+    }).setOrigin(0, 1).setDepth(31).setScrollFactor(0).setAlpha(0.85)
+      .setInteractive({ useHandCursor: false });
+    this.muteBtn.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      NB.toggleMuted(this);
+      this.muteBtn.setText(label());
+      this.floatText(60, H - 40, NB.audioMuted ? 'meme audio off' : 'meme audio on', '#8ba2ad');
+    });
+  }
+
   // "Died here" — faded red cursor pointers on the exact posts other players
   // were caught at (Dave: a red pointer, NOT bloodstains). Anchored by post
   // key so layout shifts don't lie; deaths on posts not in this fetch simply
@@ -668,6 +688,8 @@ class GameScene extends Phaser.Scene {
   bindTravelClicks() {
     this.input.on('pointerdown', (p) => {
       if (!this.ready || this.caught || this.ceremonyRunning || this.traveling || this.entranceActive || this.pickerOpen) return;
+      // speaker toggle owns its own tap — never let it fall through to travel
+      if (this.muteBtn && this.muteBtn.getBounds().contains(p.x, p.y)) return;
       // mobile hamburger → open the sub drawer (checked before any travel zone)
       const mb = this.page.menuBtn;
       if (mb && mb.contains(p.x, p.y)) { this.openSubMenu(); return; }

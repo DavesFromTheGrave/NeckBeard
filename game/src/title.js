@@ -77,11 +77,30 @@ class TitleScene extends Phaser.Scene {
       clearTimeout(this._resizeT);
     });
 
+    // Speaker toggle on the title too (same mute as in-game). Its own tap must
+    // NOT start the game, so `go` runs off input.on with a bounds check rather
+    // than input.once (which the button tap would otherwise consume).
+    const mlabel = () => (NB.audioMuted ? '🔇' : '🔊');
+    this.muteBtn = this.add.text(18, H - 16, mlabel(), {
+      fontFamily: 'Courier New', fontSize: '22px',
+    }).setOrigin(0, 1).setDepth(1001).setScrollFactor(0).setAlpha(0.85)
+      .setInteractive({ useHandCursor: false });
+    this.muteBtn.on('pointerdown', (p, lx, ly, ev) => {
+      if (ev) ev.stopPropagation();
+      // unlock audio context on this gesture so an unmute is audible right away
+      try { if (this.sound.context && this.sound.context.state === 'suspended') this.sound.context.resume(); } catch {}
+      NB.toggleMuted(null);
+      this.muteBtn.setText(mlabel());
+    });
+
     if (NB.autostart()) {
       this.time.delayedCall(50, go);
       return;
     }
-    this.input.once('pointerdown', go);
+    this.input.on('pointerdown', (p) => {
+      if (this.muteBtn && this.muteBtn.getBounds().contains(p.x, p.y)) return;
+      go();
+    });
     this.input.keyboard?.once('keydown', go);
   }
 

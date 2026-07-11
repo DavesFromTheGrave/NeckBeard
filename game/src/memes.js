@@ -123,7 +123,9 @@ NB.drawMemeBadge = function (scene, x, y, id) {
 
 // Play a real captured clip if present, else run the synth fallback.
 NB.playMemeSound = function (scene, id, fallback) {
-  if (NB.MEME_AUDIO.includes(id) && scene.sound && scene.cache.audio.exists(`memeaudio-${id}`)) {
+  // muted kills the captured voice clip; the quiet synth fallback still fires
+  // so a grabbed pickup keeps its blip of feedback
+  if (!NB.audioMuted && NB.MEME_AUDIO.includes(id) && scene.sound && scene.cache.audio.exists(`memeaudio-${id}`)) {
     try { scene.sound.play(`memeaudio-${id}`, { volume: 0.5 }); return; } catch {}
   }
   if (typeof fallback === 'function') fallback();

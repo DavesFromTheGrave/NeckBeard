@@ -32,10 +32,29 @@ NB.MOMENT_SFX_ALL = [
 // Every clip id the moment layer needs preloaded.
 NB.momentAudioIds = function () { return NB.MOMENT_SFX_ALL.slice(); };
 
+// MUTE for the loud layer only — meme voice clips + the bed music (Dave's
+// kid, 2026-07-11: funny the first few times, but the letter hunt is a 6-7
+// run grind and he wants them OFF by run three). The synth gameplay cues in
+// sfx.js are NOT muted — the telegraph wind-up is a fairness signal. Persists
+// across runs/days so once it's off, it stays off through the whole grind.
+NB.audioMuted = (NB.persistGet && NB.persistGet('nb_muted') === '1');
+NB.setMuted = function (scene, on) {
+  NB.audioMuted = !!on;
+  if (NB.persistSet) NB.persistSet('nb_muted', on ? '1' : '0');
+  if (on) {
+    NB.stopBed();
+    try { if (NB._eventSound && NB._eventSound.isPlaying) NB._eventSound.stop(); } catch {}
+  } else if (scene && scene.ready && !scene.caught) {
+    NB.startBed(scene);              // bring the bed back mid-run on unmute
+  }
+};
+NB.toggleMuted = function (scene) { NB.setMuted(scene, !NB.audioMuted); return NB.audioMuted; };
+
 // The one gated meme-voice player. Plays memeaudio-<id> unless another clip is
 // already going. Returns true only if it actually started one.
 NB._eventSound = null;
 NB.playMemeSfx = function (scene, id, volume) {
+  if (NB.audioMuted) return false;                                // muted → silent
   if (!scene || !scene.sound || !id) return false;
   if (NB._eventSound && NB._eventSound.isPlaying) return false;   // busy → skip
   const key = `memeaudio-${id}`;
@@ -83,6 +102,7 @@ NB.playMoment = function (scene, moment) {
 // --- the looping bed (corpse-party) ---
 NB._bed = null;
 NB.startBed = function (scene) {
+  if (NB.audioMuted) return;                                      // muted → no music
   if (NB._bed && NB._bed.isPlaying) return;
   if (!scene || !scene.cache || !scene.cache.audio.exists('game-bed')) return;
   try {

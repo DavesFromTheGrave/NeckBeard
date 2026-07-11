@@ -7,27 +7,28 @@
 // the bed loads as 'game-bed'. Dave picks WHEN; the pools are the WHICH.
 window.NB = window.NB || {};
 
-NB.MOMENT_SFX = {
-  intro:       ['xp-startup', 'wednesday', 'they-ask-you', 'jeopardy'],
-  doorOpen:    ['this-is-sparta', 'fbi-open-up', 'john-cena', 'oh-shit-waddup', 'that-escalated'],
-  cheerleader: ['notice-me-senpai', 'anime-wow', 'oh-baby-a-triple', 'look-at-this-dude', 'damn-boy'],
-  powerup:     ['combo-breaker', 'stonks', 'another-one', 'do-it'],
-  karma1k:     ['stonks', 'oh-baby-a-triple', 'we-got-him', 'combo-breaker'],
-  closeCall:   ['overdrive', 'why-are-you-running', 'hell-naw', 'shuffling', 'bing-bing-bong', 'challenging-me', 'sheesh', 'aint-nobody'],
-  travel:      ['here-com-dat-boi', 'another-one', 'to-be-continued', 'my-name-is-jeff', 'bruh'],
-  caught:      ['lotta-damage', 'kaboom', 'oh-shit-waddup', 'sheesh', 'ha-ha'],
-  redditmod:   ['here-com-dat-boi', 'back-up-terry', 'jason-bourne', 'another-one'],
-  revenant:    ['zombies-laugh', 'piece-of-garbage', 'carl-kills', 'oh-shit-waddup'],
-  banned:      ['lol-u-died', 'gta-wasted', 'fuck-this-shit', 'piece-of-garbage', 'no-god-no', 'jebaited', 'sad-tune', 'bruh'],
-  ending:      ['to-be-continued', 'sad-tune'],
-};
+// ONE CHAOS POOL (Dave, 2026-07-10: "I want every meme able to launch
+// everywhere"). Every shipped clip is eligible at every moment — the moment
+// name only marks WHEN something fires, never WHICH. Excluded by explicit
+// order only: 'yakety-sax' and 'oh-shit-waddup'. With a 59-clip shuffle cycle
+// nothing repeats until all 59 have played (the "OH BABY A TRIPLE 10x a run"
+// fix, taken to its logical extreme).
+NB.MOMENT_SFX_ALL = [
+  'aint-nobody', 'all-your-base', 'anime-wow', 'another-one', 'back-up-terry',
+  'badger-badger', 'banana-phone', 'bing-bing-bong', 'bruh', 'carl-kills',
+  'challenging-me', 'combo-breaker', 'damn-boy', 'dat-boi', 'do-it', 'fbi-open-up',
+  'fuck-this-shit', 'gnome', 'gta-wasted', 'ha-ha', 'hell-naw', 'here-com-dat-boi',
+  'jason-bourne', 'jebaited', 'jeopardy', 'john-cena', 'kaboom', 'keyboard-cat',
+  'lol-u-died', 'look-at-this-dude', 'lotta-damage', 'my-name-is-jeff', 'no-god-no',
+  'notice-me-senpai', 'nyan-cat', 'oh-baby-a-triple', 'one-does-not-simply', 'over-9000',
+  'overdrive', 'piece-of-garbage', 'rickroll', 'run-meme-song', 'sad-tune', 'sheesh',
+  'shoop-da-whoop', 'shuffling', 'stonks', 'that-escalated', 'they-ask-you',
+  'this-is-fine', 'this-is-sparta', 'to-be-continued', 'trogdor', 'ultimate-showdown',
+  'we-got-him', 'wednesday', 'why-are-you-running', 'xp-startup', 'zombies-laugh',
+];
 
-// Every clip id the moment layer needs preloaded (union of all pools).
-NB.momentAudioIds = function () {
-  const s = new Set();
-  for (const k in NB.MOMENT_SFX) for (const id of NB.MOMENT_SFX[k]) s.add(id);
-  return [...s];
-};
+// Every clip id the moment layer needs preloaded.
+NB.momentAudioIds = function () { return NB.MOMENT_SFX_ALL.slice(); };
 
 // The one gated meme-voice player. Plays memeaudio-<id> unless another clip is
 // already going. Returns true only if it actually started one.
@@ -51,16 +52,30 @@ NB.playMemeSfx = function (scene, id, volume) {
   } catch { return false; }
 };
 
-// Fire a random clip for a moment (no immediate repeat within that moment).
-NB._lastMomentId = {};
+// Fire a clip for a moment — ONE global SHUFFLED CYCLE. Every moment draws
+// from the same session-shuffled deck of all 59 clips; nothing repeats until
+// the whole deck has played, then it reshuffles (guarding the boundary so the
+// same clip can't play back-to-back across cycles). The `moment` arg is kept
+// for the call sites but no longer picks the pool.
+NB._momentQ = null;
+NB._lastGlobalId = null;
+NB._pickMomentId = function (_moment) {
+  let q = NB._momentQ;
+  if (!q || !q.length) {
+    q = NB.MOMENT_SFX_ALL.slice();
+    for (let i = q.length - 1; i > 0; i--) {           // Fisher-Yates
+      const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]];
+    }
+    // boundary guard: don't let the new cycle open with what just played
+    if (q.length > 1 && q[0] === NB._lastGlobalId) [q[0], q[1]] = [q[1], q[0]];
+    NB._momentQ = q;
+  }
+  return q.shift();
+};
 NB.playMoment = function (scene, moment) {
-  const pool = NB.MOMENT_SFX[moment];
-  if (!pool || !pool.length) return;
   if (NB._eventSound && NB._eventSound.isPlaying) return;
-  let id, tries = 0;
-  do { id = pool[(Math.random() * pool.length) | 0]; }
-  while (id === NB._lastMomentId[moment] && ++tries < 5 && pool.length > 1);
-  if (NB.playMemeSfx(scene, id, 0.78)) NB._lastMomentId[moment] = id;
+  const id = NB._pickMomentId(moment);
+  if (id && NB.playMemeSfx(scene, id, 0.78)) NB._lastGlobalId = id;
 };
 
 // --- the looping bed (corpse-party) ---

@@ -48,6 +48,51 @@ NB.playBalderCeremony = function (scene, done) {
   }
 };
 
+// ── Balder TELEPORT — the boss's signature blink ─────────────────────────
+// Dave's 13-frame purple sequence: he charges up, DETONATES into a starburst,
+// then dissipates to smoke. Keyed transparent (the black bg is stripped) so it
+// composites on ANY Reddit theme with a plain NORMAL blend — no additive
+// washout, no ghosting. Forward (tp-1→12) is the vanish; reversed is the
+// reappear/materialise. A dead-air beat sits between — never an instant kill:
+// the charge-up is the tell, the silence is the dread, the re-detonation is
+// the "he's HERE".
+NB.balderTeleport = function (scene, sprite, tx, ty, done) {
+  if (!sprite || !sprite.active) { if (done) done(); return; }
+  scene.cameras.main.shake(120, 0.004);
+  try { NB.sfx && NB.sfx.telegraph && NB.sfx.telegraph(); } catch (e) {}
+  sprite.play('anim-tele-vanish');
+  sprite.once('animationcomplete', () => {
+    sprite.setVisible(false);
+    // dead air — he's gone, nothing there
+    scene.time.delayedCall(180, () => {
+      if (!sprite.active) { if (done) done(); return; }
+      sprite.setPosition(tx, ty).setVisible(true);
+      scene.cameras.main.shake(210, 0.006);
+      try { NB.sfx && NB.sfx.lunge && NB.sfx.lunge(); } catch (e) {}
+      sprite.play('anim-tele-arrive');
+      sprite.once('animationcomplete', () => { try { sprite.setTexture('tp-1'); } catch (e) {} if (done) done(); });
+    });
+  });
+};
+
+// Debug demo (Alt+Shift+Y): blink Balder to a random on-screen spot so the
+// teleport can be watched before the boss entity is built.
+NB.demoTeleport = function (scene) {
+  const cam = scene.cameras.main;
+  let b = scene._teleBody;
+  if (!b || !b.active) {
+    const x = cam.scrollX + cam.width * 0.4, y = cam.scrollY + cam.height * 0.55;
+    b = scene._teleBody = scene.add.sprite(x, y, 'tp-1').setDepth(58);
+    const h = cam.height * 0.6;                 // whole effect frame ~60% tall; Balder within reads ~1/3 of that
+    b.setDisplaySize(h * (b.width / b.height), h);
+  }
+  if (scene._teleBusy) return;
+  scene._teleBusy = true;
+  const tx = cam.scrollX + cam.width * (0.25 + Math.random() * 0.5);
+  const ty = cam.scrollY + cam.height * (0.4 + Math.random() * 0.3);
+  NB.balderTeleport(scene, b, tx, ty, () => { scene._teleBusy = false; });
+};
+
 // Fullscreen DOM <video> takeover. The mp4 ships silent — meme clips fire at
 // the beats instead (Dave: "just pick relevant memes"), and the chase bed
 // keeps looping underneath (it ducks under each clip automatically).
@@ -277,6 +322,7 @@ NB.spawnMod2 = function (scene) {
     scale: T.SPRITE_SCALE * T.MOD2_SCALE_MULT,
     speedMult: T.MOD2_SPEED_MULT,
     lungeMult: T.MOD2_LUNGE_MULT,
+    rangeMult: T.MOD2_RANGE_MULT,   // Zenitsu: draws from way out, streaks in
     texture: 'mod2-idle',
   });
   m2.sprite.setScale(0.05).setAlpha(0.4);

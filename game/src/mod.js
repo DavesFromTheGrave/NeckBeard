@@ -14,6 +14,8 @@ NB.Supermod = class {
     this.baseScale = opts.scale ?? NB.TUNE.SPRITE_SCALE;
     this.speedMult = opts.speedMult || 1;
     this.lungeMult = opts.lungeMult || 1;
+    this.rangeMult = opts.rangeMult || 1;   // lunge initiation range (Zenitsu draws from way out)
+    this.ghostT = 0;                        // dash afterimage spawn timer (mod2 lunge)
     // heat ramps from THIS mod's entrance, not run start — a late tag-in
     // (redditM0D) starts calm instead of inheriting 60s+ of accumulated rage
     this.heatBase = { ms: scene.survivalMs || 0, karma: scene.karma || 0 };
@@ -55,7 +57,7 @@ NB.Supermod = class {
       walk: 'anim2-walk',
       hunt: 'anim2-run',
       telegraph: 'anim2-crouch',
-      lunge: 'anim2-leap',
+      lunge: 'anim2-punch',   // his lunge IS the brass-knuckle punch (Dave's strike)
       climb: 'anim2-climb',
       stumble: 'anim2-stumble',
       victory: 'anim2-victory',
@@ -84,11 +86,18 @@ NB.Supermod = class {
       case 'TELEGRAPH': {
         this.anim('telegraph');
         NB.sfx.telegraph();
-        this.telegraphRing.setVisible(true).setStrokeStyle(3, this.revenant ? 0x3fae54 : 0xe0452a);
+        const ringCol = this.variant === 'mod2' ? 0xf5d63d : (this.revenant ? 0x3fae54 : 0xe0452a);
+        this.telegraphRing.setVisible(true).setStrokeStyle(3, ringCol);
         this.scene.tweens.add({ targets: this.telegraphRing, scale: { from: 1.4, to: 0.7 },
           alpha: { from: 0.4, to: 1 }, duration: this.telegraphMs() });
-        // anticipation: coil down before the burst — the "held breath" beat
-        this.squash(1.1, 0.86, this.telegraphMs());
+        if (this.variant === 'mod2') {
+          // ZENITSU: no coil, no motion — he goes DEAD STILL. The stillness is
+          // the tell (yellow ring), then one lightning streak.
+          this.resetSquash(60);
+        } else {
+          // anticipation: coil down before the burst — the "held breath" beat
+          this.squash(1.1, 0.86, this.telegraphMs());
+        }
         this.scene.cameras.main.zoomTo(1.045, this.telegraphMs(), 'Sine.easeIn');
         break;
       }
@@ -239,6 +248,13 @@ NB.Supermod = class {
     if (this.speedBurstT > 0) mult *= 1.35;
     if (this.slowT > 0) mult *= this.slowMult;   // meme slow (Harambe, Yakety Sax…)
     if (this.revenant) mult *= 1.32;
+    // anti-scroll-camp rubber band: wheel-fling distance stops buying farm time.
+    // Locomotion only — the lunge window itself is untouched (fairness).
+    if (this.state === 'LURK' || this.state === 'HUNT') {
+      const cu = Phaser.Math.Clamp(
+        (realDist - T.CATCHUP_START) / (T.CATCHUP_FULL - T.CATCHUP_START), 0, 1);
+      mult *= 1 + cu * (T.CATCHUP_MAX - 1);
+    }
 
     switch (this.state) {
       case 'LURK': {
@@ -257,7 +273,7 @@ NB.Supermod = class {
         if (this.repathT <= 0) { this.aim = { x: tgt.x, y: tgt.y }; this.repathT = T.HUNT_REPATH_MS; }
         const speed = (T.HUNT_SPEED + this.heat * T.HEAT_SPEED_BONUS) * mult;
         this.moveToward(this.aim, speed, dt);
-        if (dist < T.LUNGE_RANGE) { this.cornered = realDist < T.CORNER_RANGE; this.setState('TELEGRAPH'); break; }
+        if (dist < T.LUNGE_RANGE * this.rangeMult) { this.cornered = realDist < T.CORNER_RANGE; this.setState('TELEGRAPH'); break; }
         // AvA VAULT: a post card sits in his path and he isn't already on it —
         // he grabs the edge and hauls himself over. This IS Animator vs Animation.
         if (this.climbCd <= 0 && dist > 6) {
@@ -342,6 +358,21 @@ NB.Supermod = class {
       case 'LUNGE': {
         s.x += this.lungeVec.x * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
         s.y += this.lungeVec.y * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
+        // ZENITSU streak: the dash is so fast it needs afterimages to even read.
+        // Ghost copies of his current frame, electric yellow, gone in ~200ms.
+        if (this.variant === 'mod2') {
+          this.ghostT -= dt;
+          if (this.ghostT <= 0) {
+            this.ghostT = 26;
+            try {
+              const g = this.scene.add.image(s.x, s.y, s.texture.key, s.frame.name)
+                .setScale(s.scaleX, s.scaleY).setFlipX(s.flipX).setDepth(s.depth - 1)
+                .setTintFill(0xf5d63d).setAlpha(0.5);   // SOLID yellow silhouette — lightning, not shadow (plain tint multiplies against the navy shirt = mud)
+              this.scene.tweens.add({ targets: g, alpha: 0, duration: 200,
+                onComplete: () => { try { g.destroy(); } catch {} } });
+            } catch {}
+          }
+        }
         this.lungeMinDist = Math.min(this.lungeMinDist, realDist);   // for close-call detection
         // decoy pop: lunging into the fake cursor kills the decoy, not you
         if (this.decoy && Math.hypot(this.decoy.x - s.x, this.decoy.y - s.y) < T.CATCH_RADIUS) {

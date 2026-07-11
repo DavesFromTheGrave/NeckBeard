@@ -3,12 +3,12 @@ window.NB = window.NB || {};
 NB.TUNE = {
   // movement (px/sec)
   LURK_SPEED: 70,
-  HUNT_SPEED: 275,         // quicker onto the cursor (was 230)
+  HUNT_SPEED: 300,         // 2026-07-10: kid reached the ceremony FIRST RUN on a phone — early game was a participation trophy (was 275)
   LUNGE_SPEED: 1080,       // faster lunge (was 950)
   CHARGE_SPEED: 520,
 
   // state timings (ms)
-  LURK_MIN: 2500,          // wander before first hunt
+  LURK_MIN: 1500,          // wander before first hunt — a second less mercy (was 2500)
   TELEGRAPH_MS: 500,       // the fairness window — he ALWAYS winds up first
   LUNGE_MS: 320,           // collision exists ONLY inside this window
   STUMBLE_MS: 900,         // recovery after a miss
@@ -33,10 +33,10 @@ NB.TUNE = {
   VAULT_TILT_DEG: 20,      // forward body lean at the apex
 
   // escalation
-  HEAT_RAMP_S: 25,         // every N seconds survived, he gets meaner
-  HEAT_SPEED_BONUS: 22,    // px/s per heat level
+  HEAT_RAMP_S: 18,         // every N seconds survived, he gets meaner — arrives ~40% sooner (was 25)
+  HEAT_SPEED_BONUS: 26,    // px/s per heat level (was 22)
   HEAT_MAX: 6,
-  KARMA_PER_HEAT: 900,     // every N karma farmed adds +1 heat (greed = danger)
+  KARMA_PER_HEAT: 700,     // every N karma farmed adds +1 heat — greed bites harder (was 900)
 
   // karma heist: stealing is an ACTIVE aim challenge, not a wait-it-out timer.
   // While inside a fresh post, targets pop up one at a time inside the card —
@@ -82,9 +82,22 @@ NB.TUNE = {
   // out of the ground and BOTH hunt. Telegraph timings are untouched — the
   // fairness window is identical, there's just less room to breathe.
   MOD2_SPEED_MULT: 2.5,      // redditM0D locomotion vs superM0D (lurk/hunt/charge)
-  MOD2_LUNGE_MULT: 1.25,     // quicker lunge too — but still telegraphed first
+  // The ZENITSU dash (Dave: "make him move like zenitsu"): dead-still telegraph,
+  // then ONE lightning streak. 1080*3.0 ≈ 3240px/s over the same 320ms window —
+  // he crosses the screen as a blur. Fairness intact: the stillness IS the tell,
+  // the catch still exists only inside the telegraphed LUNGE window.
+  MOD2_LUNGE_MULT: 3.0,      // dash speed (was 1.25 — too polite)
+  MOD2_RANGE_MULT: 1.9,      // he draws from much further out — distance ≠ safety
   MOD2_SCALE_MULT: 0.94,     // slightly smaller body: the junior mod, reads faster
   REVENANT_DELAY_MS: 30000,  // how long redditM0D hunts alone before superM0D rises
+
+  // Anti-scroll-camp rubber band. Desktop exploit: wheel-fling to the far end of
+  // the feed and farm while the mods jog the whole world height back to you.
+  // Fix: the further you run, the faster they close — full sprint by CATCHUP_FULL
+  // px. Scroll still works (fleeing IS reddit), it just stops being free time.
+  CATCHUP_START: 750,        // px of real distance where catchup starts
+  CATCHUP_FULL: 2400,        // px where it maxes out
+  CATCHUP_MAX: 3.4,          // locomotion multiplier at max (lurk/hunt only, never lunge)
 };
 
 // Session flags that survive sandboxed webviews. Reddit's iframe can block

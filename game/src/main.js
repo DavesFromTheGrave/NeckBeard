@@ -177,7 +177,9 @@ class GameScene extends Phaser.Scene {
     this.load.image('m1-victory', 'assets/mod1/m1-victory.png');
     this.load.image('mod2-idle', 'assets/mod2/mod2-idle.png');
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
+    for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
+    for (let i = 1; i <= 12; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — 13-frame purple vanish (keyed transparent)
     this.load.image('elevator', 'assets/balder/elevator.png');
     this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
@@ -239,6 +241,7 @@ class GameScene extends Phaser.Scene {
     this.caught = false;
     this.ceremonyRunning = false;
     this.pickerOpen = false;       // mobile sub-drawer open → hunt frozen
+    this.searchFocused = false;    // header search focused → hunt frozen (typing a destination is safe travel, like the drawer)
     this.entranceActive = false;   // frozen while the door-open reveal plays
     this.balderUsed = false;
     this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
@@ -294,6 +297,19 @@ class GameScene extends Phaser.Scene {
     this.anims.create({ key: 'anim2-throw',
       frames: [{ key: 'mod2-stand' }, { key: 'mod2-idle' }], frameRate: 5, repeat: 0 });
     this.anims.create({ key: 'anim2-sledge', frames: [{ key: 'mod2-stand' }], frameRate: 1 });
+    // redditM0D's brass-knuckle punch — Dave's 11-frame hand-made strike (wind-up →
+    // extend → impact flash → electric crackle). Fires during LUNGE: his lunge IS the
+    // punch. repeat 0 (strike once, hold last frame); frameRate 32 lands the impact
+    // frame inside the 320ms LUNGE window. Fairness is untouched — the catch check
+    // still lives only inside the LUNGE window (mod.js); this only changes his look.
+    this.anims.create({ key: 'anim2-punch',
+      frames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => ({ key: `mod2-punch-${i}` })), frameRate: 32, repeat: 0 });
+    // Balder teleport — Dave's 13-frame purple vanish (charge → detonate → smoke),
+    // keyed transparent so it composites on any Reddit theme. Forward = vanish,
+    // reversed = reappear/materialise at the new spot.
+    const tpFrames = Array.from({ length: 12 }, (_, k) => ({ key: `tp-${k + 1}` }));
+    this.anims.create({ key: 'anim-tele-vanish', frames: tpFrames, frameRate: 22, repeat: 0 });
+    this.anims.create({ key: 'anim-tele-arrive', frames: tpFrames.slice().reverse(), frameRate: 22, repeat: 0 });
 
     this.currentSub = 'all';
     this.traveling = false;
@@ -699,8 +715,17 @@ class GameScene extends Phaser.Scene {
         input.value = '';
         input.blur();
         if (raw.trim()) this.trySubredditSearch(raw);
+      } else if (e.key === 'Escape') {
+        input.value = '';
+        input.blur();
       }
     });
+    // Focusing the search to type a destination freezes the hunt — you can't
+    // type AND survive otherwise (the mod walks into your parked cursor). Same
+    // safe-navigation rule as the sub-drawer. Not exploitable: you can't farm
+    // karma while frozen, and it won't cancel a committed catch (see `frozen`).
+    input.addEventListener('focus', () => { this.searchFocused = true; });
+    input.addEventListener('blur', () => { this.searchFocused = false; });
   }
 
   trySubredditSearch(raw) {
@@ -734,6 +759,8 @@ class GameScene extends Phaser.Scene {
         NB.spawnRevenant(this);
       } else if (k === 'm' && !this.ceremonyRunning && !this.caught) {
         NB.spawnMod2(this);
+      } else if (k === 'y' && !this.ceremonyRunning && !this.caught) {
+        NB.demoTeleport(this);
       } else if (k === 't') {
         this.survivalMs += 30000;
       } else if (k === 'd' && !this.caught) {
@@ -1084,7 +1111,12 @@ class GameScene extends Phaser.Scene {
     // SIM FREEZE: while a loading interstitial is up (boot OR sub-travel) the
     // mod must not hunt or catch — the page underneath is mid-rebuild and it
     // isn't fair to die to something you can't see. Ceremony freezes too.
-    const frozen = this.ceremonyRunning || !!this.loadingUI || this.entranceActive || this.pickerOpen;
+    // Search-focus freeze is suspended if any mod is mid-attack (LUNGE/SMASH),
+    // so clicking the search bar can never cancel a committed catch.
+    const searchFreeze = this.searchFocused
+      && !(this.mods || []).some(m => m.state === 'LUNGE' || m.state === 'SMASH');
+    const frozen = this.ceremonyRunning || !!this.loadingUI || this.entranceActive
+      || this.pickerOpen || searchFreeze;
 
     if (!frozen) {
       this.survivalMs += dt;

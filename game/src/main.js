@@ -83,7 +83,7 @@ NB.BAN_REASONS = [
   'Reason: vote manipulation.',
   'Reason: rule 7. (we just made it up)',
   'Reason: ban evasion. (we don\'t know either)',
-  'Reason: didn\'t read the sidebar. then read it too closely.',
+  'Reason: didn\'t read the sidebar.',
   'Reason: wrong opinion.',
   'Reason: started a support ticket.',
   'Reason: you seemed happy.',
@@ -102,12 +102,25 @@ NB.BAN_REASONS = [
   'Reason: showed a nipple on stream. (3-day ban)',
   'Reason: smelled like Discord.',
 ];
+// The sidebar bit is a TWO-PARTER (Dave 2026-07-11: it's only funny as a
+// callback). Drawing the setup arms the punchline for the very next ban —
+// the punchline never enters the random pool on its own. Survives scene
+// restarts via the storage-safe flag, so the bit lands on the next death
+// even after a "run it back."
+NB.BAN_SIDEBAR_SETUP = 'Reason: didn\'t read the sidebar.';
+NB.BAN_SIDEBAR_PUNCH = 'Reason: read the sidebar too closely.';
 NB.nextBanReason = function () {
+  if (NB.flagGet('nb_sidebar_punch') === '1') {
+    NB.flagSet('nb_sidebar_punch', '0');
+    return NB.BAN_SIDEBAR_PUNCH;
+  }
   if (!NB._banBag || !NB._banBag.length) {
     // Phaser.Utils.Array.Shuffle mutates in place — shuffle a COPY, not the pool.
     NB._banBag = Phaser.Utils.Array.Shuffle(NB.BAN_REASONS.slice());
   }
-  return NB._banBag.pop();
+  const r = NB._banBag.pop();
+  if (r === NB.BAN_SIDEBAR_SETUP) NB.flagSet('nb_sidebar_punch', '1');
+  return r;
 };
 // The mod also slaps a MEME on your removal notice — a random "L" stamp above
 // the text reason. Ids map to game/assets/memes/img/<id>.png (preloaded as

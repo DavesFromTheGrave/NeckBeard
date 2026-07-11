@@ -31,7 +31,7 @@ NB.LETTER_CHAIN = [
   { sub: 'hmmm',           letter: 'L', clue: 'dreams shitpost too.' },
   { sub: 'surrealmemes',   letter: 'D', clue: 'cooked until the pixels scream.' },
   { sub: 'deepfriedmemes', letter: 'E', clue: 'past burnt. past wrong. nothing survives the flash.' },
-  { sub: 'nukedmemes',     letter: 'R', clue: 'the name is complete. he knows.' },
+  { sub: 'nukedmemes',     letter: 'R', clue: 'the admin.' },
 ];
 
 // ── state: in-session cache, seeded from device storage, trued-up by the

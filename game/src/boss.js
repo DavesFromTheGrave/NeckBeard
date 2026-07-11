@@ -38,6 +38,36 @@ NB.Balder = class {
     this.playBurst('anim-tele-arrive');
     NB.sfx.lunge && NB.sfx.lunge();
     scene.cameras.main.shake(240, 0.007);
+    this.showHeroSplash();
+  }
+
+  // THE MANIFEST — Dave's full-body beckon hero (balder-hero) fills the screen
+  // as he arrives: a dark veil, the art rising + fading in, holding through the
+  // vacuum beat, then dismissed when the hunt begins (setState 'STALK'). Pure
+  // theater over a fixed camera — no catch, no gameplay object. Skipped if the
+  // texture never loaded (degrades to the old flash + floattext).
+  showHeroSplash() {
+    const scene = this.scene;
+    if (!scene.textures.exists('balder-hero')) return;
+    const W = scene.scale.width, H = scene.scale.height;
+    this._veil = scene.add.rectangle(W / 2, H / 2, W, H, 0x0a0a0a, 0)
+      .setDepth(88).setScrollFactor(0);
+    const src = scene.textures.get('balder-hero').getSourceImage();
+    const s = Math.min((H * 0.92) / src.height, (W * 0.9) / src.width);
+    this._hero = scene.add.image(W / 2, H / 2 + 30, 'balder-hero')
+      .setScale(s * 0.96).setAlpha(0).setDepth(89).setScrollFactor(0);
+    scene.tweens.add({ targets: this._veil, fillAlpha: 0.82, duration: 500 });
+    scene.tweens.add({ targets: this._hero, alpha: 1, y: H / 2, scale: s,
+      duration: 650, ease: 'Back.easeOut' });
+  }
+
+  dismissHeroSplash() {
+    for (const o of [this._hero, this._veil]) {
+      if (!o) continue;
+      this.scene.tweens.add({ targets: o, alpha: 0, duration: 450,
+        onComplete: () => { try { o.destroy(); } catch (e) {} } });
+    }
+    this._hero = this._veil = null;
   }
 
   // tp-* frames are the whole EFFECT (body + burst + smoke, ~600 tall with the
@@ -152,7 +182,7 @@ NB.Balder = class {
           this.bodyAnim(null, 'bh-walk-1');
           this.vacuumMods();
         }
-        if (this.stateT >= T.BOSS_ENTRANCE_MS) this.setState('STALK');
+        if (this.stateT >= T.BOSS_ENTRANCE_MS) { this.dismissHeroSplash(); this.setState('STALK'); }
         break;
       }
       case 'STALK': {
@@ -232,6 +262,8 @@ NB.Balder = class {
   destroy() {
     try { this.sprite.destroy(); } catch (e) {}
     try { this.ring.destroy(); } catch (e) {}
+    try { if (this._hero) this._hero.destroy(); } catch (e) {}
+    try { if (this._veil) this._veil.destroy(); } catch (e) {}
   }
 };
 

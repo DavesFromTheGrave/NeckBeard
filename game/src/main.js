@@ -185,6 +185,9 @@ class GameScene extends Phaser.Scene {
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
+    // BALDER hero — Dave's full-body beckon master (transparent alpha, do NOT
+    // flood-fill). The manifest splash when the boss arrives (boss.js).
+    this.load.image('balder-hero', 'assets/balder-boss/balder-hero.png');
     // superMOD's entrance: closed door (sign) -> open (void) -> he steps out
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');

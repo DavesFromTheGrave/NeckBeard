@@ -10,14 +10,16 @@ window.NB = window.NB || {};
 // ONE CHAOS POOL (Dave, 2026-07-10: "I want every meme able to launch
 // everywhere"). Every shipped clip is eligible at every moment — the moment
 // name only marks WHEN something fires, never WHICH. Excluded by explicit
-// order only: 'yakety-sax' and 'oh-shit-waddup'. With a 59-clip shuffle cycle
-// nothing repeats until all 59 have played (the "OH BABY A TRIPLE 10x a run"
-// fix, taken to its logical extreme).
+// order only: 'yakety-sax' and the ENTIRE dat boi meme — 'oh-shit-waddup',
+// 'dat-boi', AND 'here-com-dat-boi' are all the same banned soundbite under
+// different ids (Dave caught it live 2026-07-10; do not re-add any of them).
+// With a 57-clip shuffle cycle nothing repeats until all 57 have played
+// (the "OH BABY A TRIPLE 10x a run" fix, taken to its logical extreme).
 NB.MOMENT_SFX_ALL = [
   'aint-nobody', 'all-your-base', 'anime-wow', 'another-one', 'back-up-terry',
   'badger-badger', 'banana-phone', 'bing-bing-bong', 'bruh', 'carl-kills',
-  'challenging-me', 'combo-breaker', 'damn-boy', 'dat-boi', 'do-it', 'fbi-open-up',
-  'fuck-this-shit', 'gnome', 'gta-wasted', 'ha-ha', 'hell-naw', 'here-com-dat-boi',
+  'challenging-me', 'combo-breaker', 'damn-boy', 'do-it', 'fbi-open-up',
+  'fuck-this-shit', 'gnome', 'gta-wasted', 'ha-ha', 'hell-naw',
   'jason-bourne', 'jebaited', 'jeopardy', 'john-cena', 'kaboom', 'keyboard-cat',
   'lol-u-died', 'look-at-this-dude', 'lotta-damage', 'my-name-is-jeff', 'no-god-no',
   'notice-me-senpai', 'nyan-cat', 'oh-baby-a-triple', 'one-does-not-simply', 'over-9000',
@@ -53,7 +55,7 @@ NB.playMemeSfx = function (scene, id, volume) {
 };
 
 // Fire a clip for a moment — ONE global SHUFFLED CYCLE. Every moment draws
-// from the same session-shuffled deck of all 59 clips; nothing repeats until
+// from the same session-shuffled deck of all 57 clips; nothing repeats until
 // the whole deck has played, then it reshuffles (guarding the boundary so the
 // same clip can't play back-to-back across cycles). The `moment` arg is kept
 // for the call sites but no longer picks the pool.

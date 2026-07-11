@@ -414,6 +414,11 @@ NB.buildFakePage = function (scene, W, viewH, data) {
       ry += railH + 16;
     } else {
       // ---- ABOUT COMMUNITY (sub view) -----------------------------------
+      // The sub banner spans feed + rail (full-width, with the Joined /
+      // + Create Post buttons hanging off its right edge — INSIDE this
+      // column). Start the rail below it or the card draws under the
+      // buttons. Keep in sync with bannerH (128) + the 12px gap.
+      ry += 140;
       const subName = (data.name || `r/${data.subreddit}`).replace(/^r\//, '');
       const stats = subStats(subName);
       const desc = `A community dedicated to ${subName}. News, discussion, and everything in between. Keep it on-topic.`;

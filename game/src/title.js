@@ -41,7 +41,7 @@ class TitleScene extends Phaser.Scene {
     // The page hides the OS cursor (#game{cursor:none}) so the GAME can draw its
     // own — but the title had none, so the mouse vanished here. Draw it on the
     // title too: the cursor must NEVER disappear on any screen.
-    this.titleCursor = this.add.graphics().setDepth(200).setScrollFactor(0);
+    this.titleCursor = this.add.graphics().setDepth(1000).setScrollFactor(0);  // above everything, same law as GameScene
 
     const go = () => {
       if (this.started) return;
@@ -55,8 +55,27 @@ class TitleScene extends Phaser.Scene {
     // shrinks it to a postage stamp with dead black bars top and bottom.
     // Portrait gets its own art-free arcade text layout instead. Desktop and
     // any landscape viewport keep Dave's painted title card.
-    if (H > W) this.createPortrait(W, H);
-    else this.createLandscape(W, H);
+    if (H > W) { this._layout = 'portrait'; this.createPortrait(W, H); }
+    else { this._layout = 'landscape'; this.createLandscape(W, H); }
+
+    // Reddit's post size switcher (mobile/desktop/fullscreen) resizes the
+    // webview AFTER boot. GameScene builds itself fresh on start, but the
+    // title laid out once and stayed small — re-create it whenever the
+    // viewport really changes (swaps portrait ↔ landscape too). The listener
+    // dies with the scene, so a mid-run resize can't restart the title
+    // behind a live game.
+    this._onResize = () => {
+      if (this.started) return;
+      const w = this.scale.width, h = this.scale.height;
+      if (Math.abs(w - W) < 2 && Math.abs(h - H) < 2) return;
+      clearTimeout(this._resizeT);
+      this._resizeT = setTimeout(() => { if (!this.started) this.scene.restart(); }, 180);
+    };
+    this.scale.on('resize', this._onResize);
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this._onResize);
+      clearTimeout(this._resizeT);
+    });
 
     if (NB.autostart()) {
       this.time.delayedCall(50, go);

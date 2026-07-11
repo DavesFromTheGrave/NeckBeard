@@ -21,8 +21,10 @@ NB.MEME_ART = [
 ];
 NB.MEME_AUDIO = [
   'shoop-da-whoop', 'trogdor', 'rickroll', 'nyan-cat', 'keyboard-cat', 'over-9000', 'this-is-fine',
-  'ultimate-showdown', 'one-does-not-simply', 'dat-boi', 'gnome', 'banana-phone',
+  'ultimate-showdown', 'one-does-not-simply', 'gnome', 'banana-phone',
   'all-your-base', 'badger-badger',
+  // 'dat-boi' pulled 2026-07-10 — its clip IS the banned "o shit waddup"
+  // soundbite; the pickup runs on the synth fallback now. Never re-wire.
 ];
 
 // fx → color, so the pickup badge tells you what it does at a glance.

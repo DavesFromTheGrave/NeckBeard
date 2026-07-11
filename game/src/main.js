@@ -502,11 +502,11 @@ class GameScene extends Phaser.Scene {
     if (firstBoot) {
       this.playerPos = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
       this.pointerScreen = { x: feed.x + feed.w * 0.65, y: H * 0.55 };
-      // Cursor must ride ABOVE all fixed chrome (header/nav/scrollbar are
-      // depth 24-30) AND the mobile sub-drawer (scrim 37, panel 38, rows 39 —
-      // at 35 it vanished the moment the burger menu opened). Below the death
-      // overlay (40) and loading interstitial (60), which cover it.
-      this.cursorGfx = this.add.graphics().setDepth(39.5);
+      // Cursor rides ABOVE EVERYTHING, ALWAYS (Dave's law, 2026-07-10 — "I'm
+      // tired of this problem"). No more depth negotiation: death overlay
+      // peaks at 42, loading interstitial at 62, nothing else goes near 1000.
+      // If you add an overlay, it goes UNDER the cursor. Period.
+      this.cursorGfx = this.add.graphics().setDepth(1000);
       this.input.on('pointermove', (p) => {
         this.pointerScreen.x = p.x; this.pointerScreen.y = p.y;
       });
@@ -1120,6 +1120,12 @@ class GameScene extends Phaser.Scene {
   }
 
   update(_, rawDt) {
+    // The cursor draws BEFORE every early-out — death screen, hit-stop, all of
+    // it. The OS cursor is hidden, so if this doesn't run the player has no
+    // pointer: it must never freeze and never vanish (same law as depth 1000).
+    if (this.cursorGfx && this.pointerScreen) {
+      this.drawCursor(this.pointerScreen.x, this.pointerScreen.y + this.cameras.main.scrollY);
+    }
     if (!this.ready || this.caught) return;
     // dt clamp: throttled/background tabs hand out second-long deltas that
     // teleport him — cap the step so time dilates instead of skipping (fairness)
@@ -1159,10 +1165,10 @@ class GameScene extends Phaser.Scene {
       cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, this.page.WORLD_H - H);
     }
 
-    // player world position = screen pointer + camera
+    // player world position = screen pointer + camera (cursor already drawn
+    // at the top of update — before any early-out)
     this.playerPos.x = this.pointerScreen.x;
     this.playerPos.y = this.pointerScreen.y + cam.scrollY;
-    this.drawCursor(this.playerPos.x, this.playerPos.y);
 
     if (!frozen) {
       this.farmCheck(dt);              // hold-to-steal karma off posts

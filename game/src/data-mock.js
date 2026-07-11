@@ -74,6 +74,11 @@ NB.CURSED_SUBS = {
   cursed: 'THE CURSE FAVORS YOU',            // the letter-chain entry (letters.js)
   cursedcomments: 'CURSED COMMENTS FOUND HIM OUT',
   cursedimages: 'A CURSED IMAGE BLINDS HIM',
+  // letter-chain stops (bonus lines DRAFT — Dave's word pass welcome)
+  hmmm: 'HMMM. HE HESITATES',
+  surrealmemes: 'REALITY SLIPS OFF HIM',
+  deepfriedmemes: 'DEEP FRIED. EXTRA CRISPY',
+  nukedmemes: 'NUKED FROM ORBIT',
   oddlyterrifying: 'SOMETHING ODDLY TERRIFYING STIRS',
   nonononoyes: 'NO NO NO NO... YES',
   whatcouldgowrong: 'WHAT COULD GO WRONG DID',

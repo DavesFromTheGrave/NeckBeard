@@ -19,14 +19,19 @@
 // the normal cursed bonus also fires on arrival.
 window.NB = window.NB || {};
 
+// DEFINITION RULED (Dave + kid, 2026-07-11): "cursed" = the deep-fried /
+// nuked genre — content degraded until it feels radioactive — anchored by
+// the genre's grandfather r/cursedimages. The chain ESCALATES: wrongness →
+// surreal → fried → nuked, so the game's own arenas look more cursed the
+// closer you get to him. Each clue is a RIDDLE about the next sub's soul —
+// never its name, nothing to spam-guess.
 NB.LETTER_CHAIN = [
-  // each clue is a riddle pointing at the NEXT sub (never by name)
-  { sub: 'cursed',          letter: 'B', clue: 'not scary. just... off. oddly so.' },
-  { sub: 'oddlyterrifying', letter: 'A', clue: 'no. no. no. no. ...yes.' },
-  { sub: 'nonononoyes',     letter: 'L', clue: 'teh lettres stpo wokring hree.' },
-  { sub: 'ihadastroke',     letter: 'D', clue: 'even the pixels are dying.' },
-  { sub: 'softwaregore',    letter: 'E', clue: 'where effort goes to die.' },
-  { sub: 'shitposting',     letter: 'R', clue: 'the name is complete. he knows.' },
+  { sub: 'cursed',         letter: 'B', clue: 'where it all started. every picture is wrong, and nobody can say why.' },
+  { sub: 'cursedimages',   letter: 'A', clue: 'the only correct caption is the sound you just made.' },
+  { sub: 'hmmm',           letter: 'L', clue: 'dreams shitpost too.' },
+  { sub: 'surrealmemes',   letter: 'D', clue: 'cooked until the pixels scream.' },
+  { sub: 'deepfriedmemes', letter: 'E', clue: 'past burnt. past wrong. nothing survives the flash.' },
+  { sub: 'nukedmemes',     letter: 'R', clue: 'the name is complete. he knows.' },
 ];
 
 // ── state: in-session cache, seeded from device storage, trued-up by the

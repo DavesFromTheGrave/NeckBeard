@@ -185,6 +185,8 @@ class GameScene extends Phaser.Scene {
     }
     this.load.image('elevator', 'assets/balder/elevator.png');
     this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
+    this.load.image('admin-idol', 'assets/balder/admin-idol.png');       // the pixel idol (idle)
+    this.load.image('admin-idol-sign', 'assets/balder/admin-idol-sign.png'); // + r/cursed placard (the HINT walk-by)
     // The sprite ceremony (Dave's storyboard — replaces the mid-game video):
     // closed elevator erupts → doors open → Balder appears → sucks superM0D
     // under → redditM0D rises (silhouette → reveal) → Balder rides down.

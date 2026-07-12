@@ -93,9 +93,10 @@ NB.Cheerleader = class {
   }
 };
 
-// The Admin — upper management on a floor walk. Every now and then he strolls
-// clean across the screen, cigar going. Pure ambience: sees everything, does
-// nothing, answers to no one. (Dave: "every now and then he scrolls across.")
+// THE ADMIN IDOL — the little pixel Balder strolls clean across the screen
+// now and then, cigar going. Dave: seeing him walk by is the HINT that there's
+// something to find (the letter hunt / the ending). Pure ambience otherwise:
+// sees everything, does nothing, answers to no one.
 NB.AdminCameo = class {
   constructor(scene) {
     this.scene = scene;
@@ -136,11 +137,18 @@ NB.AdminCameo = class {
     const scene = this.scene;
     const W = scene.scale.width, H = scene.scale.height;
     const cam = scene.cameras.main;
-    const fromLeft = Math.random() < 0.5;
+    // ALWAYS right-to-left: the art faces left natively, so no flipX — which
+    // matters now that he carries a text placard (a flip would mirror "r/cursed"
+    // backwards). He enters from the right and strolls off the left.
+    const fromLeft = false;
     const y = Phaser.Math.Clamp(
       cam.scrollY + Phaser.Math.Between(Math.round(H * 0.3), Math.round(H * 0.75)),
       120, scene.page.WORLD_H - 80);
-    this.sprite = scene.add.image(fromLeft ? -50 : W + 50, y, 'admin-walk').setDepth(11);
+    // the walk-by carries the r/cursed placard (Dave's admin-idol-sign) — THIS
+    // is the hint. Falls back to the plain idol, then the old admin art.
+    const key = scene.textures.exists('admin-idol-sign') ? 'admin-idol-sign'
+      : scene.textures.exists('admin-idol') ? 'admin-idol' : 'admin-walk';
+    this.sprite = scene.add.image(fromLeft ? -50 : W + 50, y, key).setDepth(11);
     const targetH = 512 * NB.TUNE.SPRITE_SCALE * 1.12;   // the boss stands a head taller
     this.sprite.setScale(targetH / this.sprite.height);
     this.vx = (fromLeft ? 1 : -1) * 72;                  // management doesn't hurry

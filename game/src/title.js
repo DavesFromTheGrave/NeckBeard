@@ -35,6 +35,7 @@ class TitleScene extends Phaser.Scene {
     // redditM0D + BALDER stay locked-silhouette until the player's reached them.
     for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
     for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
+    for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
     for (let i = 1; i <= 8; i++) this.load.image(`bw-${i}`, `assets/balder-boss/bw-${i}.png`);
   }
 
@@ -194,6 +195,7 @@ class TitleScene extends Phaser.Scene {
     const MODS = [
       { name: 'superM0D', pre: 'm1-walk', n: 6, unlocked: true },
       { name: 'redditM0D', pre: 'mod2-walk', n: 6, unlocked: P('nb_seen_mod2') },
+      { name: 'REVENANT superM0D', pre: 'm1-zwalk', n: 6, unlocked: P('nb_seen_revenant') },
       { name: 'BALDER', pre: 'bw', n: 8, unlocked: P('nb_seen_balder') },
     ].filter(m => this.textures.exists(`${m.pre}-1`));
     if (!MODS.length) return null;

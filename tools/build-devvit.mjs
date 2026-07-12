@@ -105,17 +105,20 @@ writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>superM0D</title>
 <style>
-  *{box-sizing:border-box}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(160deg,#1a1a1b 0%,#2d1b2e 55%,#1a1a1b 100%);color:#fff;font-family:Courier New,monospace}
-  .card{text-align:center;padding:24px;max-width:420px}
-  h1{margin:0 0 8px;font-size:28px;letter-spacing:1px}
-  p{margin:0;color:#d7dadc;font-size:14px;line-height:1.5}
-  #play-button{margin-top:18px;background:#ff4500;color:#fff;border:none;border-radius:20px;
-  padding:12px 28px;font-family:Courier New,monospace;font-size:14px;font-weight:bold;
-  letter-spacing:0.5px;cursor:pointer;}
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{height:100vh;display:flex;flex-direction:column;justify-content:flex-end;
+  background:#0b0b0c url('assets/splash/come-get-it.jpg?v=${BUST}') center/cover no-repeat;
+  color:#fff;font-family:Courier New,monospace}
+  .scrim{width:100%;padding:22px 18px 20px;text-align:center;
+  background:linear-gradient(to top,rgba(10,10,11,0.94) 0%,rgba(10,10,11,0.72) 45%,rgba(10,10,11,0) 100%)}
+  h1{margin:0 0 6px;font-size:30px;letter-spacing:1px;text-shadow:0 2px 6px #000}
+  p{margin:0 auto;max-width:420px;color:#e8e8e8;font-size:14px;line-height:1.5;text-shadow:0 1px 4px #000}
+  #play-button{margin-top:16px;background:#ff4500;color:#fff;border:none;border-radius:20px;
+  padding:12px 30px;font-family:Courier New,monospace;font-size:15px;font-weight:bold;
+  letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,0.5)}
   #play-button:active{background:#d93900}
 </style></head><body>
-<div class="card">
+<div class="scrim">
   <h1>superM0D</h1>
   <p>MA! Someone's touching my subreddit!</p>
   <button id="play-button">expand to play</button>

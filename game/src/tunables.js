@@ -128,6 +128,9 @@ NB.TUNE = {
   // question is the karma number on the stone. Nobody survives.
   BOSS_KARMA_GATE: 250000,   // was 50k — one hot post paid 34k, Dave repriced
   BOSS_DUO_MS: 30000,        // ms survived with redditM0D + revenant BOTH live
+  BOSS_THANKS_MS: 60000,     // last THIS long vs Balder before he gets you →
+                             // white-suit "thank you for playing" send-off (you
+                             // still die — it only warms the death screen)
   BOSS_ENTRANCE_MS: 3200,    // arrival burst → both mods dragged to hell → the hunt
   BOSS_ESCALATE_MS: 75000,   // blink cooldown ramps START→MIN over this, then stays MIN
   BOSS_TP_CD_START: 8000,    // ms between blinks when the fight starts

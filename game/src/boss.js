@@ -247,6 +247,8 @@ NB.Balder = class {
         if (dist < T.CATCH_RADIUS * 1.2) {
           this.done = true;
           this.scene.bossKill = true;
+          // lasted the full minute against him → the white-suit send-off
+          this.scene.bossThanks = this.fightT >= T.BOSS_THANKS_MS;
           this.ring.setVisible(false);
           this.scene.onCaught();
           return;

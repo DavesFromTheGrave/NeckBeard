@@ -194,6 +194,10 @@ class GameScene extends Phaser.Scene {
     // BALDER body — the split-face pixel idle (his standing/materialised pose;
     // he teleports rather than runs, so this + the teleport IS his locomotion).
     this.load.image('balder-idle', 'assets/balder-boss/balder-idle.png');
+    // BALDER beaten — white-suit variant. NOT a defeat (nobody survives him):
+    // if you lasted >60s before he got you, the death screen swaps this in with
+    // a "thank you for playing" grace note instead of the cold meme stamp.
+    this.load.image('balder-beaten', 'assets/balder-boss/balder-beaten.png');
     // superMOD's entrance: closed door (sign) -> open (void) -> he steps out
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');
@@ -257,6 +261,7 @@ class GameScene extends Phaser.Scene {
     this.boss = null;              // BALDER (boss.js) — the gate lives in update()
     this.bossDone = false;         // one boss visit per run — and it only ends one way
     this.bossKill = false;         // caught by BALDER himself → [ ERASED ]
+    this.bossThanks = false;       // lasted >BOSS_THANKS_MS vs him → grace note
     this.duoMs = 0;                // ms survived with BOTH hunters live (gate half)
     this.memeBag = {};             // run collection: meme id → count (HUD stacks ×n)
     this._bagOrder = [];           // first-grab order for the collection strip
@@ -1049,13 +1054,21 @@ class GameScene extends Phaser.Scene {
       // layout just closes up.
       const cy = H / 2 - 8;
       let memeH = 0;
+      // GRACE NOTE: survived >60s vs Balder → the white-suit Balder tips his
+      // hat instead of a random L-meme stamp. He still got you ([ ERASED ]);
+      // this only warms the send-off. Otherwise: the usual death meme.
+      const stampKey = (this.bossThanks && this.textures.exists('balder-beaten'))
+        ? 'balder-beaten' : null;
       const memeId = Phaser.Utils.Array.GetRandom(NB.DEATH_MEMES);
-      if (this.textures.exists(`meme-${memeId}`)) {
-        const src = this.textures.get(`meme-${memeId}`).getSourceImage();
-        const scale = Math.min(Phaser.Math.Clamp(Math.round(H * 0.2), 96, 168) / src.height, (W * 0.8) / src.width);
+      const drawKey = stampKey || (this.textures.exists(`meme-${memeId}`) ? `meme-${memeId}` : null);
+      if (drawKey) {
+        const src = this.textures.get(drawKey).getSourceImage();
+        const capH = stampKey ? Phaser.Math.Clamp(Math.round(H * 0.42), 200, 360)
+                              : Phaser.Math.Clamp(Math.round(H * 0.2), 96, 168);
+        const scale = Math.min(capH / src.height, (W * 0.8) / src.width);
         const dw = src.width * scale, dh = src.height * scale;
         memeH = dh;
-        this.add.image(W / 2, cy, `meme-${memeId}`).setDisplaySize(dw, dh)
+        this.add.image(W / 2, cy, drawKey).setDisplaySize(dw, dh)
           .setDepth(41.5).setScrollFactor(0);
       }
       this.add.text(W / 2, cy - memeH / 2 - 42, verdict, {
@@ -1077,6 +1090,12 @@ class GameScene extends Phaser.Scene {
         fontFamily: 'Courier New', fontSize: newBest ? '17px' : '14px',
         fontStyle: newBest ? 'bold' : 'normal', color: newBest ? '#ff4500' : '#666666',
       }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
+      // the grace note — you lasted a full minute against the ending itself
+      if (this.bossThanks) {
+        this.add.text(W / 2, cy + memeH / 2 + 108, 'THANK YOU FOR PLAYING', {
+          fontFamily: 'Courier New', fontSize: '18px', fontStyle: 'bold', color: '#ffd76a',
+        }).setOrigin(0.5).setDepth(41).setScrollFactor(0);
+      }
       // o7 salute swarm — real player deaths (redis) blended with flavor names.
       // Flavor shows immediately; real recent-death names swap in when the fetch
       // resolves (a new sub / offline just keeps the flavor names).

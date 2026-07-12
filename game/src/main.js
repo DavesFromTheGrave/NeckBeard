@@ -157,7 +157,7 @@ class GameScene extends Phaser.Scene {
       this.load.image(`m1-run-${i}`, `assets/mod1/m1-run-${i}.png`);
       this.load.image(`m1-charge-${i}`, `assets/mod1/m1-charge-${i}.png`);
       this.load.image(`m1-zrun-${i}`, `assets/mod1/m1-zrun-${i}.png`);
-      if (i <= 5) this.load.image(`m1-sledge-${i}`, `assets/mod1/m1-sledge-${i}.png`);
+      if (i <= 5) this.load.image(`m1-sledge-${i}`, `assets/mod1/m1-sledge-${i}.png`);   // old 5-frame (anim-throw still uses 2-3)
       if (i <= 5) this.load.image(`m1-zact-${i}`, `assets/mod1/m1-zact-${i}.png`);
       if (i <= 2) this.load.image(`m1-leap-${i}`, `assets/mod1/m1-leap-${i}.png`);
       this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);   // real green-zombie walk (6, from video)
@@ -167,6 +167,8 @@ class GameScene extends Phaser.Scene {
     }
     this.load.image('m1-crouch', 'assets/mod1/m1-crouch.png');
     this.load.image('m1-victory', 'assets/mod1/m1-victory.png');
+    // superM0D's 24-frame human hammer SLAM (Dave's video, keyed) — the SMASH attack
+    for (let i = 1; i <= 24; i++) this.load.image(`m1-slam-${i}`, `assets/mod1/m1-slam-${i}.png`);
     this.load.image('mod2-idle', 'assets/mod2/mod2-idle.png');
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
@@ -303,9 +305,13 @@ class GameScene extends Phaser.Scene {
     this.anims.create({ key: 'anim-victory', frames: [{ key: 'm1-victory' }], frameRate: 1 });
     this.anims.create({ key: 'anim-throw',
       frames: [{ key: 'm1-sledge-2' }, { key: 'm1-sledge-3' }], frameRate: 5, repeat: 0 });
-    // full sledgehammer swing: wind-up then impact (SMASH state)
-    this.anims.create({ key: 'anim-sledge',
-      frames: [1, 2, 3, 4, 5].map(i => ({ key: `m1-sledge-${i}` })), frameRate: 8, repeat: 0 });
+    // full sledgehammer SLAM (SMASH state) — Dave's 24-frame video slam, keyed.
+    // ~17fps plays it across SMASH_MS (~1400). Falls back to the old 5-frame
+    // sledge if the new frames didn't load.
+    const slamN = this.textures.exists('m1-slam-1')
+      ? Array.from({ length: 24 }, (_, k) => ({ key: `m1-slam-${k + 1}` }))
+      : [1, 2, 3, 4, 5].map(i => ({ key: `m1-sledge-${i}` }));
+    this.anims.create({ key: 'anim-sledge', frames: slamN, frameRate: 17, repeat: 0 });
     this.anims.create({ key: 'anim-ztelegraph', frames: [{ key: 'm1-zact-1' }], frameRate: 1 });
     this.anims.create({ key: 'anim-zlunge',
       frames: [{ key: 'm1-zact-3' }, { key: 'm1-zact-4' }], frameRate: 10, repeat: 0 });

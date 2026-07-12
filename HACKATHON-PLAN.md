@@ -20,22 +20,22 @@ on real Devvit + polish + the features below.
 ### Score = karma (NOT time)
 The score is karma farmed from posts (`this.karma`, formatted via `NB.fmtKarma()`).
 There is no time-based score. Don't confuse this with `survivalMs` which only
-gates the Balder ceremony. The title screen high-score panel and leaderboard
+gates the Baldur ceremony. The title screen high-score panel and leaderboard
 are all karma values.
 
-### Balder ceremony → tag-in mechanic (replaces separate "Hard Mode")
+### Baldur ceremony → tag-in mechanic (replaces separate "Hard Mode")
 **Old behavior:** ceremony fires → mod sucked underground → 4-8s later mod returns
 as zombie revenant.
 
 **New behavior (to implement):**
-1. Balder ceremony fires (same as now: crack, elevator, Balder rises, mod sucked down)
+1. Baldur ceremony fires (same as now: crack, elevator, Baldur rises, mod sucked down)
 2. **At ceremony end:** second mod (the YouTube Reddit Mod character) appears in his
    place — "tagged in" by management. Chases immediately.
 3. **30 seconds later:** original mod crawls back as zombie revenant (`NB.spawnRevenant()`).
 4. Now BOTH are chasing you. No separate difficulty UI — it emerges from surviving
-   long enough to trigger Balder.
+   long enough to trigger Baldur.
 
-**Files to change:** `balder.js` — `NB.spawnRevenant()` becomes two-stage:
+**Files to change:** `baldur.js` — `NB.spawnRevenant()` becomes two-stage:
 spawn second mod at ceremony end (`done()` callback), schedule original revenant
 30s after that.
 
@@ -90,9 +90,9 @@ or a new `mod2.js` once frames arrive.
 ### Day 1 — Wed July 9: Quick wins
 **Code (no art dependencies):**
 - Fortune cookie ban reasons (`main.js` `onCaught()`)
-- Balder timer HUD indicator (fill ring near karma HUD, pulse last 5s, disappears after used)
+- Baldur timer HUD indicator (fill ring near karma HUD, pulse last 5s, disappears after used)
 - Shield status pill + heat bar (HUD elements from July 5 design note)
-- Fix Balder strict-`>` edge case: snapshot `balderEligible` when threshold crosses
+- Fix Baldur strict-`>` edge case: snapshot `baldurEligible` when threshold crosses
 - Smash visibility: increase `SMASH_MS` from 640→~1400ms so hammer pose stays on screen long enough to register (`tunables.js`)
 
 **Dave:** Start second mod walk cycle (4-6 frames, 96px scale)
@@ -120,8 +120,8 @@ or a new `mod2.js` once frames arrive.
 
 ### Day 4 — Sat July 12: Tag-in mechanic + Redis leaderboard + meme wiring
 **Code:**
-- Balder ceremony tag-in: wire second mod spawn at ceremony end,
-  schedule original revenant 30s after (`balder.js`)
+- Baldur ceremony tag-in: wire second mod spawn at ceremony end,
+  schedule original revenant 30s after (`baldur.js`)
 - Wire Dave's second mod art (preload + Phaser anims)
 - Redis karma leaderboard: `/api/leaderboard` → top-10 karma for this subreddit
 - Title screen fetches and renders live leaderboard
@@ -138,14 +138,14 @@ or a new `mod2.js` once frames arrive.
 - Audio pass (verify all `NB.sfx.*` calls have working audio)
 - First-time onboarding overlay (3 lines, 4s, sessionStorage flag)
 - Mobile touch pass (farm targets, search input, tap targets)
-- Edge cases: Balder + two mods, revenant + second mod, heat 6 dual chase
+- Edge cases: Baldur + two mods, revenant + second mod, heat 6 dual chase
 
 **Dave:** Full playthrough on phone. Final creative call on "The Admin" name.
 
-**Dave:** Polish Balder ceremony animation — the scripted event needs actual animation work, not just code beats.
+**Dave:** Polish Baldur ceremony animation — the scripted event needs actual animation work, not just code beats.
 
-- Balder ceremony CG cutscene: Dave generates 3-5s video clip in Grok (not pixel art,
-  full cinematic) using Balder reference art. Code plays it fullscreen when ceremony
+- Baldur ceremony CG cutscene: Dave generates 3-5s video clip in Grok (not pixel art,
+  full cinematic) using Baldur reference art. Code plays it fullscreen when ceremony
   fires — pixel game freezes → video plays → game resumes. Real cutscene, not tweens.
 
 ### Day 6 — Mon July 14: Build + submit

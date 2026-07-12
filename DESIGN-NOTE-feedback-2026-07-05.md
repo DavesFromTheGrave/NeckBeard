@@ -1,21 +1,21 @@
-# Design note: Balder timer + player HP visibility
+# Design note: Baldur timer + player HP visibility
 
 Source: playtester feedback from Bitz [BLMS], 2026-07-05. Two of the four items (low-res post images, door glitch on restart) were bugs with clear root causes and are already fixed in `reddit-fetch.js`, `server/index.js`, and `game/src/main.js`. The other two are feature gaps, not bugs — they need a design decision before implementation. This note scopes both against the real mechanics in the codebase.
 
-## 1. A visible timer toward the Balder "second chance"
+## 1. A visible timer toward the Baldur "second chance"
 
-**What's actually happening today.** `NB.TUNE.BALDER_SURVIVAL_MS` (`game/src/tunables.js`) is `60000` — survive 60 seconds of in-run time and your *next* catch is intercepted by the Balder promotion-review ceremony instead of ending the run (`onCaught()` in `main.js`, once per run). `survivalMs` is real elapsed time *minus* any time spent frozen (loading screens, the entrance sequence, the ceremony itself) — see `update()`. So a player's felt sense of "I've been playing about a minute" and the actual `survivalMs` value can drift apart by however long they spent on loading screens or sub-travel.
+**What's actually happening today.** `NB.TUNE.BALDUR_SURVIVAL_MS` (`game/src/tunables.js`) is `60000` — survive 60 seconds of in-run time and your *next* catch is intercepted by the Baldur promotion-review ceremony instead of ending the run (`onCaught()` in `main.js`, once per run). `survivalMs` is real elapsed time *minus* any time spent frozen (loading screens, the entrance sequence, the ceremony itself) — see `update()`. So a player's felt sense of "I've been playing about a minute" and the actual `survivalMs` value can drift apart by however long they spent on loading screens or sub-travel.
 
-**Why Bitz got banned "right at a minute."** The check is a strict `>`: `this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS`. There's no grace window. A catch landing at 59,900ms is a normal death with zero indication the player was 100ms from a reprieve. Combined with no visible timer at all, "I thought I survived a minute" is exactly what you'd expect this mechanic to produce.
+**Why Bitz got banned "right at a minute."** The check is a strict `>`: `this.survivalMs > NB.TUNE.BALDUR_SURVIVAL_MS`. There's no grace window. A catch landing at 59,900ms is a normal death with zero indication the player was 100ms from a reprieve. Combined with no visible timer at all, "I thought I survived a minute" is exactly what you'd expect this mechanic to produce.
 
 **Proposed fix — a dedicated progress indicator, separate from the karma HUD:**
-- A small ring or bar near the existing `★ karma` HUD text (`this.hud` in `buildWorld()`) that fills from 0 to `BALDER_SURVIVAL_MS` using `this.survivalMs`. Once `balderUsed` flips true (ceremony already spent), the indicator disappears or locks to "used" — it's a one-time-per-run resource, so it shouldn't imply it recharges.
+- A small ring or bar near the existing `★ karma` HUD text (`this.hud` in `buildWorld()`) that fills from 0 to `BALDUR_SURVIVAL_MS` using `this.survivalMs`. Once `baldurUsed` flips true (ceremony already spent), the indicator disappears or locks to "used" — it's a one-time-per-run resource, so it shouldn't imply it recharges.
 - Suggest a quiet pulse or color shift in the last ~5s before the threshold, so the "you're about to be safe" moment reads clearly, matching the fairness pattern already used for the mod's own telegraph (500ms wind-up before every lunge).
 - Optional, cheap fairness fix regardless of UI: don't gate strictly on `survivalMs` at the instant of the catch — snapshot "eligible" the moment the threshold is crossed (a boolean flip, checked once, rather than a live `>` comparison against a value that can be mid-freeze at catch-time). Small change, removes the "so close" edge case entirely.
 
 **Open questions for you:**
 - Ring around the HUD score, a separate progress bar, or a countdown number (e.g. "0:42")? Countdown gives the most information but also tells a chasing mod-savvy player exactly when they're "safe," which may or may not be desirable tension.
-- Should the indicator show *at all* before the player has ever triggered a ceremony (i.e., is this a mechanic worth spelling out up front, or something better discovered organically the first time it saves you)? Right now nothing in `TitleScene` or onboarding explains the Balder mechanic at all.
+- Should the indicator show *at all* before the player has ever triggered a ceremony (i.e., is this a mechanic worth spelling out up front, or something better discovered organically the first time it saves you)? Right now nothing in `TitleScene` or onboarding explains the Baldur mechanic at all.
 
 ## 2. Player "HP" visibility
 
@@ -37,4 +37,4 @@ So "getting ratio'd multiple times before I die" wasn't Bitz losing HP — those
 
 ## Suggested next step
 
-Pick the visual language for each (ring vs. bar vs. number) and I'll implement both — they're additive HUD elements, no changes to the underlying fairness/catch logic required unless you also want the strict-`>` Balder edge case fixed.
+Pick the visual language for each (ring vs. bar vs. number) and I'll implement both — they're additive HUD elements, no changes to the underlying fairness/catch logic required unless you also want the strict-`>` Baldur edge case fixed.

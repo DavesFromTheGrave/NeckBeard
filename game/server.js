@@ -231,7 +231,7 @@ async function handleLetters(req, res) {
   if (req.method === 'POST') {
     const body = await readBody(req);
     const ch = (body.letter || '').toString().slice(0, 1).toUpperCase();
-    if (!'BALDER'.includes(ch) || !ch) return sendJson(res, 400, { ok: false, error: 'bad letter' });
+    if (!'BALDUR'.includes(ch) || !ch) return sendJson(res, 400, { ok: false, error: 'bad letter' });
     if (!localLetters.includes(ch)) localLetters += ch;
     return sendJson(res, 200, { ok: true, letters: localLetters });
   }

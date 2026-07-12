@@ -237,8 +237,8 @@ app.get('/api/deaths/recent', async (c) => {
   }
 });
 
-// THE LETTERS — per-player hunt progress (B-A-L-D-E-R). Reddit's webview
-// walls off localStorage, and the whole multi-run hunt (nobody meets Balder
+// THE LETTERS — per-player hunt progress (B-A-L-D-U-R). Reddit's webview
+// walls off localStorage, and the whole multi-run hunt (nobody meets Baldur
 // before ~run six — the retention design) dies if letters forget between
 // sessions. Redis is the truth; the device cache is just warm startup.
 const lettersKey = () => `letters:${context.userId || 'anon'}`;
@@ -257,7 +257,7 @@ app.post('/api/letters', async (c) => {
     if (!context.userId) return c.json({ ok: false, error: 'no user' }, 400);
     const body = await c.req.json().catch(() => ({}));
     const ch = (body.letter || '').toString().slice(0, 1).toUpperCase();
-    if (!'BALDER'.includes(ch) || !ch) return c.json({ ok: false, error: 'bad letter' }, 400);
+    if (!'BALDUR'.includes(ch) || !ch) return c.json({ ok: false, error: 'bad letter' }, 400);
     const key = lettersKey();
     const cur = (await redis.get(key)) || '';
     const next = cur.includes(ch) ? cur : cur + ch;

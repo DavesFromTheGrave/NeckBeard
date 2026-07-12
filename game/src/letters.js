@@ -1,5 +1,5 @@
-// THE LETTERS — six cursed subreddits each hide one letter of B-A-L-D-E-R.
-// Dave (2026-07-11): "Balder's gate IS THE LETTERS. +250k karma + 30 seconds
+// THE LETTERS — six cursed subreddits each hide one letter of B-A-L-D-U-R.
+// Dave (2026-07-11): "Baldur's gate IS THE LETTERS. +250k karma + 30 seconds
 // survived with the duo." All six letters + the karma gate + the duo timer
 // arm the ending (trigger lives in main.js update; numbers in tunables).
 //
@@ -7,7 +7,7 @@
 // name-cursed — if they were all r/cursed-something, players could spam the
 // famous family and skip the trail entirely. r/cursed stays as the tipped
 // front door; everything after must be DECIPHERED from riddle clues that
-// never name the next sub. Nobody meets Balder before their ~6th run, and
+// never name the next sub. Nobody meets Baldur before their ~6th run, and
 // that's the design ("I don't think that's a problem").
 //
 // PERSISTENCE: redis is the truth (per player, /api/letters — Reddit's
@@ -30,7 +30,7 @@ NB.LETTER_CHAIN = [
   { sub: 'cursedimages',   letter: 'A', clue: 'the only correct caption is the sound you just made.' },
   { sub: 'hmmm',           letter: 'L', clue: 'dreams shitpost too.' },
   { sub: 'surrealmemes',   letter: 'D', clue: 'cooked until the pixels scream.' },
-  { sub: 'deepfriedmemes', letter: 'E', clue: 'past burnt. past wrong. nothing survives the flash.' },
+  { sub: 'deepfriedmemes', letter: 'U', clue: 'past burnt. past wrong. nothing survives the flash.' },
   { sub: 'nukedmemes',     letter: 'R', clue: 'the admin.' },
 ];
 
@@ -73,7 +73,7 @@ NB.syncLetters = function (scene) {
         const server = (d && typeof d.letters === 'string') ? d.letters : '';
         const local = NB.persistGet('nb_letters') || '';
         const merged = [...new Set((server + local).split(''))]
-          .filter(ch => 'BALDER'.includes(ch)).join('');
+          .filter(ch => 'BALDUR'.includes(ch)).join('');
         NB._letters = merged;
         NB.persistSet('nb_letters', merged);
         for (const ch of merged) {
@@ -131,7 +131,7 @@ NB.updateLetterPickup = function (scene, player) {
   if (scene.updateLetterHUD) scene.updateLetterHUD();
   if (NB.lettersDone()) {
     scene.floatText(scene.scale.width / 2,
-      scene.cameras.main.scrollY + scene.scale.height * 0.35, 'B A L D E R', '#c0392b');
+      scene.cameras.main.scrollY + scene.scale.height * 0.35, 'B A L D U R', '#c0392b');
     NB.playMoment(scene, 'revenant');
   }
 };

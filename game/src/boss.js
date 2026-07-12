@@ -1,4 +1,4 @@
-// BALDER — the ENDING. Dave's OC: split-face demon in the black suit.
+// BALDUR — the ENDING. Dave's OC: split-face demon in the black suit.
 // He is not a fight and there is no win state: once he manifests, the run is
 // already over — he drags BOTH mods into hell, hunts the player alone, and
 // escalates until he gets you. Score = the karma you farmed before he came.
@@ -6,24 +6,24 @@
 // zombie/skull (bz sheets, drawn facing left), moving RIGHT he's human (bh
 // sheets, drawn facing right). The sheets ship pre-faced; NO flipX anywhere.
 //
-// FAIRNESS (same structural rule as the mods' LUNGE): Balder's ONLY kill is
+// FAIRNESS (same structural rule as the mods' LUNGE): Baldur's ONLY kill is
 // the teleport-strike, and it is double-telegraphed —
 //   STALK (pressure, never catches) → VANISH (charge-up burst = "he's coming")
 //   → GAP (dead air, he is nowhere) → MATERIALIZE (arrival burst + red ring =
 //   "he's HERE", lands OFFSET from the cursor, still can't catch) → STRIKE
 //   (the ONLY catch window, 420ms) → RECOVER (whiffed = he stands there;
 //   your escape window — but the next blink comes sooner).
-// Pickups/stuns target scene.mods — Balder is NOT in that array. Memes don't
+// Pickups/stuns target scene.mods — Baldur is NOT in that array. Memes don't
 // stop him. He is not a mod. (scene.boss, updated behind the same sim-freeze
 // gate as everything else.)
 window.NB = window.NB || {};
 
-NB.Balder = class {
+NB.Baldur = class {
   constructor(scene, x, y) {
     this.scene = scene;
     const T = NB.TUNE;
     this.bodyScale = T.SPRITE_SCALE * T.BOSS_SCALE_MULT;
-    this.sprite = scene.add.sprite(x, y, 'balder-idle').setScale(this.bodyScale).setDepth(11);
+    this.sprite = scene.add.sprite(x, y, 'baldur-idle').setScale(this.bodyScale).setDepth(11);
     // strike-preview ring: shrinks onto his landing spot during MATERIALIZE
     this.ring = scene.add.circle(x, y, 56).setStrokeStyle(4, 0xc0392b)
       .setVisible(false).setDepth(10);
@@ -41,20 +41,20 @@ NB.Balder = class {
     this.showHeroSplash();
   }
 
-  // THE MANIFEST — Dave's full-body beckon hero (balder-hero) fills the screen
+  // THE MANIFEST — Dave's full-body beckon hero (baldur-hero) fills the screen
   // as he arrives: a dark veil, the art rising + fading in, holding through the
   // vacuum beat, then dismissed when the hunt begins (setState 'STALK'). Pure
   // theater over a fixed camera — no catch, no gameplay object. Skipped if the
   // texture never loaded (degrades to the old flash + floattext).
   showHeroSplash() {
     const scene = this.scene;
-    if (!scene.textures.exists('balder-hero')) return;
+    if (!scene.textures.exists('baldur-hero')) return;
     const W = scene.scale.width, H = scene.scale.height;
     this._veil = scene.add.rectangle(W / 2, H / 2, W, H, 0x0a0a0a, 0)
       .setDepth(88).setScrollFactor(0);
-    const src = scene.textures.get('balder-hero').getSourceImage();
+    const src = scene.textures.get('baldur-hero').getSourceImage();
     const s = Math.min((H * 0.92) / src.height, (W * 0.9) / src.width);
-    this._hero = scene.add.image(W / 2, H / 2 + 30, 'balder-hero')
+    this._hero = scene.add.image(W / 2, H / 2 + 30, 'baldur-hero')
       .setScale(s * 0.96).setAlpha(0).setDepth(89).setScrollFactor(0);
     scene.tweens.add({ targets: this._veil, fillAlpha: 0.82, duration: 500 });
     scene.tweens.add({ targets: this._hero, alpha: 1, y: H / 2, scale: s,
@@ -99,7 +99,7 @@ NB.Balder = class {
   }
 
   // The arrival beat: BOTH mods dragged into hell — the ceremony's rescue-suck
-  // (shrink+spin+drag-under, balder.js) replayed as something worse. It looked
+  // (shrink+spin+drag-under, baldur.js) replayed as something worse. It looked
   // like management coming to save you once. From here you're alone with him.
   vacuumMods() {
     const scene = this.scene;
@@ -161,7 +161,7 @@ NB.Balder = class {
       }
       case 'RECOVER': {
         // whiffed. he stands and seethes — your window to make distance.
-        this.bodyAnim(null, 'balder-idle');
+        this.bodyAnim(null, 'baldur-idle');
         break;
       }
     }
@@ -182,7 +182,7 @@ NB.Balder = class {
         // mods go under while he watches, then the hunt begins.
         if (!this._vacuumed && this.stateT >= T.BOSS_TP_NATURAL_MS) {
           this._vacuumed = true;
-          this.bodyAnim(null, 'balder-idle');
+          this.bodyAnim(null, 'baldur-idle');
           this.vacuumMods();
         }
         if (this.stateT >= T.BOSS_ENTRANCE_MS) { this.dismissHeroSplash(); this.setState('STALK'); }
@@ -197,9 +197,9 @@ NB.Balder = class {
           const nx = dx / dist, ny = dy / dist;
           s.x += nx * T.BOSS_WALK_SPEED * dt / 1000;
           s.y += ny * T.BOSS_WALK_SPEED * dt / 1000;
-          this.bodyAnim(nx >= 0 ? 'anim-balder-hwalk' : 'anim-balder-zwalk');
+          this.bodyAnim(nx >= 0 ? 'anim-baldur-hwalk' : 'anim-baldur-zwalk');
         } else {
-          this.bodyAnim(null, 'balder-idle');
+          this.bodyAnim(null, 'baldur-idle');
         }
         this.tpCd -= dt;
         // cooldown up = he blinks. Distance doesn't save you; neither does
@@ -229,7 +229,7 @@ NB.Balder = class {
       case 'MATERIALIZE': {
         if (this.stateT >= T.BOSS_TP_ARRIVE_MS) {
           // burst done → he's standing there (idle) → the grab
-          this.bodyAnim(null, 'balder-idle');
+          this.bodyAnim(null, 'baldur-idle');
           this.setState('STRIKE');
         }
         break;
@@ -275,18 +275,18 @@ NB.Balder = class {
 };
 
 // Spawn + announce. Guarded once per run — and it only ends one way.
-NB.spawnBalder = function (scene) {
+NB.spawnBaldur = function (scene) {
   if (scene.boss || scene.bossDone || scene.caught) return;
   scene.bossDone = true;
-  NB.persistSet && NB.persistSet('nb_seen_balder', '1');   // unlocks him on the title flip
+  NB.persistSet && NB.persistSet('nb_seen_baldur', '1');   // unlocks him on the title flip
   const cam = scene.cameras.main;
   const a = Math.random() * Math.PI * 2;
   const x = Phaser.Math.Clamp(scene.playerPos.x + Math.cos(a) * 300, 60, scene.scale.width - 60);
   const y = Phaser.Math.Clamp(scene.playerPos.y + Math.sin(a) * 300,
     cam.scrollY + 80, cam.scrollY + scene.scale.height - 60);
-  scene.boss = new NB.Balder(scene, x, y);
+  scene.boss = new NB.Baldur(scene, x, y);
   scene.floatText(scene.scale.width / 2, scene.scale.height * 0.3 + cam.scrollY,
-    'BALDER HAS ENTERED THE CHAT', '#c0392b');
+    'BALDUR HAS ENTERED THE CHAT', '#c0392b');
   cam.flash(300, 120, 20, 20);
   NB.playMoment(scene, 'revenant');
 };

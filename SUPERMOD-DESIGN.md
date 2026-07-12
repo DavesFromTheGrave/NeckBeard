@@ -10,14 +10,14 @@
 
 **Characters (Dave's original art — fully owned):**
 - The Mod (Supermod) — main antagonist
-- Balder — the boss/deity character
+- Baldur — the boss/deity character
 - Second mod (YouTube Reddit Mod character) — being built for hackathon
 
 **Mechanics (no IP issues):**
 - Core dodge loop
 - Karma farming QTE system
 - Fairness rule: catch check ONLY inside LUNGE window, LUNGE only through full TELEGRAPH
-- Balder ceremony (7-beat cinematic)
+- Baldur ceremony (7-beat cinematic)
 - Tag-in mechanic: second mod at ceremony end, revenant 30s later
 - Heat escalation system
 - Meme pickup/powerup system (fx types: stun, decoy, shield, heatwipe, knockback, slow, score, trap)

@@ -73,8 +73,8 @@ NB.TUNE = {
                            // strike actually registers on screen (was 640 — pose flashed and was gone)
   SMASH_IMPACT_MS: 360,    // wind-up before the hammer lands
 
-  // Balder promotion review — survive past this, then a catch triggers ceremony (once/run)
-  BALDER_SURVIVAL_MS: 60000,
+  // Baldur promotion review — survive past this, then a catch triggers ceremony (once/run)
+  BALDUR_SURVIVAL_MS: 60000,
 
   // The tag-team endgame. After the ceremony superM0D is gone (called upstairs)
   // and redditM0D takes the hunt SOLO at a hard speed multiplier (Dave's spec:
@@ -116,21 +116,21 @@ NB.TUNE = {
   MEME_KNOCKBACK_BIG: 560,     // was 360
   MEME_HEATWIPE_STUN_MS: 1200, // was 400
 
-  // ── BALDER, the endgame boss ─────────────────────────────────────────
-  // THE GATE (Dave 2026-07-11: "Balder's gate IS THE LETTERS"): all SIX
-  // letters of B-A-L-D-E-R found across the cursed subreddits (letters.js)
+  // ── BALDUR, the endgame boss ─────────────────────────────────────────
+  // THE GATE (Dave 2026-07-11: "Baldur's gate IS THE LETTERS"): all SIX
+  // letters of B-A-L-D-U-R found across the cursed subreddits (letters.js)
   // + karma ≥ BOSS_KARMA_GATE + BOSS_DUO_MS survived with BOTH mods hunting.
   // His ONLY kill is the teleport-strike, double-telegraphed: the vanish
   // charge-up says "he's coming", the arrival burst + ring says "he's HERE",
   // and only THEN does a short strike window open. Walking/running between
-  // blinks is pure pressure — Balder never catches outside the strike window.
-  // BALDER is the ending. Once he manifests the run is already over; the only
+  // blinks is pure pressure — Baldur never catches outside the strike window.
+  // BALDUR is the ending. Once he manifests the run is already over; the only
   // question is the karma number on the stone. Nobody survives.
   CHEER_SCALE: 0.5,          // cheerleader on-screen size (256² pre-framed poses)
 
   BOSS_KARMA_GATE: 250000,   // was 50k — one hot post paid 34k, Dave repriced
   BOSS_DUO_MS: 30000,        // ms survived with redditM0D + revenant BOTH live
-  BOSS_THANKS_MS: 60000,     // last THIS long vs Balder before he gets you →
+  BOSS_THANKS_MS: 60000,     // last THIS long vs Baldur before he gets you →
                              // white-suit "thank you for playing" send-off (you
                              // still die — it only warms the death screen)
   BOSS_ENTRANCE_MS: 3200,    // arrival burst → both mods dragged to hell → the hunt

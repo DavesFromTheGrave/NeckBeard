@@ -32,11 +32,11 @@ class TitleScene extends Phaser.Scene {
     for (let i = 1; i <= 3; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
     // The "meet the moderators" flip needs all three mods' WALK frames on the
     // title (GameScene loads them too, but Title runs first). superM0D always;
-    // redditM0D + BALDER stay locked-silhouette until the player's reached them.
+    // redditM0D + BALDUR stay locked-silhouette until the player's reached them.
     for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
     for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
     for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
-    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/balder-boss/bhw-${i}.png`);
+    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
   }
 
   create() {
@@ -187,16 +187,16 @@ class TitleScene extends Phaser.Scene {
 
   // Animated superMOD: cycles the walk frames in place with a gentle pace + bob.
   // "Meet the moderators" — the pixel WALK of each mod, flip through with ◄ ►.
-  // superM0D is always shown; redditM0D + BALDER are black-silhouette "???"
+  // superM0D is always shown; redditM0D + BALDUR are black-silhouette "???"
   // teases until the player has actually reached them (persisted flags set in
-  // spawnMod2 / spawnBalder). Pure showcase — no gameplay, no character select.
+  // spawnMod2 / spawnBaldur). Pure showcase — no gameplay, no character select.
   drawMod(cx, cy, targetH) {
     const P = (k) => (NB.persistGet && NB.persistGet(k) === '1');
     const MODS = [
       { name: 'superM0D', pre: 'm1-walk', n: 6, unlocked: true },
       { name: 'redditM0D', pre: 'mod2-walk', n: 6, unlocked: P('nb_seen_mod2') },
       { name: 'REVENANT superM0D', pre: 'm1-zwalk', n: 6, unlocked: P('nb_seen_revenant') },
-      { name: 'BALDER', pre: 'bhw', n: 13, unlocked: P('nb_seen_balder') },
+      { name: 'BALDUR', pre: 'bhw', n: 13, unlocked: P('nb_seen_baldur') },
     ].filter(m => this.textures.exists(`${m.pre}-1`));
     if (!MODS.length) return null;
     this._modIdx = 0;

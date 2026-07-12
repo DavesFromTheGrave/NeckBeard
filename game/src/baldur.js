@@ -1,5 +1,5 @@
-// The Balder ceremony — the promotion review, now the full video cutscene
-// (revenant-cutscene.mp4: Balder rises → superM0D dragged under → Balder
+// The Baldur ceremony — the promotion review, now the full video cutscene
+// (revenant-cutscene.mp4: Baldur rises → superM0D dragged under → Baldur
 // departs in the gold elevator → redditM0D tags in). First trigger per session
 // plays the video (tap to skip); repeats take the 600ms fast path. The old
 // code-cinematic survives as the fallback if the video can't play.
@@ -7,8 +7,8 @@
 // rises him as the zombie, REVENANT_DELAY_MS into redditM0D's solo hunt.
 window.NB = window.NB || {};
 
-NB.playBalderCeremony = function (scene, done) {
-  const seen = !!NB.flagGet('nb_balder_seen');   // storage-safe (webview sandbox)
+NB.playBaldurCeremony = function (scene, done) {
+  const seen = !!NB.flagGet('nb_baldur_seen');   // storage-safe (webview sandbox)
   scene.ceremonyRunning = true;
   scene.mod.freezeHard();
   let finished = false;
@@ -20,7 +20,7 @@ NB.playBalderCeremony = function (scene, done) {
     // check) + hidden until spawnRevenant resurrects him.
     scene.mod.freezeHard();
     scene.mod.sprite.setVisible(false);
-    NB.flagSet('nb_balder_seen', '1');
+    NB.flagSet('nb_baldur_seen', '1');
     scene.cameras.main.zoomTo(1, 200);
     done();
   };
@@ -42,7 +42,7 @@ NB.playBalderCeremony = function (scene, done) {
   catch (e) { console.warn('code ceremony failed:', e); finish(); }
 };
 
-// ── Balder TELEPORT — the boss's signature blink ─────────────────────────
+// ── Baldur TELEPORT — the boss's signature blink ─────────────────────────
 // Dave's 13-frame purple sequence: he charges up, DETONATES into a starburst,
 // then dissipates to smoke. Keyed transparent (the black bg is stripped) so it
 // composites on ANY Reddit theme with a plain NORMAL blend — no additive
@@ -50,7 +50,7 @@ NB.playBalderCeremony = function (scene, done) {
 // reappear/materialise. A dead-air beat sits between — never an instant kill:
 // the charge-up is the tell, the silence is the dread, the re-detonation is
 // the "he's HERE".
-NB.balderTeleport = function (scene, sprite, tx, ty, done) {
+NB.baldurTeleport = function (scene, sprite, tx, ty, done) {
   if (!sprite || !sprite.active) { if (done) done(); return; }
   scene.cameras.main.shake(120, 0.004);
   try { NB.sfx && NB.sfx.telegraph && NB.sfx.telegraph(); } catch (e) {}
@@ -69,7 +69,7 @@ NB.balderTeleport = function (scene, sprite, tx, ty, done) {
   });
 };
 
-// Debug demo (Alt+Shift+Y): blink Balder to a random on-screen spot so the
+// Debug demo (Alt+Shift+Y): blink Baldur to a random on-screen spot so the
 // teleport can be watched before the boss entity is built.
 NB.demoTeleport = function (scene) {
   const cam = scene.cameras.main;
@@ -77,14 +77,14 @@ NB.demoTeleport = function (scene) {
   if (!b || !b.active) {
     const x = cam.scrollX + cam.width * 0.4, y = cam.scrollY + cam.height * 0.55;
     b = scene._teleBody = scene.add.sprite(x, y, 'tp-1').setDepth(58);
-    const h = cam.height * 0.6;                 // whole effect frame ~60% tall; Balder within reads ~1/3 of that
+    const h = cam.height * 0.6;                 // whole effect frame ~60% tall; Baldur within reads ~1/3 of that
     b.setDisplaySize(h * (b.width / b.height), h);
   }
   if (scene._teleBusy) return;
   scene._teleBusy = true;
   const tx = cam.scrollX + cam.width * (0.25 + Math.random() * 0.5);
   const ty = cam.scrollY + cam.height * (0.4 + Math.random() * 0.3);
-  NB.balderTeleport(scene, b, tx, ty, () => { scene._teleBusy = false; });
+  NB.baldurTeleport(scene, b, tx, ty, () => { scene._teleBusy = false; });
 };
 
 // Fullscreen DOM <video> takeover. The mp4 ships silent — meme clips fire at
@@ -92,7 +92,7 @@ NB.demoTeleport = function (scene) {
 // keeps looping underneath (it ducks under each clip automatically).
 NB.playCutsceneVideo = function (scene, src, onDone, onFail) {
   // beat map for revenant-cutscene.mp4 (25.5s):
-  //   ~4.2s  Balder rises behind him      ~8.6s  superM0D dragged under
+  //   ~4.2s  Baldur rises behind him      ~8.6s  superM0D dragged under
   //   ~19.4s the gold doors close         ~22s   redditM0D steps out of the dark
   const beats = [
     { t: 4.2, id: 'one-does-not-simply' },
@@ -170,13 +170,13 @@ NB.warmCutscene = function () {
 };
 
 // The original code-cinematic — now the fallback when the video can't play.
-// Beats approved 2026-07-04: freeze → crack → gold elevator → Balder →
+// Beats approved 2026-07-04: freeze → crack → gold elevator → Baldur →
 // Supermod sucked underground → exit → "management has been notified."
 // The SPRITE CEREMONY (Dave's storyboard, 2026-07-11 — replaces the video):
-// rumble+crack → closed elevator ERUPTS up → doors open → Balder appears →
-// superM0D is shook → Balder sucks him under → crack closes → redditM0D rises
+// rumble+crack → closed elevator ERUPTS up → doors open → Baldur appears →
+// superM0D is shook → Baldur sucks him under → crack closes → redditM0D rises
 // from the bottom as a black SILHOUETTE, then fades to reveal (the "aaaaa"
-// recognition beat) → Balder rides the elevator back down.
+// recognition beat) → Baldur rides the elevator back down.
 // Positions anchor to the current camera view (the sim is frozen, so the cam
 // is static). All four elevator/crack sprites are Dave's; the silhouette
 // reveal, shook, suck, dust and camera work are code. Tap skips the whole thing.
@@ -212,7 +212,7 @@ NB.codeCeremony = function (scene, finish) {
     .setScale(w / scene.textures.get(key).getSourceImage().width).setAlpha(0));
   const eClosed = mkElev('elev-closed', ELEV_W * 1.18);   // wider: includes burst debris
   const eOpen   = mkElev('elev-open', ELEV_W);
-  const eBalder = mkElev('elev-balder', ELEV_W);
+  const eBaldur = mkElev('elev-baldur', ELEV_W);
   const elevH = eOpen.displayHeight;
 
   // crack sits at the ground IN FRONT of the elevator base (it emerges through)
@@ -261,12 +261,12 @@ NB.codeCeremony = function (scene, finish) {
     dust(cx, groundY, 6);
   });
 
-  // 4 — Balder appears in the doorway (3.1s): open → balder. superM0D shuffles
+  // 4 — Baldur appears in the doorway (3.1s): open → baldur. superM0D shuffles
   // into frame beside the elevator, facing it.
   t(3100, () => {
     if (over) return;
     scene.tweens.add({ targets: eOpen, alpha: 0, duration: 400 });
-    scene.tweens.add({ targets: eBalder, alpha: 1, duration: 400 });
+    scene.tweens.add({ targets: eBaldur, alpha: 1, duration: 400 });
     cam.zoomTo(1.16, 700, 'Sine.easeInOut');
     // superM0D staged beside the elevator, looking up at the boss
     mod.setVisible(true).setAlpha(1).setAngle(0);
@@ -285,7 +285,7 @@ NB.codeCeremony = function (scene, finish) {
     scene.tweens.add({ targets: mod, x: mod.x + 5, duration: 55, yoyo: true, repeat: 12 });
   });
 
-  // 6 — the SUCK (5.0s): Balder drags superM0D down into the crack
+  // 6 — the SUCK (5.0s): Baldur drags superM0D down into the crack
   t(5000, () => {
     if (over) return;
     NB.sfx.gulp(); cam.shake(360, 0.005);
@@ -333,12 +333,12 @@ NB.codeCeremony = function (scene, finish) {
     scene.tweens.add({ targets: nm, alpha: 1, duration: 400, delay: 950 });
   });
 
-  // 10 — redditM0D sinks back down; Balder rides the elevator DOWN (9.9s)
+  // 10 — redditM0D sinks back down; Baldur rides the elevator DOWN (9.9s)
   t(9900, () => {
     if (over) return;
     if (rmReal) scene.tweens.add({ targets: [rmReal, rmDark], y: H + H * 1.25,
       duration: 800, ease: 'Sine.easeIn' });
-    scene.tweens.add({ targets: eBalder, alpha: 0, duration: 350 });
+    scene.tweens.add({ targets: eBaldur, alpha: 0, duration: 350 });
     scene.tweens.add({ targets: eOpen, alpha: 1, duration: 350 });
     t(400, () => {
       if (over) return;
@@ -399,7 +399,7 @@ NB.spawnMod2 = function (scene) {
 
 // After the ceremony: the comeback. He crawls out of the ground as REVENANT.
 NB.spawnRevenant = function (scene) {
-  if (scene.boss || scene.bossDone) return;  // BALDER took him — hell keeps its mods
+  if (scene.boss || scene.bossDone) return;  // BALDUR took him — hell keeps its mods
   NB.persistSet && NB.persistSet('nb_seen_revenant', '1');   // unlocks him on the title flip
   NB.sfx.revenant();
   NB.playMoment(scene, 'revenant');   // "HE CAME BACK WRONG" → a zombie meme

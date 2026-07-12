@@ -135,7 +135,7 @@ class GameScene extends Phaser.Scene {
   preload() {
     // scene.restart() (see onCaught()) reuses the SAME global TextureManager
     // as first boot — it does not reset it. door-closed/door-open/door-mod/
-    // balder all get destructively reprocessed in create() (flood-filled
+    // baldur all get destructively reprocessed in create() (flood-filled
     // transparent from their opaque source bg). If a restart's load.image()
     // call finds the key already present, Phaser just warns and skips the
     // load, so create() ends up flood-filling an ALREADY-flood-filled canvas
@@ -146,7 +146,7 @@ class GameScene extends Phaser.Scene {
     // Fix: drop any existing copy before preload's load.image() calls below,
     // so every scene start — first boot or restart — flood-fills a pristine
     // decode of the real file, never a previously-processed canvas.
-    for (const k of ['door-closed', 'door-open', 'door-mod', 'balder', 'revenant-skull']) {
+    for (const k of ['door-closed', 'door-open', 'door-mod', 'baldur', 'revenant-skull']) {
       if (this.textures.exists(k)) this.textures.remove(k);
     }
     for (let i = 1; i <= 6; i++) {
@@ -172,48 +172,48 @@ class GameScene extends Phaser.Scene {
     this.load.image('mod2-idle', 'assets/mod2/mod2-idle.png');
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
-    this.load.image('balder', 'assets/balder/balder-ceremony.png');
-    for (let i = 1; i <= 13; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — Dave's 13-frame BODY-INCLUSIVE vanish (present→detonate→gone), alpha
-    // BALDER walk — Dave's DIRECTIONAL pixel cycles (face IS direction, locked
+    this.load.image('baldur', 'assets/baldur/baldur-ceremony.png');
+    for (let i = 1; i <= 13; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Baldur teleport — Dave's 13-frame BODY-INCLUSIVE vanish (present→detonate→gone), alpha
+    // BALDUR walk — Dave's DIRECTIONAL pixel cycles (face IS direction, locked
     // canon): bhw = human side, walks RIGHT; bzw = zombie side, walks LEFT.
     // Drawn pre-faced, so NEVER flipX. Different frame counts (13 / 23).
-    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/balder-boss/bhw-${i}.png`);
-    for (let i = 1; i <= 23; i++) this.load.image(`bzw-${i}`, `assets/balder-boss/bzw-${i}.png`);
+    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
+    for (let i = 1; i <= 23; i++) this.load.image(`bzw-${i}`, `assets/baldur-boss/bzw-${i}.png`);
     for (let i = 1; i <= 8; i++) {
-      this.load.image(`bh-walk-${i}`, `assets/balder-boss/bh-walk-${i}.png`);
-      this.load.image(`bh-run-${i}`, `assets/balder-boss/bh-run-${i}.png`);
-      this.load.image(`bz-walk-${i}`, `assets/balder-boss/bz-walk-${i}.png`);
-      this.load.image(`bz-run-${i}`, `assets/balder-boss/bz-run-${i}.png`);
+      this.load.image(`bh-walk-${i}`, `assets/baldur-boss/bh-walk-${i}.png`);
+      this.load.image(`bh-run-${i}`, `assets/baldur-boss/bh-run-${i}.png`);
+      this.load.image(`bz-walk-${i}`, `assets/baldur-boss/bz-walk-${i}.png`);
+      this.load.image(`bz-run-${i}`, `assets/baldur-boss/bz-run-${i}.png`);
     }
-    this.load.image('elevator', 'assets/balder/elevator.png');
-    this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
-    this.load.image('admin-idol', 'assets/balder/admin-idol.png');       // the pixel idol (idle)
-    this.load.image('admin-idol-sign', 'assets/balder/admin-idol-sign.png'); // + r/cursed placard (the HINT walk-by)
+    this.load.image('elevator', 'assets/baldur/elevator.png');
+    this.load.image('admin-walk', 'assets/baldur/admin-walk.png');   // the floor-walk cameo
+    this.load.image('admin-idol', 'assets/baldur/admin-idol.png');       // the pixel idol (idle)
+    this.load.image('admin-idol-sign', 'assets/baldur/admin-idol-sign.png'); // + r/cursed placard (the HINT walk-by)
     // The sprite ceremony (Dave's storyboard — replaces the mid-game video):
-    // closed elevator erupts → doors open → Balder appears → sucks superM0D
-    // under → redditM0D rises (silhouette → reveal) → Balder rides down.
-    this.load.image('elev-closed', 'assets/balder/elevator-closed.png');
-    this.load.image('elev-open', 'assets/balder/elevator-open.png');
-    this.load.image('elev-balder', 'assets/balder/elevator-balder.png');
-    this.load.image('floor-crack', 'assets/balder/crack.png');
+    // closed elevator erupts → doors open → Baldur appears → sucks superM0D
+    // under → redditM0D rises (silhouette → reveal) → Baldur rides down.
+    this.load.image('elev-closed', 'assets/baldur/elevator-closed.png');
+    this.load.image('elev-open', 'assets/baldur/elevator-open.png');
+    this.load.image('elev-baldur', 'assets/baldur/elevator-baldur.png');
+    this.load.image('floor-crack', 'assets/baldur/crack.png');
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
-    // BALDER hero — Dave's full-body beckon master (transparent alpha, do NOT
+    // BALDUR hero — Dave's full-body beckon master (transparent alpha, do NOT
     // flood-fill). The manifest splash when the boss arrives (boss.js).
-    this.load.image('balder-hero', 'assets/balder-boss/balder-hero.png');
-    // BALDER body — the split-face pixel idle (his standing/materialised pose;
+    this.load.image('baldur-hero', 'assets/baldur-boss/baldur-hero.png');
+    // BALDUR body — the split-face pixel idle (his standing/materialised pose;
     // he teleports rather than runs, so this + the teleport IS his locomotion).
-    this.load.image('balder-idle', 'assets/balder-boss/balder-idle.png');
-    // BALDER beaten — white-suit variant. NOT a defeat (nobody survives him):
+    this.load.image('baldur-idle', 'assets/baldur-boss/baldur-idle.png');
+    // BALDUR beaten — white-suit variant. NOT a defeat (nobody survives him):
     // if you lasted >60s before he got you, the death screen swaps this in with
     // a "thank you for playing" grace note instead of the cold meme stamp.
-    this.load.image('balder-beaten', 'assets/balder-boss/balder-beaten.png');
+    this.load.image('baldur-beaten', 'assets/baldur-boss/baldur-beaten.png');
     // superMOD's entrance: closed door (sign) -> open (void) -> he steps out
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');
     this.load.image('door-mod', 'assets/door/door-mod.png');
-    // the post-BALDER "cheesy poof" reveal variant (clean alpha — no flood-fill)
+    // the post-BALDUR "cheesy poof" reveal variant (clean alpha — no flood-fill)
     this.load.image('door-mod-cheesypoof', 'assets/door/door-mod-cheesypoof.png');
     // Revenant Systems crest — replaces the snoo face inside the header/avatar
     // badge (same orange bubble, real brand art in place of the alien face).
@@ -240,8 +240,8 @@ class GameScene extends Phaser.Scene {
       NB.keyFloodFill(this, 'door-open');
       NB.keyFloodFill(this, 'door-mod');
     } catch (e) { console.warn('door key:', e); }
-    // Balder art ships on an opaque light-gray bg — flood it transparent.
-    try { NB.keyFloodFill(this, 'balder'); } catch (e) { console.warn('balder key:', e); }
+    // Baldur art ships on an opaque light-gray bg — flood it transparent.
+    try { NB.keyFloodFill(this, 'baldur'); } catch (e) { console.warn('baldur key:', e); }
     // Admin cameo art: flood-fill no-ops if it already has real alpha.
     try { NB.keyFloodFill(this, 'admin-walk'); } catch (e) { console.warn('admin key:', e); }
     // Revenant crest ships on an opaque white bg too — flood it transparent.
@@ -260,7 +260,7 @@ class GameScene extends Phaser.Scene {
       if (this.textures.exists(k)) this.textures.get(k).setFilter(LINEAR);
     }
     // (ceremony video PULLED 2026-07-11 — the sprite cutscene replaced it, so
-    // no more warming a ~5MB mp4 that never plays. See codeCeremony in balder.js.)
+    // no more warming a ~5MB mp4 that never plays. See codeCeremony in baldur.js.)
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this._karmaMilestone = 0;      // last 1k-karma threshold crossed (meme trigger)
@@ -270,11 +270,11 @@ class GameScene extends Phaser.Scene {
     this.pickerOpen = false;       // mobile sub-drawer open → hunt frozen
     this.searchFocused = false;    // header search focused → hunt frozen (typing a destination is safe travel, like the drawer)
     this.entranceActive = false;   // frozen while the door-open reveal plays
-    this.balderUsed = false;
-    this.balderEligible = false;   // snapshot flip, not a live comparison at catch-time
-    this.boss = null;              // BALDER (boss.js) — the gate lives in update()
+    this.baldurUsed = false;
+    this.baldurEligible = false;   // snapshot flip, not a live comparison at catch-time
+    this.boss = null;              // BALDUR (boss.js) — the gate lives in update()
     this.bossDone = false;         // one boss visit per run — and it only ends one way
-    this.bossKill = false;         // caught by BALDER himself → [ ERASED ]
+    this.bossKill = false;         // caught by BALDUR himself → [ ERASED ]
     this.bossThanks = false;       // lasted >BOSS_THANKS_MS vs him → grace note
     this.duoMs = 0;                // ms survived with BOTH hunters live (gate half)
     this.memeBag = {};             // run collection: meme id → count (HUD stacks ×n)
@@ -342,17 +342,17 @@ class GameScene extends Phaser.Scene {
     // still lives only inside the LUNGE window (mod.js); this only changes his look.
     this.anims.create({ key: 'anim2-punch',
       frames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => ({ key: `mod2-punch-${i}` })), frameRate: 32, repeat: 0 });
-    // Balder teleport — Dave's 13-frame purple vanish (charge → detonate → smoke),
+    // Baldur teleport — Dave's 13-frame purple vanish (charge → detonate → smoke),
     // keyed transparent so it composites on any Reddit theme. Forward = vanish,
     // reversed = reappear/materialise at the new spot.
     const tpFrames = Array.from({ length: 13 }, (_, k) => ({ key: `tp-${k + 1}` }));
     this.anims.create({ key: 'anim-tele-vanish', frames: tpFrames, frameRate: 22, repeat: 0 });
     this.anims.create({ key: 'anim-tele-arrive', frames: tpFrames.slice().reverse(), frameRate: 22, repeat: 0 });
-    // BALDER directional walks — human (right) / zombie (left), looped
-    this.anims.create({ key: 'anim-balder-hwalk',
+    // BALDUR directional walks — human (right) / zombie (left), looped
+    this.anims.create({ key: 'anim-baldur-hwalk',
       frames: Array.from({ length: 13 }, (_, k) => ({ key: `bhw-${k + 1}` })),
       frameRate: 12, repeat: -1 });
-    this.anims.create({ key: 'anim-balder-zwalk',
+    this.anims.create({ key: 'anim-baldur-zwalk',
       frames: Array.from({ length: 23 }, (_, k) => ({ key: `bzw-${k + 1}` })),
       frameRate: 12, repeat: -1 });
 
@@ -410,10 +410,10 @@ class GameScene extends Phaser.Scene {
     NB.sfx.stumble();
     this.time.delayedCall(650, () => {
       // beat 2 — he's just THERE, filling the frame. Players who've faced
-      // BALDER get the cheeto-dusted "cheesy poof" reveal — a quiet reward for
+      // BALDUR get the cheeto-dusted "cheesy poof" reveal — a quiet reward for
       // reaching the endgame (Dave 2026-07-11).
       this.cameras.main.shake(240, 0.011); flash();
-      const doorKey = (NB.persistGet && NB.persistGet('nb_seen_balder') === '1'
+      const doorKey = (NB.persistGet && NB.persistGet('nb_seen_baldur') === '1'
         && this.textures.exists('door-mod-cheesypoof')) ? 'door-mod-cheesypoof' : 'door-mod';
       img.setTexture(doorKey);
       NB.sfx.caught();
@@ -559,11 +559,11 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(30).setScrollFactor(0);
       // Danger/heat meter — segmented bar (was a bare number, easy to not register).
       this.heatBarG = this.add.graphics().setDepth(30).setScrollFactor(0);
-      // Balder promotion-review progress — the only visible sign a second
+      // Baldur promotion-review progress — the only visible sign a second
       // chance is coming; fixes "banned right at a minute, no idea I was close."
-      this.balderBarBg = this.add.rectangle(W - 22, H - 64, 120, 6, 0x000000, 0.35)
+      this.baldurBarBg = this.add.rectangle(W - 22, H - 64, 120, 6, 0x000000, 0.35)
         .setOrigin(1, 0.5).setDepth(30).setScrollFactor(0);
-      this.balderBarFill = this.add.rectangle(W - 142, H - 64, 0, 6, 0xffb648, 0.95)
+      this.baldurBarFill = this.add.rectangle(W - 142, H - 64, 0, 6, 0xffb648, 0.95)
         .setOrigin(0, 0.5).setDepth(30).setScrollFactor(0);
       // Shield status — separate from the ring on the cursor, which is easy
       // to lose track of mid-chase and gives no "you just used it" moment.
@@ -899,8 +899,8 @@ class GameScene extends Phaser.Scene {
     this.buildWorld(this.arenaData, { rebuild: true });    // reflow the page itself
     // fixed HUD corners (heat bar already redraws from live scale every frame)
     this.hud.setPosition(W - 22, H - 14);
-    this.balderBarBg.setPosition(W - 22, H - 64);
-    this.balderBarFill.setPosition(W - 142, H - 64);
+    this.baldurBarBg.setPosition(W - 22, H - 64);
+    this.baldurBarFill.setPosition(W - 142, H - 64);
     this.shieldPill.setPosition(W - 22, H - 78);
     this.lettersHud.setPosition(W - 22, H - 96);
     if (this.muteBtn) this.muteBtn.setPosition(18, H - 16);
@@ -987,17 +987,17 @@ class GameScene extends Phaser.Scene {
   bindDebugKeys() {
     // Alt+Shift — Huion owns Ctrl+Alt. LOCALHOST ONLY: the old comment claimed
     // the build strips these — it never did, and they shipped live to real
-    // Reddit through v0.0.25 (anyone could force-spawn BALDER or instakill).
+    // Reddit through v0.0.25 (anyone could force-spawn BALDUR or instakill).
     // Dave 2026-07-11: hard-gate them to the dev server instead.
     if (!/^(localhost|127\.)/.test(location.hostname)) return;
     if (!this.input.keyboard) return;
     this.input.keyboard.on('keydown', (ev) => {
       if (!ev.altKey || !ev.shiftKey || !this.ready) return;
       const k = ev.key.toLowerCase();
-      if (k === 'b' && !this.balderUsed && !this.ceremonyRunning) {
-        this.balderUsed = true;
+      if (k === 'b' && !this.baldurUsed && !this.ceremonyRunning) {
+        this.baldurUsed = true;
         this.survivalMs = Math.max(this.survivalMs, 61000);
-        NB.playBalderCeremony(this, () => {
+        NB.playBaldurCeremony(this, () => {
           if (this.caught) return;
           NB.spawnMod2(this);
           this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
@@ -1011,8 +1011,8 @@ class GameScene extends Phaser.Scene {
       } else if (k === 'y' && !this.ceremonyRunning && !this.caught) {
         NB.demoTeleport(this);
       } else if (k === 'x' && !this.ceremonyRunning && !this.caught) {
-        this.bossDone = false;          // debug: force the BALDER fight, gates be damned
-        NB.spawnBalder(this);
+        this.bossDone = false;          // debug: force the BALDUR fight, gates be damned
+        NB.spawnBaldur(this);
       } else if (k === 't') {
         this.survivalMs += 30000;
       } else if (k === 'd' && !this.caught) {
@@ -1088,11 +1088,11 @@ class GameScene extends Phaser.Scene {
     // REVENANT_DELAY_MS later the old mod claws back out — then it's BOTH.
     // If the ceremony explodes (a webview API we can't touch, whatever), we
     // fall THROUGH to a normal death — never a bricked run.
-    // (never intercepts a BALDER kill — management doesn't save you from management)
-    if (!this.balderUsed && this.balderEligible && !this.bossKill) {
-      this.balderUsed = true;
+    // (never intercepts a BALDUR kill — management doesn't save you from management)
+    if (!this.baldurUsed && this.baldurEligible && !this.bossKill) {
+      this.baldurUsed = true;
       try {
-        NB.playBalderCeremony(this, () => {
+        NB.playBaldurCeremony(this, () => {
           if (this.caught) return;
           NB.spawnMod2(this);
           this.time.delayedCall(NB.TUNE.REVENANT_DELAY_MS, () => {
@@ -1125,7 +1125,7 @@ class GameScene extends Phaser.Scene {
       const layer = [];
       // pulled once per death (onCaught is guarded, runs once per removal)
       const verdict = this.bossKill ? '[ ERASED ]' : Phaser.Utils.Array.GetRandom(NB.BAN_VERDICTS);
-      const reason = this.bossKill ? 'Reason: BALDER handled it personally.' : NB.nextBanReason();
+      const reason = this.bossKill ? 'Reason: BALDUR handled it personally.' : NB.nextBanReason();
       NB.playMoment(this, 'banned');   // the [ REMOVED ] screen — a death meme
       layer.push(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85).setDepth(40).setScrollFactor(0));
 
@@ -1136,11 +1136,11 @@ class GameScene extends Phaser.Scene {
       // layout just closes up.
       const cy = H / 2 - 8;
       let memeH = 0;
-      // GRACE NOTE: survived >60s vs Balder → the white-suit Balder tips his
+      // GRACE NOTE: survived >60s vs Baldur → the white-suit Baldur tips his
       // hat instead of a random L-meme stamp. He still got you ([ ERASED ]);
       // this only warms the send-off. Otherwise: the usual death meme.
-      const stampKey = (this.bossThanks && this.textures.exists('balder-beaten'))
-        ? 'balder-beaten' : null;
+      const stampKey = (this.bossThanks && this.textures.exists('baldur-beaten'))
+        ? 'baldur-beaten' : null;
       const memeId = Phaser.Utils.Array.GetRandom(NB.DEATH_MEMES);
       const drawKey = stampKey || (this.textures.exists(`meme-${memeId}`) ? `meme-${memeId}` : null);
       if (drawKey) {
@@ -1319,7 +1319,7 @@ class GameScene extends Phaser.Scene {
     g.fillCircle(t, ty, 3);
   }
 
-  // Danger meter, Balder progress, shield status — makes the game's existing
+  // Danger meter, Baldur progress, shield status — makes the game's existing
   // discrete/binary state (heat level, one-time promotion review, single-charge
   // shield) legible at a glance instead of a bare number or an easy-to-miss
   // ring on the cursor. No new mechanics, just visibility for what already exists.
@@ -1345,18 +1345,18 @@ class GameScene extends Phaser.Scene {
       x += segW + gap;
     }
 
-    // Balder promotion review: hides once spent (one-time-per-run resource,
+    // Baldur promotion review: hides once spent (one-time-per-run resource,
     // shouldn't imply it recharges); pulses in the last 10% before ready.
-    if (this.balderUsed) {
-      this.balderBarBg.setVisible(false);
-      this.balderBarFill.setVisible(false);
+    if (this.baldurUsed) {
+      this.baldurBarBg.setVisible(false);
+      this.baldurBarFill.setVisible(false);
     } else {
-      this.balderBarBg.setVisible(true).setAlpha(1);
-      this.balderBarFill.setVisible(true);
-      const frac = Phaser.Math.Clamp(this.survivalMs / NB.TUNE.BALDER_SURVIVAL_MS, 0, 1);
-      this.balderBarFill.width = 120 * frac;
-      this.balderBarFill.setFillStyle(frac >= 1 ? 0x46d160 : 0xffb648);
-      this.balderBarFill.setAlpha(frac > 0.9 ? 0.7 + 0.3 * Math.sin(this.time.now / 120) : 0.95);
+      this.baldurBarBg.setVisible(true).setAlpha(1);
+      this.baldurBarFill.setVisible(true);
+      const frac = Phaser.Math.Clamp(this.survivalMs / NB.TUNE.BALDUR_SURVIVAL_MS, 0, 1);
+      this.baldurBarFill.width = 120 * frac;
+      this.baldurBarFill.setFillStyle(frac >= 1 ? 0x46d160 : 0xffb648);
+      this.baldurBarFill.setAlpha(frac > 0.9 ? 0.7 + 0.3 * Math.sin(this.time.now / 120) : 0.95);
     }
 
     // Shield: only visible today as a small ring on the cursor — easy to lose
@@ -1406,8 +1406,8 @@ class GameScene extends Phaser.Scene {
       // Snapshot eligibility the instant the threshold crosses, rather than a
       // live comparison at the moment of the catch — removes any "so close"
       // edge case between when time actually passed and when a catch resolves.
-      if (!this.balderEligible && !this.balderUsed && this.survivalMs > NB.TUNE.BALDER_SURVIVAL_MS) {
-        this.balderEligible = true;
+      if (!this.baldurEligible && !this.baldurUsed && this.survivalMs > NB.TUNE.BALDUR_SURVIVAL_MS) {
+        this.baldurEligible = true;
       }
       // edge-push scrolling: finger near top/bottom scrolls the feed. Touch
       // needs a much fatter, faster bottom zone — you're dodging with the same
@@ -1460,13 +1460,13 @@ class GameScene extends Phaser.Scene {
       }
       NB.updateLetterPickup(this, this.playerPos);
       this.checkDeathWhispers();
-      // BALDER — the ending. THE GATE (Dave 2026-07-11: "Balder's gate IS THE
+      // BALDUR — the ending. THE GATE (Dave 2026-07-11: "Baldur's gate IS THE
       // LETTERS. +250k karma + 30 seconds survived with the duo"): all six
       // letters found + karma ≥ gate + BOSS_DUO_MS on the duo clock.
       if (!this.boss && !this.bossDone && NB.lettersDone()
           && this.karma >= NB.TUNE.BOSS_KARMA_GATE
           && this.duoMs >= NB.TUNE.BOSS_DUO_MS) {
-        NB.spawnBalder(this);
+        NB.spawnBaldur(this);
       }
       if (this.boss) this.boss.update(dt, this.playerPos);
     }

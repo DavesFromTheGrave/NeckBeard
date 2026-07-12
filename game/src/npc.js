@@ -93,7 +93,7 @@ NB.Cheerleader = class {
   }
 };
 
-// THE ADMIN IDOL — the little pixel Balder strolls clean across the screen
+// THE ADMIN IDOL — the little pixel Baldur strolls clean across the screen
 // now and then, cigar going. Dave: seeing him walk by is the HINT that there's
 // something to find (the letter hunt / the ending). Pure ambience otherwise:
 // sees everything, does nothing, answers to no one.

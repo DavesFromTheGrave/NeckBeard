@@ -367,6 +367,7 @@ NB.codeCeremony = function (scene, finish) {
 // inside his own LUNGE window behind a full telegraph.
 NB.spawnMod2 = function (scene) {
   if (scene.mod2) return;
+  NB.persistSet && NB.persistSet('nb_seen_mod2', '1');   // unlocks him on the title flip
   NB.playMoment(scene, 'redditmod');
   const cam = scene.cameras.main;
   cam.shake(420, 0.006);

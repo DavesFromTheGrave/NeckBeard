@@ -281,6 +281,7 @@ NB.Balder = class {
 NB.spawnBalder = function (scene) {
   if (scene.boss || scene.bossDone || scene.caught) return;
   scene.bossDone = true;
+  NB.persistSet && NB.persistSet('nb_seen_balder', '1');   // unlocks him on the title flip
   const cam = scene.cameras.main;
   const a = Math.random() * Math.PI * 2;
   const x = Phaser.Math.Clamp(scene.playerPos.x + Math.cos(a) * 300, 60, scene.scale.width - 60);

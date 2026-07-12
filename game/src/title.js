@@ -30,9 +30,12 @@ class TitleScene extends Phaser.Scene {
     // until Dave drops hero-1/2/3.png into assets/title/.
     this.load.on('loaderror', () => {});   // swallow the not-yet-present hero 404s
     for (let i = 1; i <= 3; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
-    // superMOD walk frames — GameScene preloads the full cast, but Title runs
-    // first, so the desktop title loads its own copy for the animated depiction.
+    // The "meet the moderators" flip needs all three mods' WALK frames on the
+    // title (GameScene loads them too, but Title runs first). superM0D always;
+    // redditM0D + BALDER stay locked-silhouette until the player's reached them.
     for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
+    for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
+    for (let i = 1; i <= 8; i++) this.load.image(`bw-${i}`, `assets/balder-boss/bw-${i}.png`);
   }
 
   create() {
@@ -99,6 +102,8 @@ class TitleScene extends Phaser.Scene {
     }
     this.input.on('pointerdown', (p) => {
       if (this.muteBtn && this.muteBtn.getBounds().contains(p.x, p.y)) return;
+      // the moderator-flip arrows own their taps — don't start the game
+      if ((this.modArrows || []).some(a => a.getBounds().contains(p.x, p.y))) return;
       go();
     });
     this.input.keyboard?.once('keydown', go);
@@ -180,22 +185,69 @@ class TitleScene extends Phaser.Scene {
   }
 
   // Animated superMOD: cycles the walk frames in place with a gentle pace + bob.
+  // "Meet the moderators" — the pixel WALK of each mod, flip through with ◄ ►.
+  // superM0D is always shown; redditM0D + BALDER are black-silhouette "???"
+  // teases until the player has actually reached them (persisted flags set in
+  // spawnMod2 / spawnBalder). Pure showcase — no gameplay, no character select.
   drawMod(cx, cy, targetH) {
-    const has = this.textures.exists('m1-walk-1');
-    const key0 = has ? 'm1-walk-1' : (this.textures.exists('door-mod') ? 'door-mod' : 'intro-art');
-    const s = this.add.sprite(cx, cy, key0).setDepth(1);
-    const srcH = this.textures.get(key0).getSourceImage().height || 512;
-    s.setScale(targetH / srcH);
-    if (has) {
-      let f = 1;
-      this.time.addEvent({ delay: 130, loop: true, callback: () => {
-        f = f % 6 + 1;
-        if (this.textures.exists(`m1-walk-${f}`)) s.setTexture(`m1-walk-${f}`);
-      }});
-      this.tweens.add({ targets: s, x: cx + 20, duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const P = (k) => (NB.persistGet && NB.persistGet(k) === '1');
+    const MODS = [
+      { name: 'superM0D', pre: 'm1-walk', n: 6, unlocked: true },
+      { name: 'redditM0D', pre: 'mod2-walk', n: 6, unlocked: P('nb_seen_mod2') },
+      { name: 'BALDER', pre: 'bw', n: 8, unlocked: P('nb_seen_balder') },
+    ].filter(m => this.textures.exists(`${m.pre}-1`));
+    if (!MODS.length) return null;
+    this._modIdx = 0;
+
+    const spr = this.add.sprite(cx, cy, `${MODS[0].pre}-1`).setOrigin(0.5, 0.5).setDepth(1);
+    const label = this.add.text(cx, cy - targetH * 0.62, '', {
+      fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: `${Phaser.Math.Clamp(Math.round(targetH * 0.07), 12, 22)}px`,
+      color: '#e8c944',
+    }).setOrigin(0.5).setDepth(2).setStroke('#000', 4);
+    // gentle bob + pace, shared across whichever mod is shown
+    this.tweens.add({ targets: spr, y: cy - 6, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: spr, x: cx + 18, duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    let frame = 1;
+    this.time.addEvent({ delay: 135, loop: true, callback: () => {
+      const m = MODS[this._modIdx];
+      if (!m || !m.unlocked) return;                 // locked = a still silhouette
+      frame = frame % m.n + 1;
+      if (this.textures.exists(`${m.pre}-${frame}`)) spr.setTexture(`${m.pre}-${frame}`);
+    }});
+
+    const render = () => {
+      const m = MODS[this._modIdx];
+      frame = 1;
+      spr.setTexture(`${m.pre}-1`);
+      const srcH = this.textures.get(`${m.pre}-1`).getSourceImage().height || 512;
+      spr.setScale(targetH / srcH);
+      if (m.unlocked) { spr.clearTint(); label.setText(m.name).setColor('#e8c944'); }
+      else { spr.setTintFill(0x000000); label.setText('? ? ?').setColor('#7a6f4a'); }
+    };
+    render();
+
+    // ◄ ► arrows flanking the mod. Only shown if there's more than one mod to
+    // flip to (including locked teases). They own their taps (see the go-guard).
+    this.modArrows = [];
+    if (MODS.length > 1) {
+      const ay = cy, ax = targetH * 0.52;
+      const mk = (dx, glyph) => {
+        const a = this.add.text(cx + dx, ay, glyph, {
+          fontFamily: NB.FONT_ARCADE || 'Courier New', fontSize: `${Phaser.Math.Clamp(Math.round(targetH * 0.12), 22, 44)}px`,
+          color: '#e8c944',
+        }).setOrigin(0.5).setDepth(3).setStroke('#000', 5).setInteractive({ useHandCursor: false });
+        a.on('pointerdown', (p, lx, ly, ev) => {
+          if (ev) ev.stopPropagation();
+          this._modIdx = (this._modIdx + (dx < 0 ? MODS.length - 1 : 1)) % MODS.length;
+          render();
+        });
+        this.modArrows.push(a);
+        return a;
+      };
+      mk(-ax, '◄'); mk(ax, '►');
     }
-    this.tweens.add({ targets: s, y: cy - 6, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    return s;
+    return spr;
   }
 
   // The High Score board, drawn into an arbitrary rect (Points | Player | Ban

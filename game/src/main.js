@@ -185,6 +185,13 @@ class GameScene extends Phaser.Scene {
     }
     this.load.image('elevator', 'assets/balder/elevator.png');
     this.load.image('admin-walk', 'assets/balder/admin-walk.png');   // the floor-walk cameo
+    // The sprite ceremony (Dave's storyboard — replaces the mid-game video):
+    // closed elevator erupts → doors open → Balder appears → sucks superM0D
+    // under → redditM0D rises (silhouette → reveal) → Balder rides down.
+    this.load.image('elev-closed', 'assets/balder/elevator-closed.png');
+    this.load.image('elev-open', 'assets/balder/elevator-open.png');
+    this.load.image('elev-balder', 'assets/balder/elevator-balder.png');
+    this.load.image('floor-crack', 'assets/balder/crack.png');
     for (const p of ['idle', 'cheer', 'armsup', 'pompom', 'kick', 'wink']) {
       this.load.image(`cheer-${p}`, `assets/cheer/cheer-${p}.png`);
     }
@@ -246,7 +253,8 @@ class GameScene extends Phaser.Scene {
     for (const k of ['m1-crouch', 'm1-victory', 'mod2-idle', 'mod2-stand']) {
       if (this.textures.exists(k)) this.textures.get(k).setFilter(LINEAR);
     }
-    NB.warmCutscene();   // pull the ceremony video into cache long before it's needed
+    // (ceremony video PULLED 2026-07-11 — the sprite cutscene replaced it, so
+    // no more warming a ~5MB mp4 that never plays. See codeCeremony in balder.js.)
     const W = this.scale.width, H = this.scale.height;
     this.survivalMs = 0;
     this._karmaMilestone = 0;      // last 1k-karma threshold crossed (meme trigger)

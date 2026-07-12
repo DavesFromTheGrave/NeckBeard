@@ -34,18 +34,12 @@ NB.playBalderCeremony = function (scene, done) {
     scene.time.delayedCall(600, finish);
     return;
   }
-  // Every stage has a landing pad: video → code-cinematic → straight finish.
-  // A ceremony that throws must NEVER brick the run.
-  const cinematic = () => {
-    try { NB.codeCeremony(scene, finish); }
-    catch (e) { console.warn('code ceremony failed:', e); finish(); }
-  };
-  try {
-    NB.playCutsceneVideo(scene, 'assets/video/revenant-cutscene.mp4', finish, cinematic);
-  } catch (e) {
-    console.warn('cutscene video failed:', e);
-    cinematic();
-  }
+  // The VIDEO is pulled (Dave's kid, 2026-07-11: it clashed with the game's
+  // look — a sprite cutscene renders in-engine and can't look "off"). Always
+  // the sprite ceremony now; a throw still lands straight on finish (never
+  // brick the run).
+  try { NB.codeCeremony(scene, finish); }
+  catch (e) { console.warn('code ceremony failed:', e); finish(); }
 };
 
 // ── Balder TELEPORT — the boss's signature blink ─────────────────────────
@@ -178,123 +172,192 @@ NB.warmCutscene = function () {
 // The original code-cinematic — now the fallback when the video can't play.
 // Beats approved 2026-07-04: freeze → crack → gold elevator → Balder →
 // Supermod sucked underground → exit → "management has been notified."
+// The SPRITE CEREMONY (Dave's storyboard, 2026-07-11 — replaces the video):
+// rumble+crack → closed elevator ERUPTS up → doors open → Balder appears →
+// superM0D is shook → Balder sucks him under → crack closes → redditM0D rises
+// from the bottom as a black SILHOUETTE, then fades to reveal (the "aaaaa"
+// recognition beat) → Balder rides the elevator back down.
+// Positions anchor to the current camera view (the sim is frozen, so the cam
+// is static). All four elevator/crack sprites are Dave's; the silhouette
+// reveal, shook, suck, dust and camera work are code. Tap skips the whole thing.
 NB.codeCeremony = function (scene, finish) {
   const cam = scene.cameras.main;
   const mod = scene.mod.sprite;
-  const W = scene.scale.width;
-  const groundY = Math.min(mod.y + 60, scene.page.WORLD_H - 40);
-  const elevX = Phaser.Math.Clamp(mod.x < W / 2 ? mod.x + 190 : mod.x - 190, 90, W - 90);
+  const W = scene.scale.width, H = scene.scale.height;
+  const cx = cam.scrollX + W / 2;
+  const groundY = cam.scrollY + H * 0.76;
+  const ELEV_W = Math.min(300, Math.round(W * 0.34));
   const objs = [];   // everything the cinematic spawns, so a tap-skip wipes it all
   let over = false;
   const end = () => {
     if (over) return;
     over = true;
     objs.forEach(o => { try { o.destroy(); } catch {} });
+    cam.zoomTo(1, 300, 'Sine.easeInOut');
     finish();
   };
+  const t = (ms, fn) => scene.time.delayedCall(ms, fn);
+  const track = (o) => { objs.push(o); return o; };
   scene.input.once('pointerdown', () => { if (scene.ceremonyRunning) end(); });
 
-  // 1 — freeze + lens (0.8s)
-  const shade = scene.add.rectangle(cam.scrollX + W / 2, cam.scrollY + scene.scale.height / 2,
-    W, scene.scale.height, 0x1a1428, 0).setDepth(12);
-  objs.push(shade);
-  scene.tweens.add({ targets: shade, fillAlpha: 0.28, duration: 700 });
-  cam.zoomTo(1.12, 800, 'Sine.easeInOut');
+  // dark stage + slow push-in
+  const shade = track(scene.add.rectangle(cx, cam.scrollY + H / 2, W, H, 0x0a0812, 0).setDepth(12));
+  scene.tweens.add({ targets: shade, fillAlpha: 0.6, duration: 600 });
+  cam.zoomTo(1.1, 900, 'Sine.easeInOut');
 
-  const t = (ms, fn) => scene.time.delayedCall(ms, fn);
+  // three elevator states stacked at the same base; alpha crossfades between
+  // them. Widths matched on the gold frame so the door doesn't jump.
+  const mkElev = (key, w) => track(scene.add.image(cx, groundY, key)
+    .setOrigin(0.5, 1).setDepth(14)
+    .setScale(w / scene.textures.get(key).getSourceImage().width).setAlpha(0));
+  const eClosed = mkElev('elev-closed', ELEV_W * 1.18);   // wider: includes burst debris
+  const eOpen   = mkElev('elev-open', ELEV_W);
+  const eBalder = mkElev('elev-balder', ELEV_W);
+  const elevH = eOpen.displayHeight;
 
-  // ~7s total (Dave spec). Timings tuned for jam pacing.
-  // 2 — the crack (at 0.5s)
-  t(500, () => {
+  // crack sits at the ground IN FRONT of the elevator base (it emerges through)
+  const crack = track(scene.add.image(cx, groundY, 'floor-crack').setOrigin(0.5, 0.5)
+    .setDepth(16).setScale(0).setAlpha(0));
+  const crackW = ELEV_W * 1.5;
+
+  const dust = (x, y, n) => { for (let i = 0; i < n; i++) {
     if (over) return;
-    NB.sfx.crack();
-    cam.shake(420, 0.006);
-    const crackG = scene.add.graphics().setDepth(13);
-    objs.push(crackG);
-    crackG.lineStyle(4, 0x0d0b08, 1);
-    let cx = elevX - 60, cy = groundY + 8;
-    crackG.beginPath(); crackG.moveTo(cx, cy);
-    for (let i = 0; i < 7; i++) {
-      cx += Phaser.Math.Between(12, 26);
-      cy += Phaser.Math.Between(-7, 7);
-      crackG.lineTo(cx, cy);
-    }
-    crackG.strokePath();
+    const p = track(scene.add.circle(x + Phaser.Math.Between(-ELEV_W / 2, ELEV_W / 2), y,
+      Phaser.Math.Between(4, 9), 0x8a8580, 0.5).setDepth(15));
+    scene.tweens.add({ targets: p, y: p.y - Phaser.Math.Between(30, 80),
+      x: p.x + Phaser.Math.Between(-30, 30), alpha: 0, scale: 2.4,
+      duration: Phaser.Math.Between(700, 1200), onComplete: () => p.destroy() });
+  }};
+
+  // 1 — RUMBLE + crack tears open (0.4s)
+  t(400, () => {
+    if (over) return;
+    NB.sfx.crack(); cam.shake(500, 0.007);
+    crack.setScale((crackW / crack.width) * 0.5);
+    scene.tweens.add({ targets: crack, alpha: 1, scaleX: crackW / crack.width,
+      scaleY: crackW / crack.width, duration: 500, ease: 'Back.easeOut' });
     for (const el of scene.page.elements) {
-      if (Math.abs(el.rect.centerY - groundY) < 220) scene.page.shake(el, scene);
+      if (Math.abs(el.rect.centerY - groundY) < 260) scene.page.shake(el, scene);
     }
   });
 
-  // 3 — the elevator rises (at 1.2s)
-  t(1200, () => {
+  // 2 — closed elevator ERUPTS up out of the crack (1.0s)
+  t(1000, () => {
     if (over) return;
-    NB.sfx.ding();
-    const elev = scene.page.makeElevator(elevX, groundY + 120);
-    objs.push(...elev);
-    for (const o of elev) {
-      scene.tweens.add({ targets: o, y: o.y - 120, duration: 1300, ease: 'Sine.easeOut' });
-    }
+    NB.sfx.ding && NB.sfx.ding();
+    eClosed.setAlpha(1).y = groundY + elevH * 1.1;      // start below ground
+    scene.tweens.add({ targets: eClosed, y: groundY, duration: 1100, ease: 'Back.easeOut' });
+    cam.shake(600, 0.006);
+    dust(cx, groundY, 14);
   });
 
-  // 4 — Balder RISES up out of the elevator into the doorway (at 2.8s)
-  t(2800, () => {
+  // 3 — doors open (2.4s): closed → open crossfade
+  t(2400, () => {
     if (over) return;
-    const balder = scene.add.sprite(elevX, groundY + 130, 'balder').setDepth(18).setAlpha(0);
-    objs.push(balder);
-    balder.setScale(210 / balder.height);   // real art -> doorway-sized
-    scene.tweens.add({ targets: balder, y: groundY - 6, alpha: 1, duration: 1000, ease: 'Sine.easeOut' });
-    // cigar smoke off the head
-    scene.time.addEvent({ repeat: 5, delay: 300, callback: () => {
+    NB.sfx.ding && NB.sfx.ding();
+    eOpen.y = groundY;
+    scene.tweens.add({ targets: eClosed, alpha: 0, duration: 450 });
+    scene.tweens.add({ targets: eOpen, alpha: 1, duration: 450 });
+    dust(cx, groundY, 6);
+  });
+
+  // 4 — Balder appears in the doorway (3.1s): open → balder. superM0D shuffles
+  // into frame beside the elevator, facing it.
+  t(3100, () => {
+    if (over) return;
+    scene.tweens.add({ targets: eOpen, alpha: 0, duration: 400 });
+    scene.tweens.add({ targets: eBalder, alpha: 1, duration: 400 });
+    cam.zoomTo(1.16, 700, 'Sine.easeInOut');
+    // superM0D staged beside the elevator, looking up at the boss
+    mod.setVisible(true).setAlpha(1).setAngle(0);
+    mod.setScale(scene.mod.baseScale || mod.scaleX);
+    mod.x = cx - ELEV_W * 0.72; mod.y = groundY - mod.displayHeight * 0.5;
+    mod.setFlipX(true);
+  });
+
+  // 5 — superM0D visibly SHOOK (4.0s): jitter + a "!"
+  t(4000, () => {
+    if (over) return;
+    const bang = track(scene.add.text(mod.x, mod.y - mod.displayHeight * 0.6, '!', {
+      fontFamily: 'Courier New', fontSize: '34px', fontStyle: 'bold', color: '#ffd23f',
+    }).setOrigin(0.5).setDepth(19).setStroke('#000', 5));
+    scene.tweens.add({ targets: bang, y: bang.y - 14, duration: 260, yoyo: true, repeat: 1 });
+    scene.tweens.add({ targets: mod, x: mod.x + 5, duration: 55, yoyo: true, repeat: 12 });
+  });
+
+  // 6 — the SUCK (5.0s): Balder drags superM0D down into the crack
+  t(5000, () => {
+    if (over) return;
+    NB.sfx.gulp(); cam.shake(360, 0.005);
+    crack.setPosition(mod.x, groundY);                  // crack yawns under him
+    scene.tweens.add({ targets: crack, scaleX: (crackW * 0.8) / crack.width,
+      scaleY: (crackW * 0.8) / crack.width, duration: 300 });
+    try { mod.play('anim-stumble'); } catch (e) {}
+    scene.tweens.add({ targets: mod, y: groundY + 30, angle: 220, scale: 0.04,
+      duration: 1000, ease: 'Quad.easeIn', onComplete: () => mod.setVisible(false) });
+  });
+
+  // 7 — crack closes back up (6.3s)
+  t(6300, () => {
+    if (over) return;
+    scene.tweens.add({ targets: crack, alpha: 0, scaleX: 0.1, scaleY: 0.1, duration: 500 });
+  });
+
+  // 8 — redditM0D LOOMS UP from the bottom of the screen in CLOSE-UP (Dave:
+  // real close, big) as a pure black SILHOUETTE. Fixed to the camera — this is
+  // a foreground reveal, not a character on the floor. (6.7s)
+  let rmReal, rmDark;
+  t(6700, () => {
+    if (over) return;
+    const srcH = scene.textures.get('mod2-idle').getSourceImage().height;
+    const big = (H * 1.15) / srcH;                 // towering, fills the frame
+    const rx = W / 2, fromY = H + H * 1.25, toY = H * 1.1;
+    rmReal = track(scene.add.sprite(rx, fromY, 'mod2-idle').setOrigin(0.5, 1)
+      .setDepth(20).setScale(big).setScrollFactor(0));
+    rmDark = track(scene.add.sprite(rx, fromY, 'mod2-idle').setOrigin(0.5, 1)
+      .setDepth(21).setScale(big).setScrollFactor(0).setTintFill(0x000000));
+    scene.tweens.add({ targets: [rmReal, rmDark], y: toY, duration: 1100, ease: 'Sine.easeOut' });
+  });
+
+  // 9 — the REVEAL (8.1s): the silhouette SLOWLY burns off — the recognition
+  // "aaaaa" beat. A soft flash lands as his face resolves.
+  t(8100, () => {
+    if (over || !rmDark) return;
+    NB.playMoment(scene, 'redditmod');
+    cam.shake(260, 0.004);
+    scene.tweens.add({ targets: rmDark, alpha: 0, duration: 1500, ease: 'Sine.easeInOut' });
+    t(1050, () => { if (!over) cam.flash(220, 255, 220, 180); });
+    const nm = track(scene.add.text(W / 2, H * 0.13, 'redditM0D', {
+      fontFamily: 'Courier New', fontSize: '22px', fontStyle: 'bold', color: '#ff4500',
+    }).setOrigin(0.5).setDepth(22).setScrollFactor(0).setStroke('#000', 5).setAlpha(0));
+    scene.tweens.add({ targets: nm, alpha: 1, duration: 400, delay: 950 });
+  });
+
+  // 10 — redditM0D sinks back down; Balder rides the elevator DOWN (9.9s)
+  t(9900, () => {
+    if (over) return;
+    if (rmReal) scene.tweens.add({ targets: [rmReal, rmDark], y: H + H * 1.25,
+      duration: 800, ease: 'Sine.easeIn' });
+    scene.tweens.add({ targets: eBalder, alpha: 0, duration: 350 });
+    scene.tweens.add({ targets: eOpen, alpha: 1, duration: 350 });
+    t(400, () => {
       if (over) return;
-      const puff = scene.add.circle(balder.x + 14, balder.y - balder.displayHeight * 0.42,
-        Phaser.Math.Between(3, 5), 0xbbbbbb, 0.5).setDepth(19);
-      scene.tweens.add({ targets: puff, y: puff.y - 24, alpha: 0, scale: 2, duration: 900,
-        onComplete: () => puff.destroy() });
-    }});
-    // 6 — exit: sinks back down into the elevator (at 5.4s overall)
-    t(2600, () => {
-      if (over) return;
-      scene.tweens.add({ targets: balder, y: groundY + 130, alpha: 0, duration: 900,
-        ease: 'Sine.easeIn' });
+      scene.tweens.add({ targets: eOpen, alpha: 0, duration: 300 });
+      scene.tweens.add({ targets: eClosed, alpha: 1, duration: 300 });
+      t(350, () => {
+        if (over) return;
+        NB.sfx.ding && NB.sfx.ding();
+        scene.tweens.add({ targets: eClosed, y: groundY + elevH * 1.1, duration: 900,
+          ease: 'Sine.easeIn' });
+      });
     });
   });
 
-  // 5 — the suck (at 4.2s)
-  t(4200, () => {
+  // 11 — lights up, hand off to the hunt (11.6s)
+  t(11600, () => {
     if (over) return;
-    NB.sfx.gulp();
-    cam.shake(300, 0.004);
-    const under = scene.add.graphics().setDepth(13);
-    objs.push(under);
-    under.lineStyle(4, 0x0d0b08, 1);
-    under.beginPath(); under.moveTo(mod.x - 34, mod.y + 40);
-    under.lineTo(mod.x, mod.y + 46); under.lineTo(mod.x + 34, mod.y + 40);
-    under.strokePath();
-    scene.mod.sprite.play('anim-stumble');
-    scene.tweens.add({
-      targets: mod, y: mod.y + 70, angle: 200, scale: 0.05, duration: 1100,
-      ease: 'Quad.easeIn',
-      onComplete: () => mod.setVisible(false),
-    });
-  });
-
-  // 6b — elevator descends (at 6.5s)
-  t(6500, () => {
-    if (over) return;
-    NB.sfx.ding();
-  });
-
-  // 7 — color back, the line, then the tag-in takes over (at 7.0s)
-  t(7000, () => {
-    if (over) return;
-    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 500 });
-    cam.zoomTo(1, 500, 'Sine.easeInOut');
-    const note = scene.add.text(W / 2, 92, 'management has been notified.', {
-      fontFamily: 'Courier New', fontSize: '16px', color: '#9a3fd4',
-    }).setOrigin(0.5).setDepth(30).setScrollFactor(0).setAlpha(0);
-    objs.push(note);
-    scene.tweens.add({ targets: note, alpha: 1, duration: 400, yoyo: true, hold: 1400 });
-    t(1200, end);
+    scene.tweens.add({ targets: shade, fillAlpha: 0, duration: 450 });
+    t(450, end);
   });
 };
 

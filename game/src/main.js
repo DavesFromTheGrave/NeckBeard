@@ -171,7 +171,7 @@ class GameScene extends Phaser.Scene {
     this.load.image('mod2-stand', 'assets/mod2/mod2-stand.png');
     for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
-    for (let i = 1; i <= 12; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — 13-frame purple vanish (keyed transparent)
+    for (let i = 1; i <= 13; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — Dave's 13-frame BODY-INCLUSIVE vanish (present→detonate→gone), alpha
     // Balder boss cycles — face IS direction: bh (human) drawn facing RIGHT,
     // bz (zombie/skull) drawn facing LEFT. Sheets ship pre-faced; never flipX.
     for (let i = 1; i <= 8; i++) {
@@ -188,6 +188,9 @@ class GameScene extends Phaser.Scene {
     // BALDER hero — Dave's full-body beckon master (transparent alpha, do NOT
     // flood-fill). The manifest splash when the boss arrives (boss.js).
     this.load.image('balder-hero', 'assets/balder-boss/balder-hero.png');
+    // BALDER body — the split-face pixel idle (his standing/materialised pose;
+    // he teleports rather than runs, so this + the teleport IS his locomotion).
+    this.load.image('balder-idle', 'assets/balder-boss/balder-idle.png');
     // superMOD's entrance: closed door (sign) -> open (void) -> he steps out
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');
@@ -316,7 +319,7 @@ class GameScene extends Phaser.Scene {
     // Balder teleport — Dave's 13-frame purple vanish (charge → detonate → smoke),
     // keyed transparent so it composites on any Reddit theme. Forward = vanish,
     // reversed = reappear/materialise at the new spot.
-    const tpFrames = Array.from({ length: 12 }, (_, k) => ({ key: `tp-${k + 1}` }));
+    const tpFrames = Array.from({ length: 13 }, (_, k) => ({ key: `tp-${k + 1}` }));
     this.anims.create({ key: 'anim-tele-vanish', frames: tpFrames, frameRate: 22, repeat: 0 });
     this.anims.create({ key: 'anim-tele-arrive', frames: tpFrames.slice().reverse(), frameRate: 22, repeat: 0 });
     // Balder boss locomotion — human right / zombie left (see boss.js)

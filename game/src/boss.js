@@ -23,7 +23,7 @@ NB.Balder = class {
     this.scene = scene;
     const T = NB.TUNE;
     this.bodyScale = T.SPRITE_SCALE * T.BOSS_SCALE_MULT;
-    this.sprite = scene.add.sprite(x, y, 'bh-walk-1').setScale(this.bodyScale).setDepth(11);
+    this.sprite = scene.add.sprite(x, y, 'balder-idle').setScale(this.bodyScale).setDepth(11);
     // strike-preview ring: shrinks onto his landing spot during MATERIALIZE
     this.ring = scene.add.circle(x, y, 56).setStrokeStyle(4, 0xc0392b)
       .setVisible(false).setDepth(10);
@@ -70,14 +70,15 @@ NB.Balder = class {
     this._hero = this._veil = null;
   }
 
-  // tp-* frames are the whole EFFECT (body + burst + smoke, ~600 tall with the
-  // body reading ~55% of it). Scale so his body stays body-sized and the burst
-  // blooms beyond it; body sheets snap back to bodyScale after.
-  // `ms` squeezes the 12-frame burst into its warning window (blink beats are
-  // a half second TOTAL now); omit it for the unhurried entrance burst.
+  // tp-* frames are SELF-CONTAINED (Dave's 13-frame vanish: his BODY + purple
+  // detonation + smoke, present→gone). His figure reads ~55% of the frame vs
+  // ~85% in the idle, so scale up ~1.55× to keep his body the same on-screen
+  // size; the detonation blooms to fill the frame around him. bodyAnim() snaps
+  // back to bodyScale after.
+  // `ms` squeezes the burst into its warning window (blink beats are a half
+  // second TOTAL now); omit it for the unhurried entrance burst.
   playBurst(key, ms) {
-    const target = 512 * this.bodyScale * 1.7;
-    const s = this.sprite.setScale(target / 600);
+    const s = this.sprite.setScale(this.bodyScale * 1.55);
     s.play(key);
     s.anims.timeScale = ms ? NB.TUNE.BOSS_TP_NATURAL_MS / ms : 1;
   }
@@ -158,7 +159,7 @@ NB.Balder = class {
       }
       case 'RECOVER': {
         // whiffed. he stands and seethes — your window to make distance.
-        this.bodyAnim(null, 'bh-walk-1');
+        this.bodyAnim(null, 'balder-idle');
         break;
       }
     }
@@ -179,22 +180,22 @@ NB.Balder = class {
         // mods go under while he watches, then the hunt begins.
         if (!this._vacuumed && this.stateT >= T.BOSS_TP_NATURAL_MS) {
           this._vacuumed = true;
-          this.bodyAnim(null, 'bh-walk-1');
+          this.bodyAnim(null, 'balder-idle');
           this.vacuumMods();
         }
         if (this.stateT >= T.BOSS_ENTRANCE_MS) { this.dismissHeroSplash(); this.setState('STALK'); }
         break;
       }
       case 'STALK': {
-        // pressure between blinks — face = direction, never a catch
-        const run = dist > 420;
-        const speed = run ? T.BOSS_RUN_SPEED : T.BOSS_WALK_SPEED;
+        // pressure between blinks — he DRIFTS in his idle pose (Dave: "he
+        // doesn't really run"). Teleport is his real locomotion; the walk is
+        // just menace. Split-face idle faces front, so no flip. (Walk-cycle
+        // frames will upgrade this drift to real animation when they land.)
+        this.bodyAnim(null, 'balder-idle');
         if (dist > 24) {
           const nx = dx / dist, ny = dy / dist;
-          s.x += nx * speed * dt / 1000;
-          s.y += ny * speed * dt / 1000;
-          const dir = nx < 0 ? 'bz' : 'bh';          // LEFT = zombie, RIGHT = human
-          this.bodyAnim(`anim-${dir}-${run ? 'run' : 'walk'}`);
+          s.x += nx * T.BOSS_WALK_SPEED * dt / 1000;
+          s.y += ny * T.BOSS_WALK_SPEED * dt / 1000;
         }
         this.tpCd -= dt;
         // cooldown up = he blinks. Distance doesn't save you; neither does
@@ -223,8 +224,8 @@ NB.Balder = class {
       }
       case 'MATERIALIZE': {
         if (this.stateT >= T.BOSS_TP_ARRIVE_MS) {
-          // burst done → the grab. face whichever side you're on.
-          this.bodyAnim(`anim-${dx < 0 ? 'bz' : 'bh'}-run`);
+          // burst done → he's standing there (idle) → the grab
+          this.bodyAnim(null, 'balder-idle');
           this.setState('STRIKE');
         }
         break;

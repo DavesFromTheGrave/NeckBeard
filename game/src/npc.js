@@ -58,7 +58,9 @@ NB.Cheerleader = class {
     // opposite side from the (nearest active) mod so the diversion pulls him across
     const ref = this.activeMods()[0] || scene.mod;
     const x = ref.sprite.x < W / 2 ? W - 64 : 64;
-    this.sprite = scene.add.sprite(x, y, 'cheer-idle').setScale(1).setDepth(11);
+    // Dave's cheer poses are 256² (uniform, pre-framed by him). CHEER_SCALE
+    // brings her to on-screen size — one knob if she should be bigger/smaller.
+    this.sprite = scene.add.sprite(x, y, 'cheer-idle').setScale(NB.TUNE.CHEER_SCALE || 0.5).setDepth(11);
     this.sprite.setFlipX(x > W / 2);
     this.active = true;
     this.lifeT = Phaser.Math.Between(4500, 6800);

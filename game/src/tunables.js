@@ -126,6 +126,8 @@ NB.TUNE = {
   // blinks is pure pressure — Balder never catches outside the strike window.
   // BALDER is the ending. Once he manifests the run is already over; the only
   // question is the karma number on the stone. Nobody survives.
+  CHEER_SCALE: 0.5,          // cheerleader on-screen size (256² pre-framed poses)
+
   BOSS_KARMA_GATE: 250000,   // was 50k — one hot post paid 34k, Dave repriced
   BOSS_DUO_MS: 30000,        // ms survived with redditM0D + revenant BOTH live
   BOSS_THANKS_MS: 60000,     // last THIS long vs Balder before he gets you →

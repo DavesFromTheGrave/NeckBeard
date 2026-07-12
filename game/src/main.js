@@ -172,11 +172,11 @@ class GameScene extends Phaser.Scene {
     for (let i = 1; i <= 11; i++) this.load.image(`mod2-punch-${i}`, `assets/mod2/mod2-punch-${i}.png`);  // redditM0D brass-knuckle punch (Dave's hand-made strike)
     this.load.image('balder', 'assets/balder/balder-ceremony.png');
     for (let i = 1; i <= 13; i++) this.load.image(`tp-${i}`, `assets/teleport/tp-${i}.png`);  // Balder teleport — Dave's 13-frame BODY-INCLUSIVE vanish (present→detonate→gone), alpha
-    // BALDER walk — Dave's new pixel cycle (bw-1..8, left-facing profile,
-    // human side to camera). His only locomotion anim now; he teleports rather
-    // than runs, so there's no run set. (The old bh/bz sheets below are unused
-    // by the new boss — kept on disk for now, Dave to approve deleting.)
-    for (let i = 1; i <= 8; i++) this.load.image(`bw-${i}`, `assets/balder-boss/bw-${i}.png`);
+    // BALDER walk — Dave's DIRECTIONAL pixel cycles (face IS direction, locked
+    // canon): bhw = human side, walks RIGHT; bzw = zombie side, walks LEFT.
+    // Drawn pre-faced, so NEVER flipX. Different frame counts (13 / 23).
+    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/balder-boss/bhw-${i}.png`);
+    for (let i = 1; i <= 23; i++) this.load.image(`bzw-${i}`, `assets/balder-boss/bzw-${i}.png`);
     for (let i = 1; i <= 8; i++) {
       this.load.image(`bh-walk-${i}`, `assets/balder-boss/bh-walk-${i}.png`);
       this.load.image(`bh-run-${i}`, `assets/balder-boss/bh-run-${i}.png`);
@@ -342,15 +342,13 @@ class GameScene extends Phaser.Scene {
     const tpFrames = Array.from({ length: 13 }, (_, k) => ({ key: `tp-${k + 1}` }));
     this.anims.create({ key: 'anim-tele-vanish', frames: tpFrames, frameRate: 22, repeat: 0 });
     this.anims.create({ key: 'anim-tele-arrive', frames: tpFrames.slice().reverse(), frameRate: 22, repeat: 0 });
-    // BALDER walk — the new pixel gait (bw-1..8), looped
-    this.anims.create({ key: 'anim-balder-walk',
-      frames: Array.from({ length: 8 }, (_, k) => ({ key: `bw-${k + 1}` })),
-      frameRate: 11, repeat: -1 });
-    // old bh/bz locomotion (unused by the new boss, kept until Dave says delete)
-    for (const pre of ['bh', 'bz']) {
-      anim(`anim-${pre}-walk`, `${pre}-walk`, 8, 9);
-      anim(`anim-${pre}-run`, `${pre}-run`, 8, 14);
-    }
+    // BALDER directional walks — human (right) / zombie (left), looped
+    this.anims.create({ key: 'anim-balder-hwalk',
+      frames: Array.from({ length: 13 }, (_, k) => ({ key: `bhw-${k + 1}` })),
+      frameRate: 12, repeat: -1 });
+    this.anims.create({ key: 'anim-balder-zwalk',
+      frames: Array.from({ length: 23 }, (_, k) => ({ key: `bzw-${k + 1}` })),
+      frameRate: 12, repeat: -1 });
 
     this.currentSub = 'all';
     this.traveling = false;

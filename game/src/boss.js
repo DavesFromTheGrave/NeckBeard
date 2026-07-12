@@ -190,18 +190,15 @@ NB.Balder = class {
       }
       case 'STALK': {
         // pressure between blinks — he WALKS toward you (Dave: "he doesn't
-        // really run"). Teleport is his real locomotion; the walk is menace.
-        // The pixel walk (bw) is drawn left-facing, so no-flip when moving
-        // left, flipX when moving right (only the human profile shows either
-        // way). Standing nearly still → the front split-face idle (flip off).
+        // really run"). FACE = DIRECTION (locked canon): moving RIGHT shows his
+        // human side (bhw), moving LEFT shows the zombie side (bzw). Both drawn
+        // pre-faced — NEVER flipX. Standing still → the front split-face idle.
         if (dist > 24) {
           const nx = dx / dist, ny = dy / dist;
           s.x += nx * T.BOSS_WALK_SPEED * dt / 1000;
           s.y += ny * T.BOSS_WALK_SPEED * dt / 1000;
-          s.setFlipX(nx > 0);
-          this.bodyAnim('anim-balder-walk');
+          this.bodyAnim(nx >= 0 ? 'anim-balder-hwalk' : 'anim-balder-zwalk');
         } else {
-          s.setFlipX(false);
           this.bodyAnim(null, 'balder-idle');
         }
         this.tpCd -= dt;

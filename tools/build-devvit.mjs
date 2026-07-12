@@ -46,8 +46,43 @@ function copyDir(src, dest, exclude) {
 
 copyDir(GAME, CLIENT, CLIENT_EXCLUDE);
 
-const index = fs.readFileSync(path.join(CLIENT, 'index.html'), 'utf8');
+// CACHE-BUSTING — Reddit's webview serves client assets by PATH with long
+// cache lifetimes, so re-uploading `src/boss.js` (same path) keeps serving the
+// STALE cached copy and the game "never updates". Fix: stamp a content hash
+// onto every script + asset URL so any real change gets a new URL → fresh
+// fetch. The hash covers all src JS *and* every asset (path + size), so a
+// re-sliced sprite busts too. Stable when nothing changed (idempotent build).
+import crypto from 'crypto';
+function listFiles(dir, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) listFiles(p, out); else out.push(p);
+  }
+  return out;
+}
+const srcDir = path.join(CLIENT, 'src');
+const hash = crypto.createHash('sha1');
+for (const f of listFiles(srcDir).sort()) hash.update(fs.readFileSync(f));   // code
+for (const f of listFiles(path.join(CLIENT, 'assets')).sort()) {            // assets: path + size
+  hash.update(path.relative(CLIENT, f) + ':' + fs.statSync(f).size);
+}
+const BUST = hash.digest('hex').slice(0, 10);
+
+// stamp asset URLs inside the copied JS ('assets/x.png' -> 'assets/x.png?v=BUST')
+const ASSET_RE = /(assets\/[^'"`?]+?\.(?:png|jpg|jpeg|gif|mp3|ogg|wav|ttf|otf|woff2?|webp|mp4))(?=['"`])/gi;
+for (const f of listFiles(srcDir)) {
+  if (!f.endsWith('.js')) continue;
+  const orig = fs.readFileSync(f, 'utf8');
+  const stamped = orig.replace(ASSET_RE, `$1?v=${BUST}`);
+  if (stamped !== orig) writeIfChanged(f, stamped);
+}
+
+// stamp the <script> + phaser URLs in the HTML entry
+const index = fs.readFileSync(path.join(CLIENT, 'index.html'), 'utf8')
+  .replace(/(src=")(src\/[^"]+\.js|phaser\.min\.js)(")/g, `$1$2?v=${BUST}$3`);
 writeIfChanged(path.join(CLIENT, 'game.html'), index);
+writeIfChanged(path.join(CLIENT, 'index.html'), index);
+console.log('cache-bust v=' + BUST);
 
 // splash-client.js imports @devvit/web/client (a bare npm specifier) --
 // browsers can't resolve that without bundling, so it has to go through

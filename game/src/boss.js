@@ -78,7 +78,7 @@ NB.Balder = class {
   // `ms` squeezes the burst into its warning window (blink beats are a half
   // second TOTAL now); omit it for the unhurried entrance burst.
   playBurst(key, ms) {
-    const s = this.sprite.setScale(this.bodyScale * 1.55);
+    const s = this.sprite.setScale(this.bodyScale * 1.55).setFlipX(false);
     s.play(key);
     s.anims.timeScale = ms ? NB.TUNE.BOSS_TP_NATURAL_MS / ms : 1;
   }
@@ -89,9 +89,11 @@ NB.Balder = class {
       if (this._animKey !== key) { this._animKey = key; this.sprite.play(key); }
     } else if (frame) {
       // static frame — always applied (a burst leaves _animKey null but the
-      // sprite parked on a tp-* frame, so the guard can't be trusted here)
+      // sprite parked on a tp-* frame, so the guard can't be trusted here).
+      // The idle is a front split-face — never mirror it (flip is walk-only).
       this._animKey = null;
       this.sprite.stop();
+      this.sprite.setFlipX(false);
       this.sprite.setTexture(frame);
     }
   }
@@ -187,15 +189,20 @@ NB.Balder = class {
         break;
       }
       case 'STALK': {
-        // pressure between blinks — he DRIFTS in his idle pose (Dave: "he
-        // doesn't really run"). Teleport is his real locomotion; the walk is
-        // just menace. Split-face idle faces front, so no flip. (Walk-cycle
-        // frames will upgrade this drift to real animation when they land.)
-        this.bodyAnim(null, 'balder-idle');
+        // pressure between blinks — he WALKS toward you (Dave: "he doesn't
+        // really run"). Teleport is his real locomotion; the walk is menace.
+        // The pixel walk (bw) is drawn left-facing, so no-flip when moving
+        // left, flipX when moving right (only the human profile shows either
+        // way). Standing nearly still → the front split-face idle (flip off).
         if (dist > 24) {
           const nx = dx / dist, ny = dy / dist;
           s.x += nx * T.BOSS_WALK_SPEED * dt / 1000;
           s.y += ny * T.BOSS_WALK_SPEED * dt / 1000;
+          s.setFlipX(nx > 0);
+          this.bodyAnim('anim-balder-walk');
+        } else {
+          s.setFlipX(false);
+          this.bodyAnim(null, 'balder-idle');
         }
         this.tpCd -= dt;
         // cooldown up = he blinks. Distance doesn't save you; neither does

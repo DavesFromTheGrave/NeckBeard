@@ -211,6 +211,8 @@ class GameScene extends Phaser.Scene {
     this.load.image('door-closed', 'assets/door/door-closed.jpg');
     this.load.image('door-open', 'assets/door/door-open.jpg');
     this.load.image('door-mod', 'assets/door/door-mod.png');
+    // the post-BALDER "cheesy poof" reveal variant (clean alpha — no flood-fill)
+    this.load.image('door-mod-cheesypoof', 'assets/door/door-mod-cheesypoof.png');
     // Revenant Systems crest — replaces the snoo face inside the header/avatar
     // badge (same orange bubble, real brand art in place of the alien face).
     this.load.image('revenant-skull', 'assets/brand/revenant-skull.png');
@@ -403,9 +405,13 @@ class GameScene extends Phaser.Scene {
     img.setScale(baseScale).setTexture('door-open');
     NB.sfx.stumble();
     this.time.delayedCall(650, () => {
-      // beat 2 — he's just THERE, filling the frame
+      // beat 2 — he's just THERE, filling the frame. Players who've faced
+      // BALDER get the cheeto-dusted "cheesy poof" reveal — a quiet reward for
+      // reaching the endgame (Dave 2026-07-11).
       this.cameras.main.shake(240, 0.011); flash();
-      img.setTexture('door-mod');
+      const doorKey = (NB.persistGet && NB.persistGet('nb_seen_balder') === '1'
+        && this.textures.exists('door-mod-cheesypoof')) ? 'door-mod-cheesypoof' : 'door-mod';
+      img.setTexture(doorKey);
       NB.sfx.caught();
       this.tweens.add({ targets: img, scaleX: baseScale * 1.06, scaleY: baseScale * 1.06, duration: 260 });
       this.time.delayedCall(1050, () => {

@@ -582,6 +582,22 @@ class GameScene extends Phaser.Scene {
       this.bindDebugKeys();
       this.bindTravelClicks();
       this.bindSubredditSearch();
+      // MID-RUN RESIZE (Reddit's mobile/desktop/fullscreen switcher, rotation)
+      // — the canvas resizes (Scale.RESIZE) but the world stayed laid out for
+      // the old size: mobile page on a fullscreen canvas, drawer scrim too
+      // small to tap closed, search input stranded off-layout. Refit reflows
+      // everything at the new size; karma/mods/scars survive (same rebuild
+      // path sub-travel uses). Debounced; deferred while ceremony/travel runs;
+      // skipped when dead (the death-screen tap restarts at the new size anyway).
+      this._onGameResize = () => {
+        clearTimeout(this._resizeT2);
+        this._resizeT2 = setTimeout(() => this.refitWorld(), 260);
+      };
+      this.scale.on('resize', this._onGameResize);
+      this.events.once('shutdown', () => {
+        this.scale.off('resize', this._onGameResize);
+        clearTimeout(this._resizeT2);
+      });
       this.ready = true;
       window.__gs = this;
     } else {
@@ -864,6 +880,52 @@ class GameScene extends Phaser.Scene {
       this.traveling = false;
       this.floatText(this.scale.width / 2, this.scale.height * 0.2, `fetch failed: ${e.message}`, '#d93900');
     });
+  }
+
+  // The mid-run resize refit. Rebuilds the page at the CURRENT canvas size and
+  // re-seats everything that was created once at boot with the old W/H baked
+  // in. The run itself (karma, mods, heat, scars, letters) is untouched — this
+  // is the same rebuild machinery sub-travel already trusts.
+  refitWorld() {
+    if (!this.ready || this.caught) return;
+    if (this.ceremonyRunning || this.traveling) {
+      // busy — try again once the beat finishes
+      clearTimeout(this._resizeT2);
+      this._resizeT2 = setTimeout(() => this.refitWorld(), 800);
+      return;
+    }
+    const W = this.scale.width, H = this.scale.height;
+    if (this.pickerOpen) this.closeSubMenu();              // a stale-size drawer can't be tapped closed
+    this.buildWorld(this.arenaData, { rebuild: true });    // reflow the page itself
+    // fixed HUD corners (heat bar already redraws from live scale every frame)
+    this.hud.setPosition(W - 22, H - 14);
+    this.balderBarBg.setPosition(W - 22, H - 64);
+    this.balderBarFill.setPosition(W - 142, H - 64);
+    this.shieldPill.setPosition(W - 22, H - 78);
+    this.lettersHud.setPosition(W - 22, H - 96);
+    if (this.muteBtn) this.muteBtn.setPosition(18, H - 16);
+    this.updateMemeBagHUD();
+    // the search <input> is a DOM overlay pinned to the OLD header — rebuild it
+    if (this.searchDom) { try { this.searchDom.destroy(); } catch (e) {} this.searchDom = null; }
+    this.searchFocused = false;
+    this.bindSubredditSearch();
+    // pre-run door screen re-centers on the new viewport
+    if (this.entranceActive && this.doorUI) {
+      try { this.doorUI.img.destroy(); this.doorUI.hint.destroy(); } catch (e) {}
+      this.doorUI = null;
+      this.beginEntrance();
+    }
+    // nobody gets stranded outside the new page
+    for (const m of this.mods) {
+      m.sprite.x = Phaser.Math.Clamp(m.sprite.x, 30, W - 30);
+      m.sprite.y = Phaser.Math.Clamp(m.sprite.y, this.page.headerH + 40, this.page.WORLD_H - 30);
+    }
+    if (this.boss && this.boss.sprite) {
+      this.boss.sprite.x = Phaser.Math.Clamp(this.boss.sprite.x, 40, W - 40);
+      this.boss.sprite.y = Phaser.Math.Clamp(this.boss.sprite.y, this.page.headerH + 60, this.page.WORLD_H - 40);
+    }
+    this.cameras.main.scrollY = Phaser.Math.Clamp(
+      this.cameras.main.scrollY, 0, Math.max(0, this.page.WORLD_H - H));
   }
 
   // Real <input> overlaid on the header's search box (Phaser DOM element) —

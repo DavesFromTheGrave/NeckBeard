@@ -355,7 +355,9 @@ class TitleScene extends Phaser.Scene {
     // A REAL communal board (subreddit redis) — ten spots, arcade style.
     const p1h = Math.round(H * 0.075);
     const hsY = pad;
-    const hsH = Math.round(H * 0.42);
+    // Compact top strip so the How-to-Play panel below has room for LARGE,
+    // readable directions (the priority). Board shows the top 5 here.
+    const hsH = Math.round(H * 0.24);
     panel(hsY, hsH);
     this.add.text(cx, hsY + Math.round(H * 0.028), 'High Score', {
       fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.08), 20, 42)}px`, color: RED,
@@ -367,7 +369,7 @@ class TitleScene extends Phaser.Scene {
     const colP = pad + pw * 0.14, colN = pad + pw * 0.45, colR = pad + pw * 0.795;
     const div1 = pad + pw * 0.27, div2 = pad + pw * 0.62;
     const headY = hsY + Math.round(H * 0.09);
-    const hsz = `${Phaser.Math.Clamp(Math.round(W * 0.045), 14, 20)}px`;
+    const hsz = `${Math.round(W * 0.042)}px`;
     this.add.text(colP, headY, 'Points', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
     this.add.text(colN, headY, 'Player', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
     this.add.text(colR, headY, 'Ban Reason', { fontFamily: soul, fontSize: hsz, color: CREAM_DIM }).setOrigin(0.5).setDepth(3);
@@ -376,13 +378,10 @@ class TitleScene extends Phaser.Scene {
     g.lineBetween(pad + 8, headY + 15, pad + pw - 8, headY + 15);          // header underline
     g.lineBetween(div1, headY + 15, div1, hsY + hsH - 10);                 // column dividers
     g.lineBetween(div2, headY + 15, div2, hsY + hsH - 10);
-    // Portrait phones show the TOP 6 — fewer, taller rows so the names and ban
-    // reasons are actually legible (10 crammed into the panel forced 9-12px
-    // text that playtesters flagged as unreadable). Desktop/landscape keeps 10.
-    const ROWS = 6;
+    const ROWS = 5;
     const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / ROWS;
-    const psz = Phaser.Math.Clamp(Math.round(W * 0.05), 15, 22);
-    const rsz = Phaser.Math.Clamp(Math.round(W * 0.038), 13, 18);
+    const psz = Phaser.Math.Clamp(Math.round(W * 0.04), 12, 16);
+    const rsz = Phaser.Math.Clamp(Math.round(W * 0.032), 11, 14);
     for (let i = 1; i < ROWS; i++) {   // static row separators
       g.lineStyle(1, redLine, 0.18);
       g.lineBetween(pad + 8, bodyTop + rowH * i, pad + pw - 8, bodyTop + rowH * i);
@@ -436,17 +435,15 @@ class TitleScene extends Phaser.Scene {
     this.add.text(cx, htY + Math.round(H * 0.03), 'How to Play', {
       fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.072), 20, 40)}px`, color: RED,
     }).setOrigin(0.5).setDepth(3);
-    // Kept SHORT on purpose: the old five-paragraph block overflowed the panel
-    // and got auto-shrunk (below) to an unreadable size on phones. Tight lines
-    // render at full size instead.
     const howto =
-      'RAID posts for KARMA — hover one, hit its 3 targets, steal the points before superMOD wrecks it.\n\n' +
-      'Grab MEMES to fight back. Skip the traps.\n\n' +
-      'He WINDS UP before every lunge — that\'s your window to RUN.\n\n' +
-      'It\'s simple. Just stay away from superMOD.';
+      'SUPER MOD DOESN\'T STOP.\n\n' +
+      'AS HE\'S CHASING YOU THROUGH REDDIT, HE WILL DESTROY THE POSTS THAT YOU NEED TO FARM KARMA.\n\n' +
+      'TO FARM KARMA YOU MUST PASS A THREE TARGET QTE.\n\n' +
+      'EACH POST IS WORTH ITS ACTUAL KARMA AMOUNT.\n\n' +
+      'MEMES ARE YOUR POWER UPS — GRAB THEM WHEN YOU SEE THEM.';
     const htTxt = this.add.text(cx, htY + Math.round(H * 0.078), howto, {
-      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.05), 16, 24)}px`, color: CREAM,
-      align: 'center', lineSpacing: 6, wordWrap: { width: pw - 30 },
+      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.056), 22, 28)}px`, color: CREAM,
+      align: 'center', lineSpacing: 4, wordWrap: { width: pw - 30 },
     }).setOrigin(0.5, 0).setDepth(3);
     const maxTxtH = htH - Math.round(H * 0.1);
     if (htTxt.height > maxTxtH) htTxt.setScale(maxTxtH / htTxt.height);   // shrink to fit the panel

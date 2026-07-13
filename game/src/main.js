@@ -1476,7 +1476,10 @@ class GameScene extends Phaser.Scene {
 // Wait for brand fonts to be confirmed-loaded before the first scene ever
 // draws text — otherwise the title card's first paint silently falls back
 // to the system font and never re-renders.
-NB.fontsReady.then(() => {
+// Boot once the brand fonts are ready, but never let a slow or stuck font
+// download hold the boot loader on screen forever — cap the wait so Phaser
+// still starts (title text falls back to system fonts for that rare case).
+Promise.race([NB.fontsReady, new Promise((r) => setTimeout(r, 2500))]).then(() => {
   // Hidden/backgrounded tabs (headless test harnesses included) throttle
   // requestAnimationFrame to zero — forcetimer=1 drives the loop off
   // setTimeout instead so automated verification can actually observe play.

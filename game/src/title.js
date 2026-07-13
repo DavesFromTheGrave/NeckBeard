@@ -24,19 +24,26 @@ class TitleScene extends Phaser.Scene {
   constructor() { super('title'); }
 
   preload() {
-    this.load.image('intro-art', 'assets/title/neckbeard-intro.png');
-    // portrait heroes: rotate #1/#2, #3 (throne) unlocks at HERO3_UNLOCK karma.
-    // Missing files just no-op (loader logs + skips) — panels render on black
-    // until Dave drops hero-1/2/3.png into assets/title/.
     this.load.on('loaderror', () => {});   // swallow the not-yet-present hero 404s
-    for (let i = 1; i <= 3; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
-    // The "meet the moderators" flip needs all three mods' WALK frames on the
-    // title (GameScene loads them too, but Title runs first). superM0D always;
-    // redditM0D + BALDUR stay locked-silhouette until the player's reached them.
-    for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
-    for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
-    for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
-    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
+    // Only load what THIS screen actually paints — the title is the first
+    // thing a player waits on, and every MB here is blank-screen time. On his
+    // 1080-wide phone that meant ~9MB of art that portrait never shows.
+    const portrait = this.scale.height > this.scale.width;
+    // Hero background (both layouts). #3 (throne) is only ever picked once
+    // best karma unlocks it, so don't pay ~1.7MB for it before then.
+    const best = (NB.getPersonalBest && NB.getPersonalBest()) || 0;
+    const heroMax = best >= NB.HERO3_UNLOCK ? 3 : 2;
+    for (let i = 1; i <= heroMax; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
+    // Landscape-only art. The "meet the moderators" walk-frame flip (drawMod)
+    // and the painted intro card only exist on the wide layout — portrait
+    // shows neither, so skip them there. (GameScene loads the walk frames it
+    // needs for actual play regardless.)
+    if (!portrait) {
+      for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
+      for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
+      for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
+      for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
+    }
   }
 
   create() {
@@ -96,6 +103,10 @@ class TitleScene extends Phaser.Scene {
       NB.toggleMuted(null);
       this.muteBtn.setText(mlabel());
     });
+
+    // Title is laid out and on screen — tell index.html to drop the boot
+    // loader (fires for both the normal and the ?autostart test paths).
+    try { window.dispatchEvent(new Event('nb-ready')); } catch {}
 
     if (NB.autostart()) {
       this.time.delayedCall(50, go);

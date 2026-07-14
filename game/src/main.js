@@ -230,6 +230,14 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // FRESH AUDIO SLATE. create() re-runs on every scene.restart() (i.e. every
+    // "run it back" after a death), and Phaser's sound manager is GLOBAL —
+    // it survives the restart. A bed left playing/paused from the last run
+    // (e.g. the webview lost focus on a mobile app-switch, so it paused and
+    // dodged startBed's isPlaying guard) would stack under the new run's bed:
+    // the "music layers if you die a lot" bug. Kill any carry-over first.
+    NB.stopBed();
+    try { if (NB._eventSound) { NB._eventSound.stop(); NB._eventSound = null; } } catch {}
     // (elevator art is now a real transparent PNG — no keying; black-keying it
     // would punch a hole in the dark elevator interior.)
     // All three door-reveal frames ship on an opaque white bg — flood it

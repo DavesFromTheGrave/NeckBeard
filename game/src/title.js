@@ -24,19 +24,26 @@ class TitleScene extends Phaser.Scene {
   constructor() { super('title'); }
 
   preload() {
-    this.load.image('intro-art', 'assets/title/neckbeard-intro.png');
-    // portrait heroes: rotate #1/#2, #3 (throne) unlocks at HERO3_UNLOCK karma.
-    // Missing files just no-op (loader logs + skips) — panels render on black
-    // until Dave drops hero-1/2/3.png into assets/title/.
     this.load.on('loaderror', () => {});   // swallow the not-yet-present hero 404s
-    for (let i = 1; i <= 3; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
-    // The "meet the moderators" flip needs all three mods' WALK frames on the
-    // title (GameScene loads them too, but Title runs first). superM0D always;
-    // redditM0D + BALDUR stay locked-silhouette until the player's reached them.
-    for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
-    for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
-    for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
-    for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
+    // Only load what THIS screen actually paints — the title is the first
+    // thing a player waits on, and every MB here is blank-screen time. On his
+    // 1080-wide phone that meant ~9MB of art that portrait never shows.
+    const portrait = this.scale.height > this.scale.width;
+    // Hero background (both layouts). #3 (throne) is only ever picked once
+    // best karma unlocks it, so don't pay ~1.7MB for it before then.
+    const best = (NB.getPersonalBest && NB.getPersonalBest()) || 0;
+    const heroMax = best >= NB.HERO3_UNLOCK ? 3 : 2;
+    for (let i = 1; i <= heroMax; i++) this.load.image(`title-hero-${i}`, `assets/title/hero-${i}.png`);
+    // Landscape-only art. The "meet the moderators" walk-frame flip (drawMod)
+    // and the painted intro card only exist on the wide layout — portrait
+    // shows neither, so skip them there. (GameScene loads the walk frames it
+    // needs for actual play regardless.)
+    if (!portrait) {
+      for (let i = 1; i <= 6; i++) this.load.image(`m1-walk-${i}`, `assets/mod1/m1-walk-${i}.png`);
+      for (let i = 1; i <= 6; i++) this.load.image(`mod2-walk-${i}`, `assets/mod2/mod2-walk-${i}.png`);
+      for (let i = 1; i <= 6; i++) this.load.image(`m1-zwalk-${i}`, `assets/mod1/m1-zwalk-${i}.png`);
+      for (let i = 1; i <= 13; i++) this.load.image(`bhw-${i}`, `assets/baldur-boss/bhw-${i}.png`);
+    }
   }
 
   create() {
@@ -96,6 +103,10 @@ class TitleScene extends Phaser.Scene {
       NB.toggleMuted(null);
       this.muteBtn.setText(mlabel());
     });
+
+    // Title is laid out and on screen — tell index.html to drop the boot
+    // loader (fires for both the normal and the ?autostart test paths).
+    try { window.dispatchEvent(new Event('nb-ready')); } catch {}
 
     if (NB.autostart()) {
       this.time.delayedCall(50, go);
@@ -355,7 +366,9 @@ class TitleScene extends Phaser.Scene {
     // A REAL communal board (subreddit redis) — ten spots, arcade style.
     const p1h = Math.round(H * 0.075);
     const hsY = pad;
-    const hsH = Math.round(H * 0.47);
+    // Compact top strip so the How-to-Play panel below has room for LARGE,
+    // readable directions (the priority). Board shows the top 5 here.
+    const hsH = Math.round(H * 0.24);
     panel(hsY, hsH);
     this.add.text(cx, hsY + Math.round(H * 0.028), 'High Score', {
       fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.08), 20, 42)}px`, color: RED,
@@ -376,10 +389,10 @@ class TitleScene extends Phaser.Scene {
     g.lineBetween(pad + 8, headY + 15, pad + pw - 8, headY + 15);          // header underline
     g.lineBetween(div1, headY + 15, div1, hsY + hsH - 10);                 // column dividers
     g.lineBetween(div2, headY + 15, div2, hsY + hsH - 10);
-    const ROWS = 10;
+    const ROWS = 5;
     const bodyTop = headY + 22, rowH = (hsY + hsH - 8 - bodyTop) / ROWS;
-    const psz = Phaser.Math.Clamp(Math.round(W * 0.038), 11, 16);
-    const rsz = Phaser.Math.Clamp(Math.round(W * 0.028), 9, 12);
+    const psz = Phaser.Math.Clamp(Math.round(W * 0.04), 12, 16);
+    const rsz = Phaser.Math.Clamp(Math.round(W * 0.032), 11, 14);
     for (let i = 1; i < ROWS; i++) {   // static row separators
       g.lineStyle(1, redLine, 0.18);
       g.lineBetween(pad + 8, bodyTop + rowH * i, pad + pw - 8, bodyTop + rowH * i);
@@ -434,15 +447,14 @@ class TitleScene extends Phaser.Scene {
       fontFamily: soul, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.072), 20, 40)}px`, color: RED,
     }).setOrigin(0.5).setDepth(3);
     const howto =
-      'Raid posts for KARMA — hover a post and hit the 3 targets to steal its points, before superMOD wrecks it and it\'s gone forever.\n\n' +
-      'Grab MEMES for power: stun him, shield yourself, drop a decoy. Skip the trap memes.\n\n' +
-      'He always winds up before he lunges — that wind-up is your window to bolt.\n\n' +
-      // the letter-hunt entry tip (DRAFT wording — Dave's to swap)
-      'They whisper about r/cursed. Type it and see.\n\n' +
-      'It\'s simple. Just stay away from superMOD.';
+      'SUPER MOD DOESN\'T STOP.\n\n' +
+      'AS HE\'S CHASING YOU THROUGH REDDIT, HE WILL DESTROY THE POSTS THAT YOU NEED TO FARM KARMA.\n\n' +
+      'TO FARM KARMA YOU MUST PASS A THREE TARGET QTE.\n\n' +
+      'EACH POST IS WORTH ITS ACTUAL KARMA AMOUNT.\n\n' +
+      'MEMES ARE YOUR POWER UPS — GRAB THEM WHEN YOU SEE THEM.';
     const htTxt = this.add.text(cx, htY + Math.round(H * 0.078), howto, {
-      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.044), 13, 21)}px`, color: CREAM,
-      align: 'center', lineSpacing: 5, wordWrap: { width: pw - 30 },
+      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.056), 22, 28)}px`, color: CREAM,
+      align: 'center', lineSpacing: 4, wordWrap: { width: pw - 30 },
     }).setOrigin(0.5, 0).setDepth(3);
     const maxTxtH = htH - Math.round(H * 0.1);
     if (htTxt.height > maxTxtH) htTxt.setScale(maxTxtH / htTxt.height);   // shrink to fit the panel

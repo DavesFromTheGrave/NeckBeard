@@ -2,4 +2,4 @@
 __pycache__/
 node_modules/
 game/node_modules/
-dist/
+dist/.env

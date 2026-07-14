@@ -15,9 +15,38 @@
      gap or cut-off edge; dvh/dvw do. vh/vw stay as the fallback for older
      WebViews that don't support dvh yet. */
   #game { width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; cursor: none; touch-action: none; }
+  /* Instant boot loader — pure CSS so it paints on the first frame, before
+     Phaser, the fonts, or any art has downloaded. Removed once the title
+     scene signals it is on screen (the 'nb-ready' event below). This is the
+     "a loader would be better" fix: the long asset load now shows feedback
+     instead of a blank/black screen. */
+  #boot-loader { position: fixed; inset: 0; z-index: 99999; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: #0e1113; color: #d13b2e; font-family: 'Courier New', monospace;
+    transition: opacity .45s ease; }
+  #boot-loader .ring { width: 54px; height: 54px; border-radius: 50%;
+    border: 5px solid rgba(209,59,46,.22); border-top-color: #d13b2e;
+    animation: nb-spin .9s linear infinite; }
+  #boot-loader .txt { margin-top: 18px; font-size: 14px; letter-spacing: 3px; opacity: .8; }
+  #boot-loader.nb-hide { opacity: 0; pointer-events: none; }
+  @keyframes nb-spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+<div id="boot-loader"><div class="ring"></div><div class="txt">LOADING&hellip;</div></div>
+<script>
+(function () {
+  function hide() {
+    var el = document.getElementById('boot-loader');
+    if (!el) return;
+    el.classList.add('nb-hide');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 550);
+  }
+  window.addEventListener('nb-ready', hide, { once: true });
+  // Safety net: never trap the player behind the loader if boot fails outright.
+  setTimeout(hide, 30000);
+})();
+</script>
 <div id="game"></div>
 <script src="phaser.min.js"></script>
 <script src="src/tunables.js"></script>

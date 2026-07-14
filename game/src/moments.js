@@ -103,7 +103,10 @@ NB.playMoment = function (scene, moment) {
 NB._bed = null;
 NB.startBed = function (scene) {
   if (NB.audioMuted) return;                                      // muted → no music
-  if (NB._bed && NB._bed.isPlaying) return;
+  if (NB._bed) {
+    if (NB._bed.isPlaying) return;                                // already going — never stack
+    NB.stopBed();   // a stale/paused instance (blur, prior run) — clear it before re-adding
+  }
   if (!scene || !scene.cache || !scene.cache.audio.exists('game-bed')) return;
   try {
     if (scene.sound.context && scene.sound.context.state === 'suspended') scene.sound.context.resume();

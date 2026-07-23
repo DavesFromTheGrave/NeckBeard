@@ -135,6 +135,15 @@ window.NB_PHYSICS = (() => {
     }
     const hasRealTrack = !retreating && !decoyLive && !trackingLost && !!s.cursor;
 
+    // Techno Viking cancels an attack already in flight, not just future ones — "he actively
+    // recoils" means an active wind-up/lunge gets cut short too, otherwise the intimidation
+    // effect doesn't cover the one moment it matters most (mid-catch-attempt).
+    if (retreating && (s.phase === 'Telegraph' || s.phase === 'Lunge')) {
+      s.set({ phase: 'Recovery' });
+      phaseLeftMs = t.LUNGE_RECOVERY_MS;
+      setAnim('stumble', ts);
+    }
+
     // ---- Phase machinery (lunges need a REAL track — no blind swings at ghosts) ----
     if (s.phase === 'Creep') {
       lungeInMs -= dt;

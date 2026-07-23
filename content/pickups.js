@@ -200,6 +200,10 @@ window.NB_PICKUPS = (() => {
       }
       return;
     }
+    // Held items only do something mid-chase; outside Hunting these keys are ordinary
+    // page hotkeys elsewhere on the web, and firing them here would burn a saved
+    // rare/legendary powerup for zero effect with no way to get it back.
+    if (S().state !== 'Hunting') return;
     if (e.code === 'Digit1') useSlot(0);
     else if (e.code === 'Digit2') useSlot(1);
     else if (e.code === 'Digit3') useSlot(2);

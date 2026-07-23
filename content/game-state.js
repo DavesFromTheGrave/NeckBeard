@@ -2,9 +2,11 @@
 // hot per-frame fields (survivalMs, pursuerPos, cursor) are mutated directly by physics so we
 // don't fire an event 60 times a second.
 //
-// chrome.storage.local keys live in M1: nb_personalBestMs, nb_lastSpawnTimestamp, nb_lastSpawnDomain.
-// Reserved for M2 — never read or written by M1 code: nb_chaosMeterLevel, nb_collectiblesFound,
-// nb_achievementsUnlocked. (See docs/design-critique.md BLOCKER-2.)
+// chrome.storage.local keys: nb_personalBestMs, nb_lastSpawnTimestamp, nb_lastSpawnDomain,
+// nb_activeHunt, nb_inventory (game-state.js/spawn-logic.js/physics.js/pickups.js), plus
+// nb_chaosMeterLevel (chaos.js) and nb_collectiblesFound (pickups.js) — despite
+// docs/design-critique.md BLOCKER-2 reserving those two for M2, they're both live now.
+// Still genuinely unused: nb_achievementsUnlocked.
 window.NB_STATE = {
   state: 'Dormant',      // Dormant | Lurking | Hunting | Caught (Revenant is the `revenant` flag inside Hunting)
   encounterId: null,

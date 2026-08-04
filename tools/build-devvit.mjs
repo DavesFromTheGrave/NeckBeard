@@ -113,10 +113,12 @@ writeIfChanged(path.join(CLIENT, 'splash.html'), `<!DOCTYPE html>
   background:linear-gradient(to top,rgba(10,10,11,0.94) 0%,rgba(10,10,11,0.72) 45%,rgba(10,10,11,0) 100%)}
   h1{margin:0 0 6px;font-size:30px;letter-spacing:1px;text-shadow:0 2px 6px #000}
   p{margin:0 auto;max-width:420px;color:#e8e8e8;font-size:14px;line-height:1.5;text-shadow:0 1px 4px #000}
-  #play-button{margin-top:16px;background:#ff4500;color:#fff;border:none;border-radius:20px;
-  padding:12px 30px;font-family:Courier New,monospace;font-size:15px;font-weight:bold;
-  letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,0.5)}
-  #play-button:active{background:#d93900}
+  #play-button{margin-top:16px;background:#0f9b8e;color:#ffd76a;border:2px solid #d4af37;border-radius:20px;
+  padding:12px 32px;font-family:Courier New,monospace;font-size:15px;font-weight:bold;
+  letter-spacing:0.5px;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,.5);
+  box-shadow:0 3px 12px rgba(0,0,0,.5),0 0 16px rgba(212,175,55,.35);transition:transform .15s}
+  #play-button:hover{box-shadow:0 3px 12px rgba(0,0,0,.5),0 0 22px rgba(212,175,55,.55)}
+  #play-button:active{transform:scale(.97);background:#0c8478}
 </style></head><body>
 <div class="scrim">
   <h1>superM0D</h1>

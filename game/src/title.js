@@ -137,7 +137,7 @@ class TitleScene extends Phaser.Scene {
     if (this.textures.exists(heroKey)) {
       // top-anchored cover-fit: fills the screen, crops feet off the BOTTOM if
       // anything — never the face (Dave: the old fit cut the image off badly).
-      const hero = this.add.image(W / 2, 0, heroKey).setOrigin(0.5, 0).setDepth(0);
+      const hero = this.add.image(W / 2, H / 2, heroKey).setOrigin(0.5, 0.5).setDepth(0);
       hero.setScale(Math.max(W / hero.width, H / hero.height)).setAlpha(0.5);
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45).setDepth(0.5);
     } else {
@@ -441,7 +441,7 @@ class TitleScene extends Phaser.Scene {
       'They whisper about r/cursed. Type it and see.\n\n' +
       'It\'s simple. Just stay away from superMOD.';
     const htTxt = this.add.text(cx, htY + Math.round(H * 0.078), howto, {
-      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.044), 13, 21)}px`, color: CREAM,
+      fontFamily: data, fontSize: `${Phaser.Math.Clamp(Math.round(W * 0.052), 16, 26)}px`, color: CREAM,
       align: 'center', lineSpacing: 5, wordWrap: { width: pw - 30 },
     }).setOrigin(0.5, 0).setDepth(3);
     const maxTxtH = htH - Math.round(H * 0.1);

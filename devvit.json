@@ -31,5 +31,8 @@
   "scripts": {
     "build": "node tools/build-devvit.mjs",
     "dev": "node tools/build-devvit.mjs"
+  },
+  "dev": {
+    "subreddit": "neckbeard_superm_dev3"
   }
 }

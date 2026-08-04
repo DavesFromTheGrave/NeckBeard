@@ -11,3 +11,13 @@ terminals/
 # editor junk
 *-autosave.kra
 *~
+
+# --- secret baseline (Nomos Part VI), added 2026-08-04 ---
+.env
+*.env
+**/secrets/**
+**/keys/**
+*.key
+*.pem
+config.local.*
+

@@ -685,6 +685,7 @@ class GameScene extends Phaser.Scene {
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'Find anything';
+    input.setAttribute('aria-label', 'Search subreddits');   // placeholder isn't an accessible name
     input.autocomplete = 'off';
     input.spellcheck = false;
     input.style.cssText = `width:${Math.max(80, bar.w)}px;box-sizing:border-box;height:${bar.h}px;` +

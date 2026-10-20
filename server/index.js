@@ -112,6 +112,15 @@ async function buildArena(subRaw) {
 
 const cache = new Map();
 const CACHE_MS = 90_000;
+// `sub` comes straight from the query string, so the key space is caller-controlled:
+// cap the entry count and evict the oldest first (a Map iterates in insertion order).
+const CACHE_MAX = 200;
+
+function cachePut(key, entry) {
+  cache.delete(key);   // re-insert so a refreshed key counts as the newest
+  cache.set(key, entry);
+  while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+}
 
 function fmtMembers(n) {
   if (!Number.isFinite(n) || n <= 0) return 'joined';
@@ -149,7 +158,7 @@ app.get('/api/arena', async (c) => {
   try {
     if (!data) {
       data = await buildArena(sub);
-      cache.set(key, { t: Date.now(), data });
+      cachePut(key, { t: Date.now(), data });
     }
     // Per-USER fields go on AFTER the shared cache — identity and subs must
     // never leak between players on a warm instance.

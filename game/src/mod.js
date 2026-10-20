@@ -342,7 +342,9 @@ NB.Supermod = class {
       case 'LUNGE': {
         s.x += this.lungeVec.x * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
         s.y += this.lungeVec.y * T.LUNGE_SPEED * this.lungeMult * dt / 1000;
-        this.lungeMinDist = Math.min(this.lungeMinDist, realDist);   // for close-call detection
+        // measure from where this step landed him — realDist predates the move
+        const lungeDist = Math.hypot(player.x - s.x, player.y - s.y);
+        this.lungeMinDist = Math.min(this.lungeMinDist, lungeDist);   // for close-call detection
         // decoy pop: lunging into the fake cursor kills the decoy, not you
         if (this.decoy && Math.hypot(this.decoy.x - s.x, this.decoy.y - s.y) < T.CATCH_RADIUS) {
           this.decoy.gfx.forEach(g => g.destroy());
@@ -352,7 +354,7 @@ NB.Supermod = class {
           break;
         }
         // THE ONLY CATCH CHECK IN THE GAME:
-        if (realDist < T.CATCH_RADIUS) {
+        if (lungeDist < T.CATCH_RADIUS) {
           if (this.scene.pickups.absorb()) {
             this.setState('STUMBLE');
             this.speedBurstT = 0;
